@@ -36,7 +36,7 @@ public class Menu
         new object[] { new[] { "G" }, "Laser overcharge on or off. With the refit fitted, the beam cuts ×1.5 to ×3 harder while it is armed, and the reactor feeds it from your fuel tank the whole time it is cutting. It switches itself off when the tank runs dry." },
         new object[] { new[] { "Shift" }, "Afterburner: hold it with the throttle open and thrust and top speed multiply, ×2 with the first refit up to ×5 at the top level. It burns fuel far faster, so use it in bursts." },
         new object[] { new[] { "R" }, "Radar pulse · marks every ore rock in scanner range" },
-        new object[] { new[] { "LMB" }, "Hold to fire the mining laser (Space or L too). The dish under the nose cuts whatever the crosshair is on until it breaks. It never picks targets by itself: keep the nose on the rock." },
+        new object[] { new[] { "LMB" }, "Hold to fire the mining laser (L too). The dish under the nose cuts whatever the crosshair is on until it breaks. It never picks targets by itself: keep the nose on the rock." },
         new object[] { new[] { "Q" }, "Hover the mouse over a rock or the cargo ship (the label names it), then press Q to lock the crosshair on it. The ship steers itself to keep it in the crosshair (you keep the throttle and roll) until it breaks up or goes beyond 50,000 m. Hover a different target and press Q to switch directly to it. Press Q over the current target or empty space to release the lock. A locked object always shows its range, and its details sit top centre." },
         new object[] { new[] { "F" }, "Flashlight: a spot beam from the nose, on or off. While docked F hides and shows the cargo ship services instead." },
         new object[] { new[] { "T" }, "Out of fuel? T calls for recovery: the ship is brought straight back to a pad in the cargo ship's hangar for 15% of your credits. A hull breach calls it by itself." },
@@ -48,7 +48,7 @@ public class Menu
         new object[] { new[] { "F5" }, "Quick-save." },
         new object[] { new[] { "F9" }, "Testing: jump to the next raider hold, 1,500 u off it and facing it. Launching the game with -combat starts there in a sandbox that never touches the save." },
         new object[] { new[] { "F10" }, "Testing: the raiders hold their fire (they still fly and chase); press again and they fire." },
-        new object[] { new[] { "Space" }, "During a docking, departure, arrival or warp cutscene, skip to the end of it." },
+        new object[] { new[] { "Space" }, "Hold for the drift brake: the engine cuts (the throttle setting is kept for when you let go), the retro thrusters bleed speed at half thrust, and the ship carries on along its momentum while you swing the nose wherever you like, to bring the gun round on a raider going past. During a docking, departure, arrival or warp cutscene, Space skips to the end of it." },
         new object[] { new[] { "Esc" }, "Pause · opens this menu with Settings and Controls" },
     };
 

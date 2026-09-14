@@ -246,11 +246,12 @@ public class Hud : MonoBehaviour
         new object[] { "Mouse", "Yaw · pitch" },
         new object[] { new[] { "W", "S" }, "Throttle up · down" },
         new object[] { new[] { "X" }, "Cut throttle · S at zero fires retros" },
+        new object[] { new[] { "Space" }, "Hold · drift brake: engine cuts, retros slow you, nose swings free" },
         new object[] { new[] { "A", "D" }, "Roll left · right" },
         new object[] { new[] { "Shift" }, "Afterburner while throttled up (needs the refit · ×2 to ×5 speed · burns fuel fast)" },
         new object[] { new[] { "G" }, "Laser overcharge on · off (needs the refit · up to ×3 damage · the beam draws fuel while it cuts)" },
         new object[] { new[] { "↑", "↓" }, "Pitch" },
-        new object[] { new[] { "LMB" }, "Hold to fire the selected weapon (Space or L too). The laser cuts only what the crosshair is on: aim the nose at a rock" },
+        new object[] { new[] { "LMB" }, "Hold to fire the selected weapon (L too). The laser cuts only what the crosshair is on: aim the nose at a rock" },
         new object[] { new[] { "Wheel" }, "Swap between the mining laser and the autocannon" },
         new object[] { new[] { "R" }, "Radar pulse" },
         new object[] { new[] { "Q" }, "Lock the crosshair on whatever the mouse is over · hover another target and press Q to switch · otherwise press Q to release" },
@@ -263,7 +264,6 @@ public class Hud : MonoBehaviour
         new object[] { new[] { "F5" }, "Quick-save" },
         new object[] { new[] { "F9" }, "Test · jump to the next raider hold" },
         new object[] { new[] { "F10" }, "Test · raiders hold their fire · again to let them fire" },
-        new object[] { new[] { "Space" }, "Skip a docking, departure or warp cutscene" },
         new object[] { new[] { "Esc" }, "Pause · the menu with settings and controls" },
     };
 
@@ -1361,7 +1361,7 @@ public class Hud : MonoBehaviour
         bool charging = State.sinceHit >= Data.SHIELD_WAIT && State.shield < Data.SHIELD_MAX;
         _gShield.Show(sf, Mathf.CeilToInt(State.shield) + " / " + Mathf.RoundToInt(Data.SHIELD_MAX) + (charging ? " ↑" : ""), sf < 0.25f ? Ui.AMBER : Data.Hex("#8fe8ff"));
         float tv = ship.braking ? 1f : ship.throttle;
-        _gThr.Show(tv, ship.braking ? "RETRO" : Mathf.RoundToInt(ship.throttle * 100f) + "%", ship.braking ? Ui.CYAN : (ship.afterburning ? Ui.AMBER2 : Ui.AMBER));
+        _gThr.Show(tv, ship.drifting ? "DRIFT" : ship.braking ? "RETRO" : Mathf.RoundToInt(ship.throttle * 100f) + "%", ship.braking ? Ui.CYAN : (ship.afterburning ? Ui.AMBER2 : Ui.AMBER));
         int us = State.UsedSlots();
         int ns = State.CargoSlots();
         bool full = us >= ns && State.CargoTotal() >= State.CargoCapacity() - 0.5f;

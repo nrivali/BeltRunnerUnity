@@ -15,6 +15,7 @@ public class Ship : MonoBehaviour
     public Vector3 vel;
     public float throttle;
     public bool overcharge, afterburning, thrusting, braking;
+    public bool drifting;   // the drift brake (Space held): the engine cuts, the retros bleed speed, the nose swings free
     public int target = -1;
     public bool laserOn, firing;
     public float radarCd;
@@ -1023,8 +1024,11 @@ public class Ship : MonoBehaviour
             if (Input.GetKey(KeyCode.S)) throttle = Mathf.Max(0f, throttle - 0.9f * dt);
             if (Input.GetKey(KeyCode.X)) throttle = 0f;
         }
+        // the drift brake: hold Space and the engine cuts (the throttle setting is kept for the release), the retros bleed
+        // speed at half thrust, and the ship carries on along its momentum while the nose is swung wherever you like
+        drifting = flying && Input.GetKey(KeyCode.Space);
         float abMult = State.Stat("thrusters").mult;
-        afterburning = flying && throttle > 0f && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && abMult > 1f && State.fuel > 0f;
+        afterburning = flying && throttle > 0f && !drifting && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && abMult > 1f && State.fuel > 0f;
         float mult = afterburning ? abMult : 1f;
         thrusting = false;
         braking = false;
@@ -1032,18 +1036,18 @@ public class Ship : MonoBehaviour
         float spBefore = vel.magnitude;
         if (State.fuel > 0f)
         {
-            if (throttle > 0f)
+            if (throttle > 0f && !drifting)
             {
                 vel += fwd * eng.thrust * throttle * mult * dt;
                 State.fuel = Mathf.Max(0f, State.fuel - Data.FUEL_BURN * throttle * Data.BurnMult(mult) * dt);
                 thrusting = true;
             }
-            else if (flying && Input.GetKey(KeyCode.S))
+            else if (flying && (Input.GetKey(KeyCode.S) || drifting))
             {
                 float sp = vel.magnitude;
                 if (sp > 1f)
                 {
-                    float f = Mathf.Min(sp, eng.thrust * 0.4f * dt);
+                    float f = Mathf.Min(sp, eng.thrust * (drifting ? 0.5f : 0.4f) * dt);
                     vel -= vel / sp * f;
                     State.fuel = Mathf.Max(0f, State.fuel - Data.FUEL_BURN * 0.35f * dt);
                     braking = true;
@@ -1059,7 +1063,7 @@ public class Ship : MonoBehaviour
             vel -= tp / d * g * dt;
         }
         // drag, then the speed cap (thrust never pushes past it; anything above only falls away on drag)
-        float dragK = throttle > 0f ? 0.32f : 1.28f;
+        float dragK = throttle > 0f || drifting ? 0.32f : 1.28f;   // the drift keeps the momentum: the retros do the slowing
         vel *= Mathf.Exp(-dragK * dt);
         float sp2 = vel.magnitude;
         float lim = Mathf.Max(eng.max * mult, spBefore * Mathf.Exp(-dragK * dt));
@@ -1685,7 +1689,7 @@ public class Ship : MonoBehaviour
     // ---- the laser, radar, overcharge
     void TickLaser(float dt)
     {
-        firing = autoFire || Input.GetKey(KeyCode.Space) || Input.GetKey(KeyCode.L) || Input.GetMouseButton(0);
+        firing = autoFire || Input.GetKey(KeyCode.L) || Input.GetMouseButton(0);   // Space is the drift brake now
         float reach = State.Stat("range").reach;
         var fwd = Forward;
         var origin = TruePos + fwd * 20f;
