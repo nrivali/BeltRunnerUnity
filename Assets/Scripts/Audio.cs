@@ -198,11 +198,14 @@ public class Audio : MonoBehaviour
         var c = Clip(name);
         if (c == null) { Debug.LogWarning("audio: no clip for " + name); return; }
         StopVoice();
-        _voiceRadio = true;
-        Squelch("radio_on");
+        // Vega (the tutorial lines) is aboard the ship, so she speaks clean and at once; everyone else is on the radio
+        // and gets the squelch before and after
+        bool radio = !name.StartsWith("tut_");
+        _voiceRadio = radio;
+        if (radio) Squelch("radio_on");
         _voice.clip = c;
         _voice.volume = Lin(-2f);
-        _voice.PlayDelayed(RADIO_LEAD);
+        _voice.PlayDelayed(radio ? RADIO_LEAD : 0.05f);
         _voiceWasPlaying = false;
         Count(name);
     }

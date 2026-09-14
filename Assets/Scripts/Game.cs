@@ -19,6 +19,7 @@ public class Game : MonoBehaviour
     public Tutorial tutorial;
     public Drones drones;
     public Sparks sparks;
+    public Raiders raiders;
     float _dishToastT = -100f;
     public List<Pickup> Drops { get { return _drops; } }
 
@@ -58,6 +59,7 @@ public class Game : MonoBehaviour
         sun = lighting.sun;
         belt = new Belt();
         sparks = new Sparks();
+        raiders = new Raiders(this);
         _pickups = new GameObject("Pickups").transform;
         var cgo = new GameObject("CargoShip");
         carrier = cgo.AddComponent<CargoShip>();
@@ -138,6 +140,7 @@ public class Game : MonoBehaviour
         sparks.Clear();
         belt.Clear();
         belt.Build(z, z.id == "kessler" ? SEED : SEED + 11);
+        raiders.Build(z, belt);
         if (colony != null) { Destroy(colony.gameObject); colony = null; }
         if (z.hub)
         {
@@ -461,6 +464,7 @@ public class Game : MonoBehaviour
         {
             carrier.TickDish(dt, belt);
             drones.Tick(dt);
+            raiders.Tick(dt);
         }
         Audio.I.Engine(ship.throttle, ship.afterburning, ship.braking, ship.docked || ship.InCinematic);
         Audio.I.Laser(ship.firing && !ship.docked && !ship.InCinematic, ship.laserOn);
@@ -520,6 +524,7 @@ public class Game : MonoBehaviour
     bool _droneDone;
     float _smokeCr;
     int _smokeBig = -1;
+    Raiders.Raider _smokeRaider;
     bool _shotBreak;
 
     void Next(string phase)
@@ -646,7 +651,39 @@ public class Game : MonoBehaviour
                     Shot("smoke_closeup");
                     Debug.Log("smoke: closeup · lod0 " + (_smokeBig >= 0 && belt.IsLod0(_smokeBig)) + " · lod0 rocks " + belt.Lod0Count + " · near rocks " + ship.nearRocks.Count + " · at " + (_smokeBig >= 0 ? (belt.RockPos(_smokeBig) - ship.TruePos).magnitude.ToString("0") : "-") + " u · scrap " + belt.ScrapCount);
                 }
-                if (_phaseFrame == 60) { ship.throttle = 1f; Next("collect"); }
+                if (_phaseFrame == 60) Next("combat");
+                break;
+            case "combat":
+                // a raider hold: the autocannon fitted, the nearest raider locked, the trigger held until it dies
+                if (_phaseFrame == 1)
+                {
+                    _smokeRaider = null;
+                    float bd = float.PositiveInfinity;
+                    foreach (var r in raiders.raiders) { float d = (r.pos - ship.TruePos).magnitude; if (d < bd) { bd = d; _smokeRaider = r; } }
+                    if (_smokeRaider == null) { Debug.Log("smoke: combat · no raiders in the zone"); ship.throttle = 1f; Next("collect"); break; }
+                    var rp = _smokeRaider.pos - worldOffset;
+                    var dir = (rp - ship.transform.position).normalized;
+                    ship.transform.position = rp - dir * 700f;
+                    ship.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+                    ship.vel = Vector3.zero;
+                    ship.throttle = 0f;
+                    ship.UpdateCamera(1f);
+                    State.up["gun"] = 1;
+                    ship.LockOnRaider(_smokeRaider);
+                    ship.autoFire = true;
+                    _smokeCr = State.credits;
+                    Debug.Log("smoke: combat · " + raiders.Stats() + " · raider hp " + _smokeRaider.hp.ToString("0") + " state " + _smokeRaider.state + " · gun " + Data.Describe("gun", 1) + " · hull " + State.hull.ToString("0"));
+                }
+                if (_phaseFrame == 120) Shot("smoke_combat");
+                if (_phaseFrame % 150 == 0) Debug.Log("smoke: combat · " + raiders.Stats() + " · raider hp " + (_smokeRaider.dead ? "dead" : _smokeRaider.hp.ToString("0")) + " state " + _smokeRaider.state + " · lock " + ship.lockKind + " target " + (ship.raiderTarget != null) + " firing " + ship.gunFiring + " · hull " + State.hull.ToString("0") + " · threat " + raiders.threat);
+                if (_smokeRaider.dead || _phaseFrame > 900)
+                {
+                    Debug.Log("smoke: combat " + (_smokeRaider.dead ? "won" : "TIMED OUT") + " · " + raiders.Stats() + " · credits " + _smokeCr.ToString("0") + " -> " + State.credits.ToString("0") + " · hull " + State.hull.ToString("0") + " · cargo " + State.CargoTotal().ToString("0"));
+                    ship.autoFire = false;
+                    ship.ReleaseLock();
+                    ship.throttle = 1f;
+                    Next("collect");
+                }
                 break;
             case "collect":
                 if (_phaseFrame == 20) ship.Radar();   // the pulse you can see, and the marks it leaves as it reaches the rocks

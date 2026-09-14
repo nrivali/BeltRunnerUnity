@@ -349,7 +349,7 @@ public static class State
 
     // ---- the save file: the browser's field names, written by JsonUtility through a mirror of the save object
     [Serializable] public class Bag { public float iron, copper, gold, platinum, crystal, cobalt, beryl; }
-    [Serializable] public class Ups { public int laser, cargo, engine, tank, scanner, range, hull, thrusters, overcharge; }
+    [Serializable] public class Ups { public int laser, cargo, engine, tank, scanner, range, hull, thrusters, overcharge, gun; }
     [Serializable] public class Dep { public int laser, collectors; }
     [Serializable] public class Settings { public bool sound = true; public float volume = 1f; public bool music = true; public float music_volume = 1f; public float hud = 1f; public bool controls = true; }
     [Serializable]
@@ -382,7 +382,7 @@ public static class State
         {
             credits = credits, fuel = fuel, hull = hull, mined = mined, earned = earned, time = time, shipFuel = shipFuel, parts = parts,
             cargo = ToBag(cargo), store = ToBag(store), market = ToBag(market),
-            up = new Ups { laser = up["laser"], cargo = up["cargo"], engine = up["engine"], tank = up["tank"], scanner = up["scanner"], range = up["range"], hull = up["hull"], thrusters = up["thrusters"], overcharge = up["overcharge"] },
+            up = new Ups { laser = up["laser"], cargo = up["cargo"], engine = up["engine"], tank = up["tank"], scanner = up["scanner"], range = up["range"], hull = up["hull"], thrusters = up["thrusters"], overcharge = up["overcharge"], gun = up["gun"] },
             depot = new Dep { laser = depot["laser"], collectors = depot["collectors"] }, droneUnits = droneUnits,
             zone = zoneId, tut = tut, settings = new Settings { sound = soundOn, volume = volume, music = musicOn, music_volume = musicVolume, hud = hudScale, controls = controlsShown },
         };
@@ -421,7 +421,7 @@ public static class State
         if (s.up != null)
         {
             up["laser"] = s.up.laser; up["cargo"] = s.up.cargo; up["engine"] = s.up.engine; up["tank"] = s.up.tank; up["scanner"] = s.up.scanner;
-            up["range"] = s.up.range; up["hull"] = s.up.hull; up["thrusters"] = s.up.thrusters; up["overcharge"] = s.up.overcharge;
+            up["range"] = s.up.range; up["hull"] = s.up.hull; up["thrusters"] = s.up.thrusters; up["overcharge"] = s.up.overcharge; up["gun"] = s.up.gun;
             foreach (var k in Data.UPGRADE_KEYS) up[k] = Mathf.Clamp(up[k], 0, Data.UPGRADES[k].levels.Length - 1);
         }
         if (s.depot != null)

@@ -97,8 +97,10 @@ public static class Data
         { "hull", new Upgrade { name = "Hull plating", levels = new[] { L(hp: 100), L(hp: 160), L(hp: 250), L(hp: 400), L(hp: 600) }, costs = new float[] { 250, 900, 3000, 9000 } } },
         { "thrusters", new Upgrade { name = "Afterburner", levels = new[] { L(mult: 1), L(mult: 2), L(mult: 3), L(mult: 4), L(mult: 5) }, costs = new float[] { 800, 3000, 9000, 24000 } } },
         { "overcharge", new Upgrade { name = "Laser overcharge", levels = new[] { L(mult: 1f), L(mult: 1.5f), L(mult: 2f), L(mult: 2.5f), L(mult: 3f) }, costs = new float[] { 600, 2200, 7000, 18000 } } },
+        // the autocannon (combat): rate = shots a second, reach = range in world units, mult = damage a shot
+        { "gun", new Upgrade { name = "Autocannon", levels = new[] { L(), L(rate: 4, reach: 1800, mult: 8), L(rate: 5, reach: 2200, mult: 12), L(rate: 6, reach: 2800, mult: 18), L(rate: 8, reach: 3400, mult: 26) }, costs = new float[] { 900, 3200, 9000, 24000 } } },
     };
-    public static readonly string[] UPGRADE_KEYS = { "laser", "cargo", "engine", "tank", "scanner", "range", "hull", "thrusters", "overcharge" };
+    public static readonly string[] UPGRADE_KEYS = { "laser", "cargo", "engine", "tank", "scanner", "range", "hull", "thrusters", "overcharge", "gun" };
 
     /// Cargo ship upgrades, bought at the services panel; they work whether or not you are docked. Level 0 = not
     /// installed. The dish on the mast breaks rocks near the carrier and leaves their ore adrift; collector drones fly
@@ -139,6 +141,7 @@ public static class Data
             case "cargo": return L.slots + " slots";
             case "engine": return Mathf.RoundToInt(L.thrust * METRE) + " thrust · " + Mathf.RoundToInt(L.max * METRE) + " top speed";
             case "thrusters": return L.mult > 1 ? "×" + L.mult + " speed on Shift · ×" + BurnMult(L.mult) + " fuel burn" : "not fitted";
+            case "gun": return L.reach > 0f ? Mathf.RoundToInt(L.mult) + " dmg × " + L.rate + " /s · " + Fm(L.reach) + " m range" : "not fitted";
             case "overcharge": return L.mult > 1f ? "×" + L.mult + " laser damage · " + (OVER_BURN * L.mult).ToString("0.0") + " fuel/s while cutting" : "not fitted";
             case "tank": return L.cap + " fuel";
             case "scanner": return Fm(L.range) + " m scan";
@@ -181,6 +184,7 @@ public static class Data
         public string id, name, tag, planetName, colony;
         public bool hub, central;
         public float density, amountMult, planetR;
+        public float danger;   // raider holds by the rich pockets: their number, health, aim and pay scale with it
         public Dictionary<string, float>[] belts;
         public Color tint, accent, bg;
         public Vector3 sunDir, planetPos;
@@ -189,7 +193,7 @@ public static class Data
 
     public static readonly Zone ZONE_KESSLER = new Zone
     {
-        id = "kessler", name = "Kessler Belt", hub = false, map = new Vector2(46, 34), accent = Hex("#F2A33A"),
+        id = "kessler", name = "Kessler Belt", hub = false, map = new Vector2(46, 34), accent = Hex("#F2A33A"), danger = 0.5f,
         tag = "The home belt. Picked over, safe, and never far from a refuel.",
         density = 5f, amountMult = 1f,
         belts = new[]

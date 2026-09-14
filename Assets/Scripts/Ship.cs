@@ -97,7 +97,12 @@ public class Ship : MonoBehaviour
     public string lockKind = "";               // "", "rock" or "station" (the cargo ship)
     public int lockRock = -1;
     public float lockDist;
-    public class HoverInfo { public string kind; public int rock = -1; public float dist; public string name; }
+    public class HoverInfo { public string kind; public int rock = -1; public Raiders.Raider raider; public float dist; public string name; }
+    public Raiders.Raider lockRaider;
+    // the autocannon (combat): the raider under the nose (or the locked one within the cone), the shot timer
+    public Raiders.Raider raiderTarget;
+    public bool gunFiring;
+    float _gunCd, _gunWarnT;
     public HoverInfo hover;                     // what the mouse is over (refreshed at 10 Hz, and afresh on Q)
     int _hoverFrame;
 
@@ -319,7 +324,7 @@ public class Ship : MonoBehaviour
     }
 
     /// A billboard quad with a soft additive glow, parented under a model node.
-    static Transform GlowQuad(Transform parent, Vector3 localPos, float size, Material mat, string name)
+    public static Transform GlowQuad(Transform parent, Vector3 localPos, float size, Material mat, string name)
     {
         var go = new GameObject(name);
         go.transform.SetParent(parent, false);
@@ -333,7 +338,7 @@ public class Ship : MonoBehaviour
         return go.transform;
     }
 
-    static Material SoftMaterial(Color c)
+    public static Material SoftMaterial(Color c)
     {
         var m = new Material(Game.Sh("BeltRunner/Field"));
         m.mainTexture = SoftTexture();
@@ -571,9 +576,9 @@ public class Ship : MonoBehaviour
     void TickDish(float dt)
     {
         if (_dishYaw == null || _dishPitch == null) return;
-        bool hasAim = target >= 0 && target < belt.count && !docked;
+        bool hasAim = (target >= 0 && target < belt.count && !docked) || (raiderTarget != null && !docked);
         float wantYaw = 0f, wantPitch = 0.05f;
-        if (hasAim) DishAngles(belt.RockPos(target) - game.worldOffset, out wantYaw, out wantPitch);
+        if (hasAim) DishAngles((target >= 0 ? belt.RockPos(target) : raiderTarget.pos) - game.worldOffset, out wantYaw, out wantPitch);
         bool inArc = Mathf.Abs(wantYaw) <= Mathf.PI * 0.5f;
         wantYaw = Mathf.Clamp(wantYaw, -Mathf.PI * 0.5f, Mathf.PI * 0.5f);
         wantPitch = Mathf.Clamp(wantPitch, -0.7f, 1.3f);
@@ -585,7 +590,7 @@ public class Ship : MonoBehaviour
         if (_rimMats.Count == 0) return;
         float t = State.time;
         bool aiming = !firing && hasAim;
-        float ra = laserOn ? 0.7f + Random.value * 0.3f : (aiming ? 0.3f + 0.25f * Mathf.Sin(t * 9f) : 0.12f);
+        float ra = laserOn || gunFiring ? 0.7f + Random.value * 0.3f : (aiming ? 0.3f + 0.25f * Mathf.Sin(t * 9f) : 0.12f);
         foreach (var m in _rimMats) m.SetColor("_Color", new Color(0.56f, 0.91f, 1f, ra));
         _focusMat.SetColor("_Color", new Color(1f, 0.77f, 0.4f, laserOn ? 0.85f + Random.value * 0.15f : (aiming ? 0.2f + 0.15f * Mathf.Sin(t * 9f) : 0.1f)));
         if (_focusGlow != null) _focusGlow.localScale = Vector3.one * (laserOn ? 1.4f : 0.9f);
@@ -754,6 +759,21 @@ public class Ship : MonoBehaviour
             bd = cd;
             best = new HoverInfo { kind = "rock", rock = i, dist = Mathf.Max(0f, (origin - p).magnitude - r), name = belt.RockName(i) };
         }
+        if (game.raiders != null)
+        {
+            foreach (var r in game.raiders.raiders)
+            {
+                float cd = (camTrue - r.pos).magnitude;
+                if (cd > 120000f || cd >= bd) continue;
+                var sp = cam.WorldToScreenPoint(r.pos - game.worldOffset);
+                if (sp.z < 0f) continue;
+                float pr = Mathf.Max(10f, Raiders.RADIUS * (Screen.height * 0.5f) / (cd * f)) * 1.15f;
+                float dx = sp.x - m.x, dy = sp.y - m.y;
+                if (dx * dx + dy * dy > pr * pr) continue;
+                bd = cd;
+                best = new HoverInfo { kind = "raider", raider = r, dist = Mathf.Max(0f, (origin - r.pos).magnitude - Raiders.RADIUS), name = "Raider" };
+            }
+        }
         if (carrier != null && !carrier.hold)
         {
             var p = carrier.truePos;
@@ -774,7 +794,7 @@ public class Ship : MonoBehaviour
 
     public bool HoverIsLock(HoverInfo h)
     {
-        return h != null && h.kind == lockKind && (lockKind != "rock" || h.rock == lockRock);
+        return h != null && h.kind == lockKind && (lockKind != "rock" || h.rock == lockRock) && (lockKind != "raider" || h.raider == lockRaider);
     }
 
     /// Q: lock the hovered target, switch to a different hovered target, or release the current lock.
@@ -785,6 +805,7 @@ public class Ship : MonoBehaviour
         {
             lockKind = hover.kind;
             lockRock = hover.rock;
+            lockRaider = hover.raider;
             lockDist = hover.dist;
             game.Toast("Locked on " + hover.name, false);
         }
@@ -805,33 +826,45 @@ public class Ship : MonoBehaviour
         game.Toast("Locked on " + belt.RockName(i), false);
     }
 
+    /// The smoke run's Q on a raider.
+    public void LockOnRaider(Raiders.Raider r)
+    {
+        lockKind = "raider";
+        lockRaider = r;
+        lockRock = -1;
+        lockDist = Mathf.Max(0f, (r.pos - LaserOrigin()).magnitude - Raiders.RADIUS);
+        game.Toast("Locked on Raider", false);
+    }
+
     public void ReleaseLock()
     {
         lockKind = "";
         lockRock = -1;
+        lockRaider = null;
         lockDist = 0f;
     }
 
     public Vector3 LockPos()
     {
+        if (lockKind == "raider" && lockRaider != null) return lockRaider.pos;
         return lockKind == "rock" ? belt.RockPos(lockRock) : carrier.truePos;
     }
 
     public string LockName()
     {
-        return lockKind == "rock" ? belt.RockName(lockRock) : "Cargo ship";
+        return lockKind == "rock" ? belt.RockName(lockRock) : (lockKind == "raider" ? "Raider" : "Cargo ship");
     }
 
     /// The lock lapses when its rock breaks up or it falls far out of range (the cargo ship never goes away).
     void TickLock()
     {
         if (lockKind == "") return;
-        bool gone = lockKind == "rock" && (lockRock >= belt.count || !belt.alive[lockRock]);
-        float r = lockKind == "rock" && !gone ? belt.radius[lockRock] : CargoShip.HALF.x;
+        bool gone = (lockKind == "rock" && (lockRock >= belt.count || !belt.alive[lockRock])) || (lockKind == "raider" && (lockRaider == null || lockRaider.dead));
+        float r = lockKind == "rock" && !gone ? belt.radius[lockRock] : (lockKind == "raider" ? Raiders.RADIUS : CargoShip.HALF.x);
         lockDist = gone ? 0f : Mathf.Max(0f, (LockPos() - LaserOrigin()).magnitude - r);
         if (gone || lockDist > LOCK_RANGE)
         {
-            game.Toast(gone ? "Lock lost · rock broke up" : "Lock lost · out of range", true);
+            game.Toast(gone ? (lockKind == "raider" ? "Lock lost · raider destroyed" : "Lock lost · rock broke up") : "Lock lost · out of range", true);
             ReleaseLock();
         }
     }
@@ -878,6 +911,14 @@ public class Ship : MonoBehaviour
             Audio.Play("boom_big");
             Audio.Play("alarm");
             game.Toast("Hull breach · systems down · recovery beacon sent", true);
+            // raiders that were on you strip the hold and leave
+            if (game.raiders != null && game.raiders.AnyAttacking)
+            {
+                float lost = 0f;
+                foreach (var k in Data.ORE_KEYS) { float l = State.cargo[k] * 0.35f; State.cargo[k] -= l; lost += l; }
+                game.raiders.StandDown();
+                if (lost > 0.5f) game.Toast("Raiders stripped " + Mathf.FloorToInt(lost) + " of cargo from the hold", true);
+            }
         }
         else game.Toast("Recovery requested · returning to the cargo ship", false);
     }
@@ -1097,6 +1138,18 @@ public class Ship : MonoBehaviour
     }
 
     /// impact: a knock above the safe speed costs plating, shakes the camera, sparks and sounds.
+    /// Damage that is not a collision (a raider's bolt): no speed threshold; the flash, the shake, sparks and the sound.
+    public void Hurt(float dmg, Vector3 atTrue, string label)
+    {
+        if (disabled || docked || recovery != null) return;
+        State.hull = Mathf.Max(0f, State.hull - dmg);
+        shake = Mathf.Min(1f, 0.25f + dmg / 50f);
+        Audio.Play("hit");
+        if (game.sparks != null) game.sparks.Burst(atTrue, 40 + Mathf.RoundToInt(dmg) * 2, 220f, Data.Hex("#ff7a4a"), 1.2f);
+        if (!string.IsNullOrEmpty(label)) game.Toast(label + " · −" + Mathf.RoundToInt(dmg), true);
+        CheckBreach();
+    }
+
     void Impact(float speed, Vector3 atTrue)
     {
         if (hitCd > 0f) return;
@@ -1587,6 +1640,44 @@ public class Ship : MonoBehaviour
         target = belt.RayHit(origin, fwd, reach);
         laserOn = false;
         _laser.enabled = false;
+        // the autocannon: the raider under the nose (or the locked one, within a few degrees) when no rock is in the way
+        raiderTarget = null;
+        gunFiring = false;
+        _gunCd -= dt;
+        _gunWarnT -= dt;
+        var gun = State.Stat("gun");
+        if (game.raiders != null && target < 0)
+        {
+            float gunReach = gun.reach > 0f ? gun.reach : 1800f;
+            // the locked raider first: the cannon rides the dish turret, so it tracks a lock across the forward arc
+            if (lockKind == "raider" && lockRaider != null && !lockRaider.dead)
+            {
+                var to = lockRaider.pos - origin;
+                if (to.magnitude <= gunReach && Vector3.Dot(to.normalized, fwd) > Mathf.Cos(60f * Mathf.Deg2Rad)) raiderTarget = lockRaider;
+            }
+            if (raiderTarget == null) raiderTarget = game.raiders.NearestInCone(origin, fwd, gunReach, Mathf.Cos(4f * Mathf.Deg2Rad));
+        }
+        if (firing && raiderTarget != null)
+        {
+            if (gun.reach <= 0f)
+            {
+                if (_gunWarnT <= 0f) { _gunWarnT = 3f; game.Toast("No autocannon fitted · it is a refit in the cargo ship services", true); }
+            }
+            else
+            {
+                gunFiring = true;
+                if (_gunCd <= 0f)
+                {
+                    _gunCd = 1f / gun.rate;
+                    float d = (raiderTarget.pos - origin).magnitude;
+                    var aim = raiderTarget.pos + raiderTarget.vel * (d / Raiders.PLAYER_BOLT_SPEED) - origin;   // lead the shot
+                    game.raiders.Fire(origin, aim, gun.mult, true);
+                    Audio.Play("zap", -4f);
+                }
+            }
+            TickSpot(dt, false, _spotPos);
+            return;
+        }
         if (!firing) { TickSpot(dt, false, _spotPos); return; }
         var end = origin + fwd * reach;
         if (target >= 0)

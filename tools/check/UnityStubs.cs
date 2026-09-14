@@ -94,6 +94,7 @@ namespace UnityEngine
         public static Quaternion LookRotation(Vector3 f, Vector3 up) => identity;
         public static Quaternion LookRotation(Vector3 f) => identity;
         public static Quaternion Slerp(Quaternion a, Quaternion b, float t) => a;
+        public static Quaternion FromToRotation(Vector3 a, Vector3 b) => identity;
         public static Quaternion AngleAxis(float a, Vector3 axis) => identity;
         public static Quaternion operator *(Quaternion a, Quaternion b) => a;
         public static Vector3 operator *(Quaternion q, Vector3 v) => v;

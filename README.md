@@ -48,6 +48,25 @@ the ore, flies, saves, and quits, printing `smoke:` lines to the log and saving 
 (`%USERPROFILE%AppDataocallow
 rivalibelt runner`).
 
+## Combat — raiders at the rich pockets, the autocannon
+
+New to the Unity build (2026-09-14), on the user's brief: raider ships only, a dedicated gun, a lost fight costs
+cargo, raiders live only at the rich pockets. The raiders themselves are the browser's scrapped pirates
+(makePirate / updateHazards) brought back with their numbers; the gun, the holds' placement and the HUD are new.
+
+| Piece | Where | Notes |
+|---|---|---|
+| Raider holds: a hold of one to three raiders at some of the rich pockets (three holds, plus six per point of zone danger; Kessler's danger is 0.5, so six holds), wandering round home. Within 6,500 u of a flying ship outside the cargo ship's gun cover they attack: close to 900 u, orbit, and fire bolts that lead the ship (2,200 u/s, 5 damage in Kessler, poor aim in a quiet zone). They give up beyond 11,000 u, or when the ship is disabled or docked | `Assets/Scripts/Raiders.cs` | primitives for the hull (cone body, swept wing, red trim, an eye, an exhaust glow); health 54, speed 865, bounty 140 cr at danger 0.5 |
+| The cargo ship's guns: raiders inside 9,000 u of the carrier lose 30 health a second and never engage there; the hangar is a refuge | `Raiders.cs` (`SAFE_R`) | the browser's rule |
+| The autocannon: a refit (four levels: 8 damage at 4 shots a second and 900 m, up to 26 at 8 a second and 1,700 m; 900 to 24,000 cr), fired with the laser trigger when a raider is under the nose (within 4°) and no rock is in the way, or at a locked raider anywhere across the forward 60° (the cannon rides the dish turret, which swings onto it); the bolts lead the target | `Assets/Scripts/Data.cs` (`gun`), `Assets/Scripts/Ship.cs` (`TickLaser`) | without the refit the trigger only warns |
+| Hover and lock: raiders are hover targets ("Raider") and Q locks them; the target pane shows "Pirate raider", its health and "Hostile"; the reticle sits on the raider under the nose; attacking raiders carry a red RAIDER marker with their range; the readouts gain THREAT | `Ship.cs` (`HoverPick`), `Assets/Scripts/Hud.cs` | |
+| Hits: a raider's bolt costs hull with the flash, the shake, sparks and a toast (no speed threshold, unlike a collision). At zero hull, raiders that were on you strip 35% of the hold and stand down, then recovery brings the ship back to the pad as usual | `Ship.cs` (`Hurt`, `StartRecovery`) | |
+| A kill: the boom and the sparks, the bounty, and a 35% chance of 8 to 28 units of an outer-belt ore salvaged into the hold | `Raiders.cs` (`Kill`) | |
+| The nav map lists the raiders under a belt zone; the menu's Controls page explains them | `Hud.cs` (`RefreshMap`), `Assets/Scripts/Menu.cs` | |
+
+The smoke run visits the nearest hold with the autocannon fitted, locks the raider and holds the trigger until it
+dies, printing the raiders' state, the shots, the hits taken and the bounty. The save carries the refit as `gun`.
+
 ## Milestone 17 — the soundtrack
 
 | Piece | Where | Status |

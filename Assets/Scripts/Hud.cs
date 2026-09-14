@@ -32,6 +32,7 @@ public class Hud : MonoBehaviour
     RectTransform _reticleRt;
     Ui.Marker _marker, _fieldMarker;
     readonly List<Ui.Marker> _droneMarkers = new List<Ui.Marker>();
+    readonly List<Ui.Marker> _raiderMarkers = new List<Ui.Marker>();
     RectTransform _status, _readouts, _target, _controls, _prompt, _notice, _toastBox, _version, _hoverLbl;
     Text _hoverTxt;
     Ui.Pane _statusPane;
@@ -240,7 +241,7 @@ public class Hud : MonoBehaviour
         new object[] { new[] { "Shift" }, "Afterburner while throttled up (needs the refit · ×2 to ×5 speed · burns fuel fast)" },
         new object[] { new[] { "G" }, "Laser overcharge on · off (needs the refit · up to ×3 damage · the beam draws fuel while it cuts)" },
         new object[] { new[] { "↑", "↓" }, "Pitch" },
-        new object[] { new[] { "LMB" }, "Hold to fire the mining laser (Space or L too). It cuts only what the crosshair is on: aim the nose at a rock" },
+        new object[] { new[] { "LMB" }, "Hold to fire the mining laser (Space or L too). It cuts only what the crosshair is on: aim the nose at a rock · with a raider under the nose it fires the autocannon instead" },
         new object[] { new[] { "R" }, "Radar pulse" },
         new object[] { new[] { "Q" }, "Lock the crosshair on whatever the mouse is over · hover another target and press Q to switch · otherwise press Q to release" },
         new object[] { new[] { "F" }, "Flashlight on · off in flight · cargo ship services when docked" },
@@ -1165,6 +1166,7 @@ public class Hud : MonoBehaviour
             KvRow(f, "Market", "none · sell at the Hub");
             KvRow(f, "Belts", (sel.amountMult > 1.2f ? "rich seams" : (sel.density < 1f ? "sparse" : "typical")) + " · " + nfields + " fields");
             KvRow(f, "Planet", sel.planetName);
+            KvRow(f, "Raiders", sel.danger > 0f ? "holds by the rich pockets · cargo ship guns cover " + Data.Fm(Raiders.SAFE_R) + " m" : "none");
             f.Gap(10f);
             H3(f, "Asteroid fields", 4f);
             f.Para(nfields + " ore fields and rich pockets across the base belts, and the ring belt above the planet.", "body", 12, Ui.MUTED, 14f);
@@ -1200,7 +1202,7 @@ public class Hud : MonoBehaviour
         var box = Ui.MakeBox(_tutBox, Ui.CARD_BG, Ui.AMBER, 1f, true);
         box.leftEdge = Ui.AMBER;
         box.edgeW = 4f;
-        _tutStep = Ui.Eyebrow(_tutBox, "Flight Ops", Ui.MUTED);
+        _tutStep = Ui.Eyebrow(_tutBox, "Vega", Ui.MUTED);   // the ship's onboard assistant
         Ui.At(_tutStep.rectTransform, Ui.TL, Ui.TL, new Vector2(16f, -12f), new Vector2(240f, 14f));
         var skip = Ui.Link(_tutBox, "Skip tutorial", () => { if (tutorial != null) tutorial.Skip(); }, 11);
         Ui.At(skip.rectTransform, Ui.TR, Ui.TR, new Vector2(-12f, -8f), skip.rectTransform.sizeDelta);
@@ -1363,14 +1365,32 @@ public class Hud : MonoBehaviour
         float reach = State.Stat("range").reach;
         bool locked = ship.lockKind != "" && !docked;
         string rangeTxt = locked ? Data.Fm(ship.lockDist) + " / " + Data.Fm(reach) + " m" : Data.Fm(reach) + " m";   // the lock's distance against the beam's reach
-        _row2.text = Kv("LASER", laser) + "   " + Kv("RANGE", rangeTxt) + "   " + Kv("RADAR", radar);
+        int threat = game != null && game.raiders != null ? game.raiders.threat : 0;
+        string threatTxt = threat > 0 ? Ui.Col(threat + " raider" + (threat > 1 ? "s" : ""), Ui.RED) : Ui.Col("none", Ui.GLOW_TEXT);
+        _row2.text = Kv("LASER", laser) + "   " + Kv("RANGE", rangeTxt) + "   " + Kv("RADAR", radar) + "   THREAT " + threatTxt;
         float rw = Mathf.Max(Ui.Measure(_row1), Ui.Measure(_row2)) + 28f;
         if (Mathf.Abs(_readouts.sizeDelta.x - rw) > 0.5f) _readouts.sizeDelta = new Vector2(rw, 58f);
         // the target: the panel follows the lock when there is one, else the crosshair target
         bool hasTarget = ship.target >= 0 && ship.target < belt.count && belt.alive[ship.target] && !docked;
         int panelRock = locked && ship.lockKind == "rock" ? ship.lockRock : (hasTarget ? ship.target : -1);
         bool showTarget = false;
-        if (locked && ship.lockKind == "station")
+        var panelRaider = locked && ship.lockKind == "raider" ? ship.lockRaider : ship.raiderTarget;
+        if (panelRaider != null && !panelRaider.dead && !docked)
+        {
+            showTarget = true;
+            float rd = Mathf.Max(0f, (panelRaider.pos - ship.LaserOrigin()).magnitude - Raiders.RADIUS);
+            _tEyebrow.text = locked && ship.lockKind == "raider" ? "LOCKED TARGET" : "TARGET";
+            _tName.text = "Pirate raider";
+            _tRows.text = Kv("SIZE", "Ship") + "   " + Kv("RANGE", Data.Fm(rd) + " m");
+            _tHpRow.gameObject.SetActive(true);
+            _tHp.Set(panelRaider.hp / Mathf.Max(1f, panelRaider.maxHp), Ui.RED);
+            _tHpT.text = Mathf.CeilToInt(Mathf.Max(0f, panelRaider.hp)) + " / " + Mathf.RoundToInt(panelRaider.maxHp);
+            bool hostile = panelRaider.state == "attack";
+            _tWarn.text = hostile ? (State.Stat("gun").reach > 0f ? "Hostile · autocannon on it" : "Hostile · no autocannon fitted") : "";
+            _tWarn.gameObject.SetActive(hostile);
+            _target.sizeDelta = new Vector2(Mathf.Max(230f, Ui.Measure(_tRows) + 28f), hostile ? 108f : 92f);
+        }
+        else if (locked && ship.lockKind == "station")
         {
             showTarget = true;
             _tEyebrow.text = "LOCKED TARGET";
@@ -1432,6 +1452,7 @@ public class Hud : MonoBehaviour
             }
             else if (carrier != null && toCarrier < Data.DOCK_RANGE && !hold) segs.Add(Kbd("E") + " Auto-dock with the cargo ship · or fly in through either hangar mouth");
             else if (State.fuel <= 0.5f && ship.cut == null) segs.Add(Kbd("T") + " Out of fuel · recovery to the cargo ship (15% of credits)");
+            if (ship.raiderTarget != null && ship.cut == null && !hasTarget) segs.Add(State.Stat("gun").reach > 0f ? (ship.gunFiring ? "Autocannon on the raider" : Kbd("LMB") + " Fire at raider") : "No autocannon fitted · a refit at the cargo ship");
             if (hasTarget && ship.cut == null)
             {
                 int i = ship.target;
@@ -1492,7 +1513,27 @@ public class Hud : MonoBehaviour
             _reticleRt.anchoredPosition = sp;
             _reticle.Set(ship.laserOn, ship.lockKind == "rock" && ship.lockRock == ship.target);   // locked on: heavier, wider corners
         }
+        else if (ship.raiderTarget != null && showFlight && ship.cut == null)
+        {
+            Vector2 sp;
+            bool behind = Project(ship.raiderTarget.pos - game.worldOffset, out sp);
+            _reticleRt.gameObject.SetActive(!behind);
+            _reticleRt.anchoredPosition = sp;
+            _reticle.Set(ship.gunFiring, ship.lockKind == "raider" && ship.lockRaider == ship.raiderTarget);
+        }
         else _reticleRt.gameObject.SetActive(false);
+        // raiders on the attack carry a red marker
+        var rl = showFlight && !docked && !hold && game.raiders != null ? game.raiders.raiders : null;
+        int nr = 0;
+        if (rl != null) foreach (var r in rl) if (r.state == "attack") nr++;
+        while (_raiderMarkers.Count < nr) _raiderMarkers.Add(Ui.Marker.Make(_root, Ui.RED, true));
+        int ri = 0;
+        if (rl != null) foreach (var r in rl)
+        {
+            if (r.state != "attack") continue;
+            PlaceMarker(_raiderMarkers[ri++], r.pos - game.worldOffset, "RAIDER · " + Data.Fm((r.pos - ship.TruePos).magnitude));
+        }
+        for (; ri < _raiderMarkers.Count; ri++) _raiderMarkers[ri].Hide();
         // the cargo ship marker, the nearest charted field's (hidden while inside one), and one on every collector drone
         bool markersOn = carrier != null && showFlight && !docked && !hold;
         if (markersOn) PlaceMarker(_marker, carrier.transform.position, toCarrier >= 4500f ? "CARGO SHIP" : CargoShip.BayName(carrier.NearestSide(ship.TruePos)).ToUpperInvariant());

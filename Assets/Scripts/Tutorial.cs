@@ -1,6 +1,7 @@
 using UnityEngine;
 
-/// The Flight Ops questline, ported from TUT in belt-runner-3d.html: fourteen steps that walk a new pilot through the
+/// Vega's questline (Vega is the ship's onboard assistant, voiced by ElevenLabs "Matilda"; see tools/gen-voice.ps1), ported
+/// from TUT in belt-runner-3d.html: fourteen steps that walk a new pilot through the
 /// launch, the controls, the HUD, the radar, a copper rock locked with Q, cutting it, the hold, docking, the pad,
 /// stowing, refits, the Hub and the departure. Every step is spoken by a recorded line (Sfx/tut_<id>) when it appears,
 /// and again from the card's Replay button. Steps with `wait` wait for the pilot to actually do the thing; the rest
@@ -17,7 +18,7 @@ public class Tutorial
 
     public static readonly Step[] STEPS =
     {
-        new Step("launch", "Welcome aboard", "Flight Ops is on the line. Press W on the pad and approach control taxis you out of the hangar; the ship is yours the moment it lets go.", "press W to launch"),
+        new Step("launch", "Welcome aboard", "Vega here, your ship's assistant. Press W on the pad and approach control taxis you out of the hangar; the ship is yours the moment it lets go.", "press W to launch"),
         new Step("steer", "Take the stick", "The mouse steers. W and S work the throttle, A and D roll, X cuts the throttle. Open her up and give me a turn.", "open the throttle and turn", false, "controls"),
         new Step("hud", "Ship and world", "Bottom centre is your ship: hull, fuel, speed, thrust and cargo. Top right is the world: zone, laser, radar, and whatever you are looking at.", null, false, "status", "readout"),
         new Step("radar", "Find ore", "Press R to pulse the radar. Every rock it reaches is marked for a while. Ore shows as coloured veins and crystals; plain grey rock is barren, so do not waste the laser on it.", "press R", false, "readout"),
@@ -30,7 +31,7 @@ public class Tutorial
         new Step("refit", "Refits", "The services panel lists your refits: laser, engine, tank, cargo, scanner, hull. A bigger hold and a stronger laser pay for themselves fastest.", null, false, "refits"),
         new Step("hub", "Selling", "Nothing sells out here. Press N for the nav map and warp to the Hub. Meridian Colony buys everything, and it is where the cargo ship refuels and restocks.", null, false, "navmap"),
         new Step("depart", "Back out", "Press Depart (or W on the pad) to launch. The belt is all yours out there: fill the hold and bring it home. Keep an eye on the fuel; the pad tops you up every time you dock.", "press Depart", false, "depart"),
-        new Step("done", "Tutorial complete", "That is the loop: fill the hold, stow it, warp to the Hub, sell, refit, repeat. Flight Ops out. Good hunting.", null, true),
+        new Step("done", "Tutorial complete", "That is the loop: fill the hold, stow it, warp to the Hub, sell, refit, repeat. Vega out. Good hunting.", null, true),
     };
 
     public Game game;
