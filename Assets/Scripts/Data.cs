@@ -97,8 +97,8 @@ public static class Data
         { "hull", new Upgrade { name = "Hull plating", levels = new[] { L(hp: 100), L(hp: 160), L(hp: 250), L(hp: 400), L(hp: 600) }, costs = new float[] { 250, 900, 3000, 9000 } } },
         { "thrusters", new Upgrade { name = "Afterburner", levels = new[] { L(mult: 1), L(mult: 2), L(mult: 3), L(mult: 4), L(mult: 5) }, costs = new float[] { 800, 3000, 9000, 24000 } } },
         { "overcharge", new Upgrade { name = "Laser overcharge", levels = new[] { L(mult: 1f), L(mult: 1.5f), L(mult: 2f), L(mult: 2.5f), L(mult: 3f) }, costs = new float[] { 600, 2200, 7000, 18000 } } },
-        // the autocannon (combat): rate = shots a second, reach = range in world units, mult = damage a shot
-        { "gun", new Upgrade { name = "Autocannon", levels = new[] { L(), L(rate: 4, reach: 1800, mult: 8), L(rate: 5, reach: 2200, mult: 12), L(rate: 6, reach: 2800, mult: 18), L(rate: 8, reach: 3400, mult: 26) }, costs = new float[] { 900, 3200, 9000, 24000 } } },
+        // the autocannon (combat), fitted from the start: rate = shots a second, reach = range in world units, mult = damage a shot
+        { "gun", new Upgrade { name = "Autocannon", levels = new[] { L(rate: 4, reach: 1800, mult: 8), L(rate: 5, reach: 2200, mult: 12), L(rate: 6, reach: 2800, mult: 18), L(rate: 8, reach: 3400, mult: 26) }, costs = new float[] { 900, 3200, 9000 } } },
     };
     public static readonly string[] UPGRADE_KEYS = { "laser", "cargo", "engine", "tank", "scanner", "range", "hull", "thrusters", "overcharge", "gun" };
 

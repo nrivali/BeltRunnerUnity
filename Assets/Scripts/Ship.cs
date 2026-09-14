@@ -1653,7 +1653,7 @@ public class Ship : MonoBehaviour
             if (lockKind == "raider" && lockRaider != null && !lockRaider.dead)
             {
                 var to = lockRaider.pos - origin;
-                if (to.magnitude <= gunReach && Vector3.Dot(to.normalized, fwd) > Mathf.Cos(60f * Mathf.Deg2Rad)) raiderTarget = lockRaider;
+                if (to.magnitude <= gunReach && Vector3.Dot(to.normalized, fwd) > Mathf.Cos(90f * Mathf.Deg2Rad)) raiderTarget = lockRaider;   // the dish turret covers the whole forward half
             }
             if (raiderTarget == null) raiderTarget = game.raiders.NearestInCone(origin, fwd, gunReach, Mathf.Cos(4f * Mathf.Deg2Rad));
         }

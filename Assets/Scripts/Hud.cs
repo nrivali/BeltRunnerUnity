@@ -241,7 +241,7 @@ public class Hud : MonoBehaviour
         new object[] { new[] { "Shift" }, "Afterburner while throttled up (needs the refit · ×2 to ×5 speed · burns fuel fast)" },
         new object[] { new[] { "G" }, "Laser overcharge on · off (needs the refit · up to ×3 damage · the beam draws fuel while it cuts)" },
         new object[] { new[] { "↑", "↓" }, "Pitch" },
-        new object[] { new[] { "LMB" }, "Hold to fire the mining laser (Space or L too). It cuts only what the crosshair is on: aim the nose at a rock · with a raider under the nose it fires the autocannon instead" },
+        new object[] { new[] { "LMB" }, "Hold to fire the mining laser (Space or L too). It cuts only what the crosshair is on: aim the nose at a rock · with a raider under the nose it fires the autocannon instead (fitted from the start; refits sharpen it)" },
         new object[] { new[] { "R" }, "Radar pulse" },
         new object[] { new[] { "Q" }, "Lock the crosshair on whatever the mouse is over · hover another target and press Q to switch · otherwise press Q to release" },
         new object[] { new[] { "F" }, "Flashlight on · off in flight · cargo ship services when docked" },
@@ -1453,7 +1453,7 @@ public class Hud : MonoBehaviour
             }
             else if (carrier != null && toCarrier < Data.DOCK_RANGE && !hold) segs.Add(Kbd("E") + " Auto-dock with the cargo ship · or fly in through either hangar mouth");
             else if (State.fuel <= 0.5f && ship.cut == null) segs.Add(Kbd("T") + " Out of fuel · recovery to the cargo ship (15% of credits)");
-            if (ship.raiderTarget != null && ship.cut == null && !hasTarget) segs.Add(State.Stat("gun").reach > 0f ? (ship.gunFiring ? "Autocannon on the raider" : Kbd("LMB") + " Fire at raider") : "No autocannon fitted · a refit at the cargo ship");
+            if (ship.raiderTarget != null && ship.cut == null && !hasTarget) segs.Add(State.Stat("gun").reach > 0f ? (ship.gunFiring ? "Autocannon on the raider" : Kbd("LMB") + " Fire at raider") : "Autocannon");
             if (hasTarget && ship.cut == null)
             {
                 int i = ship.target;

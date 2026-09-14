@@ -352,7 +352,7 @@ public class Game : MonoBehaviour
     // ---- the combat test (-combat, and F9 at any time): the ship set down 1,500 u off a raider hold, facing it, with
     // the autocannon fitted, so a fight starts within a second or two; F9 goes on to the next hold
     bool _combat;
-    int _combatGun = 1;
+    int _combatGun = 0;
     int _holdIdx = -1;
     int _combatFrame;
 
@@ -366,7 +366,6 @@ public class Game : MonoBehaviour
         _holdIdx = (_holdIdx + 1) % homes.Count;
         var home = homes[_holdIdx];
         if (ship.docked) ship.LeaveHangar();
-        if (State.up["gun"] <= 0) State.up["gun"] = 1;
         var scene = home - worldOffset;
         var dir = (scene - ship.transform.position).normalized;
         ship.transform.position = scene - dir * 1500f;
@@ -725,11 +724,10 @@ public class Game : MonoBehaviour
                     ship.vel = Vector3.zero;
                     ship.throttle = 0f;
                     ship.UpdateCamera(1f);
-                    State.up["gun"] = 1;
                     ship.LockOnRaider(_smokeRaider);
                     ship.autoFire = true;
                     _smokeCr = State.credits;
-                    Debug.Log("smoke: combat · " + raiders.Stats() + " · raider hp " + _smokeRaider.hp.ToString("0") + " state " + _smokeRaider.state + " · gun " + Data.Describe("gun", 1) + " · hull " + State.hull.ToString("0"));
+                    Debug.Log("smoke: combat · " + raiders.Stats() + " · raider hp " + _smokeRaider.hp.ToString("0") + " state " + _smokeRaider.state + " · gun " + Data.Describe("gun", State.up["gun"]) + " · hull " + State.hull.ToString("0"));
                 }
                 if (_phaseFrame == 120) Shot("smoke_combat");
                 if (_phaseFrame % 150 == 0) Debug.Log("smoke: combat · " + raiders.Stats() + " · raider hp " + (_smokeRaider.dead ? "dead" : _smokeRaider.hp.ToString("0")) + " state " + _smokeRaider.state + " · lock " + ship.lockKind + " target " + (ship.raiderTarget != null) + " firing " + ship.gunFiring + " · hull " + State.hull.ToString("0") + " · threat " + raiders.threat);
