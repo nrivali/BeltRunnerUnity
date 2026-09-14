@@ -115,7 +115,32 @@ public class Colony : MonoBehaviour
         l.shadows = LightShadows.None;
     }
 
+    /// Astra's garden habitat (Habitat_Rings, Civic_Core and Comms_Dish, authored at 1/1000 scale: the rings reach 55
+    /// units, so x1000 puts them at the colony's 55 km), or the plain-mesh colony when it is missing. The rings turn;
+    /// the core stays put.
     public void Build()
+    {
+        var prefab = Resources.Load<GameObject>("Models/garden_habitat");
+        if (prefab != null)
+        {
+            var go = Object.Instantiate(prefab, transform);
+            go.name = "Model";
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+            go.transform.localScale = Vector3.one * 1000f;
+            var rings = Ship.FindDeep(go.transform, "Habitat_Rings");
+            _ring = rings != null ? rings : go.transform;
+            foreach (var p in new[] { new Vector3(0, 9000, 0), new Vector3(0, -9000, 0), new Vector3(40000, 2000, 0), new Vector3(-40000, 2000, 0), new Vector3(0, 2000, 40000), new Vector3(0, 2000, -40000) })
+            {
+                PointLight(p, 1.5f, 30000f);
+            }
+            Debug.Log("colony: garden habitat loaded");
+            return;
+        }
+        BuildPlain();
+    }
+
+    void BuildPlain()
     {
         var hull = Mat("#b8c0d4");
         var dark = Mat("#5a6488");

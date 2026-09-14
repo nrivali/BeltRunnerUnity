@@ -193,6 +193,8 @@ namespace UnityEngine
     {
         public string name { get; set; }
         public static void Destroy(Object o) { }
+        public static T Instantiate<T>(T o) where T : Object => o;
+        public static T Instantiate<T>(T o, Transform parent) where T : Object => o;
         public static T FindAnyObjectByType<T>() where T : Object => null;
         public static T[] FindObjectsByType<T>() where T : Object => new T[0];
         public static implicit operator bool(Object o) => o != null;
@@ -212,6 +214,7 @@ namespace UnityEngine
         public bool activeSelf => true;
         public T AddComponent<T>() where T : Component => null;
         public T GetComponent<T>() => default(T);
+        public T[] GetComponentsInChildren<T>(bool inactive) => new T[0];
         public T GetComponentInChildren<T>() => default(T);
         public void SetActive(bool v) { }
         public static GameObject CreatePrimitive(PrimitiveType t) => null;
@@ -223,6 +226,7 @@ namespace UnityEngine
         public Transform transform => null;
         public T GetComponent<T>() => default(T);
         public T GetComponentInChildren<T>() => default(T);
+        public T[] GetComponentsInChildren<T>(bool inactive) => new T[0];
     }
 
     public class Behaviour : Component
@@ -245,6 +249,9 @@ namespace UnityEngine
         public Vector3 up => Vector3.up;
         public Vector3 right => Vector3.right;
         public Transform parent { get; set; }
+        public int childCount => 0;
+        public Transform GetChild(int i) => null;
+        public Vector3 InverseTransformPoint(Vector3 p) => p;
         public void SetParent(Transform t, bool keep) { }
         public void Rotate(Vector3 axis, float angle, Space s) { }
     }
@@ -314,6 +321,11 @@ namespace UnityEngine
         public Shader shader { get; set; }
         public Color color { get; set; }
         public bool enableInstancing { get; set; }
+        public bool HasProperty(string n) => false;
+        public Texture GetTexture(string n) => null;
+        public void SetTexture(string n, Texture t) { }
+        public Color GetColor(string n) => new Color();
+        public float GetFloat(string n) => 0f;
         public void SetFloat(string n, float v) { }
         public void SetColor(string n, Color c) { }
         public void EnableKeyword(string k) { }
@@ -331,6 +343,7 @@ namespace UnityEngine
         public Vector3[] vertices { get; set; }
         public int[] triangles { get; set; }
         public Rendering.IndexFormat indexFormat { get; set; }
+        public int subMeshCount => 1;
         public Bounds bounds { get; set; }
         public void SetVertices(List<Vector3> v) { vertices = v.ToArray(); }
         public void SetTriangles(List<int> t, int sub) { triangles = t.ToArray(); }
@@ -358,6 +371,7 @@ namespace UnityEngine
     public class Renderer : Component
     {
         public bool enabled { get; set; }
+        public Material[] sharedMaterials { get; set; }
         public void SetPropertyBlock(MaterialPropertyBlock b) { }
         public Material sharedMaterial { get; set; }
         public Material material { get; set; }
@@ -434,6 +448,7 @@ namespace UnityEngine
     }
 
     public class Font : Object { }
+    public class Texture : Object { }
 
     public static class Resources
     {

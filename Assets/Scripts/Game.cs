@@ -47,7 +47,7 @@ public class Game : MonoBehaviour
         var cgo = new GameObject("CargoShip");
         carrier = cgo.AddComponent<CargoShip>();
         carrier.game = this;
-        carrier.BuildHull();
+        carrier.Build();
         var shipGo = new GameObject("Ship");
         ship = shipGo.AddComponent<Ship>();
         ship.game = this;
@@ -140,15 +140,27 @@ public class Game : MonoBehaviour
         float r = z.planetR * Data.PLANET_SCALE;
         _planetTrue = z.planetPos;
         if (_planet != null) Destroy(_planet);
-        _planet = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        _planet.name = "Planet " + z.planetName;
-        Destroy(_planet.GetComponent<Collider>());
-        _planet.transform.localScale = Vector3.one * r * 2f;
-        var pm = new Material(Game.Sh("Standard"));
-        pm.color = z.tint;
-        pm.SetFloat("_Glossiness", z.central ? 0.05f : 0.45f);
-        _planet.GetComponent<MeshRenderer>().sharedMaterial = pm;
-        _planet.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        // Astra's planets are unit spheres (Ferron's terrain; Meridian's oceans and a cloud layer) scaled to the planet's radius
+        var pp = Resources.Load<GameObject>(z.planetName == "Ferron" ? "Models/ferron" : "Models/homeworld");
+        if (pp != null)
+        {
+            _planet = Instantiate(pp);
+            _planet.name = "Planet " + z.planetName;
+            _planet.transform.localScale = Vector3.one * r;
+            foreach (var mr in _planet.GetComponentsInChildren<MeshRenderer>(true)) mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
+        else
+        {
+            _planet = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            _planet.name = "Planet " + z.planetName;
+            Destroy(_planet.GetComponent<Collider>());
+            _planet.transform.localScale = Vector3.one * r * 2f;
+            var pm = new Material(Game.Sh("Standard"));
+            pm.color = z.tint;
+            pm.SetFloat("_Glossiness", z.central ? 0.05f : 0.45f);
+            _planet.GetComponent<MeshRenderer>().sharedMaterial = pm;
+            _planet.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        }
     }
 
     /// Place the carrier and the ship for the zone: on the pad in the dock that faces the planet in a belt; at the Hub, at
@@ -463,6 +475,7 @@ public class Game : MonoBehaviour
                 }
                 if (_phaseFrame == 20)
                 {
+                    Debug.Log("smoke: models · ship " + (ship.model != null ? "Astra" : "placeholder") + " · carrier " + (carrier.model != null ? "Astra, " + carrier.anchors.Count + " anchors, pad_neg " + (carrier.anchors.ContainsKey("pad_neg") ? carrier.anchors["pad_neg"].ToString("0") : "-") + ", engine_0 " + (carrier.anchors.ContainsKey("engine_0") ? carrier.anchors["engine_0"].ToString("0") : "-") : "placeholder") + " · rock library " + belt.libraryShapes + " shapes");
                     ship.StartDeparture();
                     Next("leaving");
                 }

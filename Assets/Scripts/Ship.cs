@@ -84,24 +84,59 @@ public class Ship : MonoBehaviour
         return Vector3.Cross(HoldFwd(), Vector3.up);
     }
 
+    public Transform model;
+    public Transform focus;   // the mining dish's beam origin on the model
+
     public void Build()
     {
-        // a placeholder hull until the model comes across: a stretched body, two wings, an engine block
-        var s = Data.SHIP_SCALE;
-        var hull = new Material(Game.Sh("Standard"));
-        hull.color = new Color(0.78f, 0.8f, 0.84f);
-        hull.SetFloat("_Metallic", 0.6f);
-        hull.SetFloat("_Glossiness", 0.55f);
-        Part(PrimitiveType.Capsule, new Vector3(0f, 0f, 2f) * s, new Vector3(6f, 15f, 4f) * s, Quaternion.Euler(90f, 0f, 0f), hull);   // the capsule is 2 long on its Y axis, laid along the nose
-        Part(PrimitiveType.Cube, new Vector3(0f, -0.5f, -4f) * s, new Vector3(34f, 0.8f, 9f) * s, Quaternion.identity, hull);
-        Part(PrimitiveType.Cube, new Vector3(0f, 2.5f, -9f) * s, new Vector3(3f, 6f, 5f) * s, Quaternion.identity, hull);
-        var glow = new Material(Game.Sh("Standard"));
-        glow.color = new Color(0.37f, 0.83f, 0.94f);
-        glow.EnableKeyword("_EMISSION");
-        glow.SetColor("_EmissionColor", new Color(0.37f, 0.83f, 0.94f) * 3f);
-        Part(PrimitiveType.Sphere, new Vector3(-3f, 0f, -13f) * s, Vector3.one * 3f * s, Quaternion.identity, glow);
-        Part(PrimitiveType.Sphere, new Vector3(3f, 0f, -13f) * s, Vector3.one * 3f * s, Quaternion.identity, glow);
-        // the beam
+        BuildLaser();
+        // Astra's player ship: nose along +Z as imported (glTFast mirrors X, which leaves the nose where Unity wants it),
+        // scaled by SHIP_SCALE; its named nodes carry the engines, the nav lights and the dish rig
+        var prefab = Resources.Load<GameObject>("Models/player_ship");
+        if (prefab != null)
+        {
+            var go = Object.Instantiate(prefab, transform);
+            go.name = "Model";
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+            go.transform.localScale = Vector3.one * Data.SHIP_SCALE;
+            model = go.transform;
+            focus = FindDeep(model, "focus");
+            foreach (var n in new[] { "engine_l", "engine_r" })
+            {
+                var a = FindDeep(model, n);
+                if (a == null) continue;
+                var lg = new GameObject("EngineGlow");
+                lg.transform.SetParent(a, false);
+                var l = lg.AddComponent<Light>();
+                l.type = LightType.Point;
+                l.color = Data.Hex("#5ed3f0");
+                l.intensity = 0f;
+                l.range = 140f;
+                l.shadows = LightShadows.None;
+                _engineLights.Add(l);
+            }
+            Debug.Log("ship: model loaded, focus " + (focus != null ? "found" : "missing"));
+            return;
+        }
+        BuildPlaceholder();
+    }
+
+    readonly List<Light> _engineLights = new List<Light>();
+
+    public static Transform FindDeep(Transform t, string name)
+    {
+        if (t.name == name) return t;
+        for (int i = 0; i < t.childCount; i++)
+        {
+            var r = FindDeep(t.GetChild(i), name);
+            if (r != null) return r;
+        }
+        return null;
+    }
+
+    void BuildLaser()
+    {
         var lg = new GameObject("Laser");
         lg.transform.SetParent(transform, false);
         _laser = lg.AddComponent<LineRenderer>();
@@ -116,6 +151,25 @@ public class Ship : MonoBehaviour
         _laser.endColor = new Color(1f, 0.45f, 0.1f);
         _laser.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         _laser.enabled = false;
+    }
+
+    void BuildPlaceholder()
+    {
+        // a placeholder hull when the model is missing: a stretched body, two wings, an engine block
+        var s = Data.SHIP_SCALE;
+        var hull = new Material(Game.Sh("Standard"));
+        hull.color = new Color(0.78f, 0.8f, 0.84f);
+        hull.SetFloat("_Metallic", 0.6f);
+        hull.SetFloat("_Glossiness", 0.55f);
+        Part(PrimitiveType.Capsule, new Vector3(0f, 0f, 2f) * s, new Vector3(6f, 15f, 4f) * s, Quaternion.Euler(90f, 0f, 0f), hull);   // the capsule is 2 long on its Y axis, laid along the nose
+        Part(PrimitiveType.Cube, new Vector3(0f, -0.5f, -4f) * s, new Vector3(34f, 0.8f, 9f) * s, Quaternion.identity, hull);
+        Part(PrimitiveType.Cube, new Vector3(0f, 2.5f, -9f) * s, new Vector3(3f, 6f, 5f) * s, Quaternion.identity, hull);
+        var glow = new Material(Game.Sh("Standard"));
+        glow.color = new Color(0.37f, 0.83f, 0.94f);
+        glow.EnableKeyword("_EMISSION");
+        glow.SetColor("_EmissionColor", new Color(0.37f, 0.83f, 0.94f) * 3f);
+        Part(PrimitiveType.Sphere, new Vector3(-3f, 0f, -13f) * s, Vector3.one * 3f * s, Quaternion.identity, glow);
+        Part(PrimitiveType.Sphere, new Vector3(3f, 0f, -13f) * s, Vector3.one * 3f * s, Quaternion.identity, glow);
     }
 
     void Part(PrimitiveType kind, Vector3 at, Vector3 size, Quaternion q, Material m)
@@ -253,6 +307,7 @@ public class Ship : MonoBehaviour
         float sp2 = vel.magnitude;
         float lim = Mathf.Max(eng.max * mult, spBefore * Mathf.Exp(-dragK * dt));
         if (sp2 > lim) vel *= lim / sp2;
+        foreach (var l in _engineLights) l.intensity = thrusting ? (afterburning ? 2.5f : 1.2f) : 0f;
         transform.position += vel * dt;
         // the zone edge bounces you back; the planet stops you
         tp = TruePos;
@@ -802,7 +857,7 @@ public class Ship : MonoBehaviour
             }
         }
         _laser.enabled = true;
-        _laser.SetPosition(0, transform.position + fwd * 20f + transform.up * -1.5f * Data.SHIP_SCALE);
+        _laser.SetPosition(0, focus != null ? focus.position : transform.position + fwd * 20f + transform.up * -1.5f * Data.SHIP_SCALE);
         _laser.SetPosition(1, end - game.worldOffset);
     }
 

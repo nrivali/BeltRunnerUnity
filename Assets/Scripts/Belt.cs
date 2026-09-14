@@ -120,18 +120,106 @@ public class Belt
         }
         _mat.enableInstancing = true;
         _meshes = new Mesh[RockMeshes.SHAPES.Length * 2, 2];
+        _subMats = new Material[RockMeshes.SHAPES.Length * 2][];
+        _tints = new bool[RockMeshes.SHAPES.Length * 2][];
+        int fromLib = LoadLibrary();
         for (int s = 0; s < RockMeshes.SHAPES.Length; s++)
         {
             for (int v = 0; v < 2; v++)
             {
-                _meshes[s * 2 + v, 0] = RockMeshes.Build(RockMeshes.SHAPES[s], 1, s * 2 + v + 1);
-                _meshes[s * 2 + v, 1] = RockMeshes.Build(RockMeshes.SHAPES[s], 0, s * 2 + v + 1);
+                int key = s * 2 + v;
+                if (_meshes[key, 0] == null || _meshes[key, 1] == null)
+                {
+                    // the browser's own procedural shape stands in for a missing library entry
+                    _meshes[key, 0] = RockMeshes.Build(RockMeshes.SHAPES[s], 1, key + 1);
+                    _meshes[key, 1] = RockMeshes.Build(RockMeshes.SHAPES[s], 0, key + 1);
+                    _subMats[key] = new[] { _mat };
+                    _tints[key] = new[] { true };
+                }
                 // the rail drift happens in the vertex shader, so a rock can sit up to a chunk away from its matrix;
                 // bounds wide enough (in mesh units, scaled by the smallest radius) keep the renderer from culling it
-                _meshes[s * 2 + v, 0].bounds = new Bounds(Vector3.zero, Vector3.one * 60000f);
-                _meshes[s * 2 + v, 1].bounds = new Bounds(Vector3.zero, Vector3.one * 60000f);
+                _meshes[key, 0].bounds = new Bounds(Vector3.zero, Vector3.one * 60000f);
+                _meshes[key, 1].bounds = new Bounds(Vector3.zero, Vector3.one * 60000f);
             }
         }
+        Debug.Log("rocks: library " + (fromLib > 0 ? fromLib + " shapes from Astra's asteroids" : "missing, the procedural shapes stand in"));
+    }
+
+    Material[][] _subMats;   // per mesh key: one rock material per submesh (regolith, ore vein)
+    bool[][] _tints;         // per mesh key and submesh: the instance colour tints it (the ore veins)
+    public int libraryShapes;
+
+    /// Astra's asteroid library (asteroids_lod1 / lod2, imported by glTFast): one mesh per shape and variant at unit
+    /// radius, two surfaces (regolith and the ore vein), with the PBR maps copied into rock materials. Returns how
+    /// many shapes were found.
+    int LoadLibrary()
+    {
+        var lod1 = Resources.Load<GameObject>("Models/asteroids_lod1");
+        var lod2 = Resources.Load<GameObject>("Models/asteroids_lod2");
+        if (lod1 == null || lod2 == null) return 0;
+        var near = new Dictionary<string, MeshFilter>();
+        var far = new Dictionary<string, MeshFilter>();
+        foreach (var mf in lod1.GetComponentsInChildren<MeshFilter>(true)) near[KeyOf(mf.name)] = mf;
+        foreach (var mf in lod2.GetComponentsInChildren<MeshFilter>(true)) far[KeyOf(mf.name)] = mf;
+        int found = 0;
+        for (int s = 0; s < RockMeshes.SHAPES.Length; s++)
+        {
+            for (int v = 0; v < 2; v++)
+            {
+                string k = RockMeshes.SHAPES[s].key + "_" + (v == 0 ? "A" : "B");
+                MeshFilter a, b;
+                if (!near.TryGetValue(k, out a) || !far.TryGetValue(k, out b) || a.sharedMesh == null || b.sharedMesh == null) continue;
+                int key = s * 2 + v;
+                _meshes[key, 0] = a.sharedMesh;
+                _meshes[key, 1] = b.sharedMesh;
+                var mr = a.GetComponent<MeshRenderer>();
+                var src = mr != null ? mr.sharedMaterials : new Material[0];
+                int n = Mathf.Max(1, a.sharedMesh.subMeshCount);
+                _subMats[key] = new Material[n];
+                _tints[key] = new bool[n];
+                for (int i = 0; i < n; i++)
+                {
+                    var sm = i < src.Length ? src[i] : null;
+                    _subMats[key][i] = ConvertMaterial(sm);
+                    _tints[key][i] = sm != null && sm.name.StartsWith("Ore_");
+                }
+                found++;
+            }
+        }
+        libraryShapes = found;
+        return found;
+    }
+
+    static string KeyOf(string nodeName)
+    {
+        var parts = nodeName.Split('_');
+        return parts.Length >= 2 ? parts[0] + "_" + parts[1] : nodeName;
+    }
+
+    readonly Dictionary<Material, Material> _matCache = new Dictionary<Material, Material>();
+
+    /// One of Astra's glTF materials as the rock shader with the same look: the maps and factors copied across; the
+    /// ore-vein surfaces take the instance colour.
+    Material ConvertMaterial(Material sm)
+    {
+        if (sm == null) return _mat;
+        Material m;
+        if (_matCache.TryGetValue(sm, out m)) return m;
+        m = new Material(_mat);
+        m.name = sm.name;
+        m.enableInstancing = true;
+        var alb = sm.HasProperty("baseColorTexture") ? sm.GetTexture("baseColorTexture") : null;
+        if (alb != null) m.SetTexture("_MainTex", alb);
+        if (sm.HasProperty("baseColorFactor")) m.SetColor("_BaseColor", sm.GetColor("baseColorFactor"));
+        var nrm = sm.HasProperty("normalTexture") ? sm.GetTexture("normalTexture") : null;
+        if (nrm != null) m.SetTexture("_BumpMap", nrm);
+        var mrt = sm.HasProperty("metallicRoughnessTexture") ? sm.GetTexture("metallicRoughnessTexture") : null;
+        if (mrt != null) m.SetTexture("_MetalRough", mrt);
+        if (sm.HasProperty("metallicFactor")) m.SetFloat("_Metallic", sm.GetFloat("metallicFactor"));
+        if (sm.HasProperty("roughnessFactor")) m.SetFloat("_Roughness", sm.GetFloat("roughnessFactor"));
+        m.SetFloat("_Tint", sm.name.StartsWith("Ore_") ? 1f : 0f);
+        _matCache[sm] = m;
+        return m;
     }
 
     public void Clear()
@@ -384,9 +472,12 @@ public class Belt
         WriteInstance(i);
     }
 
+    /// The instance colour: the ore's colour for the vein surfaces (the library's regolith ignores it); a stone grey
+    /// for the procedural stand-ins, tinted toward the ore.
     Color RockColor(int i)
     {
         var stone = Color.Lerp(new Color(0.36f, 0.34f, 0.31f), new Color(0.26f, 0.25f, 0.24f), _rng.Value());
+        if (libraryShapes > 0) return ore[i] < 0 ? new Color(0.55f, 0.52f, 0.5f) : Color.Lerp(Data.ORES[ore[i]].color, Color.white, 0.15f);
         if (ore[i] < 0) return stone;
         return Color.Lerp(stone, Data.ORES[ore[i]].color, 0.55f);
     }
@@ -749,7 +840,7 @@ public class Belt
             if (!ch.visible) continue;
             foreach (var bi in ch.batches) { batches++; insts += _batches[bi].count; }
         }
-        return "shader " + _mat.shader.name + " supported=" + _mat.shader.isSupported + " instancing=" + _mat.enableInstancing + " · device " + SystemInfo.graphicsDeviceType + " supportsInstancing=" + SystemInfo.supportsInstancing + " · visible batches " + batches + " with " + insts + " instances";
+        return "shader " + _mat.shader.name + " supported=" + _mat.shader.isSupported + " instancing=" + _mat.enableInstancing + " · library shapes " + libraryShapes + " · device " + SystemInfo.graphicsDeviceType + " supportsInstancing=" + SystemInfo.supportsInstancing + " · visible batches " + batches + " with " + insts + " instances";
     }
 
     /// Submit every visible batch for this frame.
@@ -768,7 +859,13 @@ public class Belt
                     b.mpb.SetVectorArray("_Rail", b.rails);
                     b.dirty = false;
                 }
-                Graphics.DrawMeshInstanced(_meshes[b.key, ch.lod], 0, _mat, b.mats, b.count, b.mpb, ShadowCastingMode.On, true, 0, null);
+                var mesh = _meshes[b.key, ch.lod];
+                var mats = _subMats[b.key];
+                int subs = Mathf.Min(mesh.subMeshCount, mats.Length);
+                for (int sub = 0; sub < subs; sub++)
+                {
+                    Graphics.DrawMeshInstanced(mesh, sub, mats[sub], b.mats, b.count, b.mpb, ShadowCastingMode.On, true, 0, null);
+                }
             }
         }
     }

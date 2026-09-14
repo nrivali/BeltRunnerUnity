@@ -15,7 +15,7 @@ game and is the second reference. See `AGENTS.md` for the rules.
    (`Game.Boot`): there is no scene content and no prefab. The only assets are the rock shader and its material,
    which exist so a build keeps the shader and its GPU-instancing variants.
 
-Built-in render pipeline, legacy Input Manager, UGUI. Nothing to configure.
+Built-in render pipeline, legacy Input Manager, UGUI, and the Unity glTFast package for the GLB models (the first open fetches it from the Unity registry). Nothing to configure.
 
 ### Building and the smoke run from the command line
 
@@ -47,6 +47,18 @@ the ore, flies, saves, and quits, printing `smoke:` lines to the log and saving 
 `smoke_broken.png`, `smoke_flight.png`, `smoke_taxi.png`, `smoke_approach.png`, `smoke_dock.png` and `smoke_pad.png` under `Application.persistentDataPath`
 (`%USERPROFILE%AppDataocallow
 rivalibelt runner`).
+
+## Milestone 4 — Astra's models
+
+| Piece | Where | Status |
+|---|---|---|
+| Astra's GLBs (rocks LOD 1 and 2, the carrier, the player ship, Ferron, the homeworld, the garden habitat colony; ~140 MB) imported by the Unity glTFast package from `Assets/Resources/Models` | `Packages/manifest.json` (`com.unity.cloud.gltfast`), `Assets/Editor/Packages.cs`, `Assets/Editor/Inspect.cs` | in |
+| Rocks from the library: 28 shape variants at unit radius, each with a regolith surface and an ore-vein surface; the vein takes the instance colour (the ore's colour); the rock shader now carries the albedo, normal and metal-roughness maps copied from the glTF materials | `Assets/Scripts/Belt.cs` (`LoadLibrary`, `ConvertMaterial`), `Assets/Resources/Shaders/Rock.shader` | ported from the Godot port's `_convert_material` |
+| The player ship at SHIP_SCALE with its engine glows lit by the throttle and the beam leaving the dish's focus node | `Assets/Scripts/Ship.cs` (`Build`) | ported |
+| The carrier model with its anchors (mouths, pads, dish mount, engines, drone docks), turned so the nose is at +X (glTFast mirrors X on import), the warm hangar lamps and engine glows | `Assets/Scripts/CargoShip.cs` (`Build`) | ported |
+| The planets as Astra's unit spheres scaled to the radius; the colony as the garden habitat at x1000 with the rings turning | `Assets/Scripts/Game.cs` (`LoadZone`), `Assets/Scripts/Colony.cs` (`Build`) | ported |
+
+Every placeholder from milestones 1 to 3 stays in the code as the fallback when a model is missing.
 
 ## Milestone 3 — the Hub, the colony, the market, the warp
 
@@ -92,6 +104,5 @@ Not yet: the cargo ship upgrades (dish, drones); the force fields; the curved hu
 | Save: JSON under `Application.persistentDataPath` with the browser save's field names; F5 quick-saves, autosave every 30 s | `Assets/Scripts/GameState.cs` | ported |
 | Lighting: a directional sun from the zone's sun direction, one soft shadow box a few kilometres round the ship (as the browser casts), a dark flat ambient | `Assets/Scripts/Game.cs` (`SetupLighting`) | approximated; Astra's lighting module is not ported yet |
 
-Not yet ported (see the Godot port's README for the full list of what the browser has): the hyperspace tunnel; colony traffic; Astra's rock, ship, planet and carrier models
-(the rocks are the browser's own procedural shapes, the ship a placeholder); sky, nebula, stars and sun disc; the
+Not yet ported (see the Godot port's README for the full list of what the browser has): the hyperspace tunnel; colony traffic; the rock LOD 0 library up close; sky, nebula, stars and sun disc; the
 tutorial and voice; the dish, drones, tow and lock; sparks, scrap, scorches; music and sound.

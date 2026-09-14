@@ -222,6 +222,41 @@ public class CargoShip : MonoBehaviour
         l.shadows = LightShadows.None;
     }
 
+    public Transform model;
+    public readonly System.Collections.Generic.Dictionary<string, Vector3> anchors = new System.Collections.Generic.Dictionary<string, Vector3>();
+
+    /// Astra's carrier, or the placeholder hull. glTFast mirrors X on import, which puts the model's nose at -X; a
+    /// half turn about Y brings the nose to +X (the hull is symmetric in Z, so the mouths and pads land where the
+    /// frame expects them). The warm hangar lamps and the engine glows go in either way.
+    public void Build()
+    {
+        var prefab = Resources.Load<GameObject>("Models/cargo_carrier");
+        if (prefab != null)
+        {
+            var go = Object.Instantiate(prefab, transform);
+            go.name = "Model";
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.AngleAxis(180f, Vector3.up);
+            go.transform.localScale = Vector3.one;
+            model = go.transform;
+            foreach (var n in new[] { "hangar_mouth_pos", "hangar_mouth_neg", "pad_pos", "pad_neg", "drop_pad", "dish_mount", "engine_0", "engine_1", "engine_2", "drone_dock_0", "drone_dock_1", "drone_dock_2", "bridge_windows" })
+            {
+                var a = Ship.FindDeep(model, n);
+                if (a != null) anchors[n] = transform.InverseTransformPoint(a.position);
+            }
+            foreach (var z in new[] { -525f, 525f }) PointLight(new Vector3(0, 130, z), "#ffc98c", 1.4f, 1150f);   // the HTML's warm hangar lamps
+            for (int i = 0; i < 3; i++)
+            {
+                Vector3 e;
+                if (!anchors.TryGetValue("engine_" + i, out e)) e = new Vector3(-3480, 0, 0);
+                PointLight(e + new Vector3(-100, 0, 0), "#5ed3f0", 1.2f, 900f);
+            }
+            Debug.Log("carrier: model loaded, " + anchors.Count + " anchors");
+            return;
+        }
+        BuildHull();
+    }
+
     public void BuildHull()
     {
         var hull = Mat("#9aa4bf");
