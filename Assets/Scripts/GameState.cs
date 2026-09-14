@@ -186,10 +186,62 @@ public static class State
         marketT -= dt;
         if (marketT <= 0f)
         {
-            marketT = 90f;
+            marketT = Data.MARKET_PERIOD;
             foreach (var k in Data.ORE_KEYS) marketNext[k] = UnityEngine.Random.Range(0.8f, 1.25f);
         }
         foreach (var k in Data.ORE_KEYS) market[k] += (marketNext[k] - market[k]) * Mathf.Min(1f, dt * 0.08f);
+    }
+
+    /// Sell the given ores from the hold and/or the storage. Returns the units sold and the credits made.
+    public static float Sell(string[] keys, bool fromHold, bool fromStore, out float credits)
+    {
+        float cr = 0f, units = 0f;
+        foreach (var k in keys)
+        {
+            float u = 0f;
+            if (fromHold) { u += cargo[k]; cargo[k] = 0f; }
+            if (fromStore) { u += store[k]; store[k] = 0f; }
+            if (u > 0.01f) { cr += u * Price(k); units += u; }
+        }
+        if (units >= 0.5f)
+        {
+            State.credits += cr;
+            earned += cr;
+            Save();
+        }
+        credits = cr;
+        return units;
+    }
+
+    /// Fill the cargo ship fuel supply at the colony, as far as credits go. Returns the units bought; msg says why not.
+    public static float RefuelCargoShip(out float cost, out bool partial, out string msg)
+    {
+        float want = Data.CARGO_FUEL_CAP - shipFuel;
+        float u = Mathf.Min(want, credits / Data.CARGO_FUEL_PRICE);
+        cost = 0f; partial = false; msg = "";
+        if (want < 0.5f) { msg = "Fuel supply is already full"; return 0f; }
+        if (u < 1f) { msg = "Not enough credits for fuel"; return 0f; }
+        shipFuel += u;
+        cost = u * Data.CARGO_FUEL_PRICE;
+        credits = Mathf.Max(0f, credits - cost);
+        partial = u < want - 0.5f;
+        Save();
+        return u;
+    }
+
+    public static float BuyParts(out float cost, out bool partial, out string msg)
+    {
+        float want = Data.PARTS_CAP - parts;
+        float n = Mathf.Min(want, Mathf.Floor(credits / Data.PARTS_PRICE));
+        cost = 0f; partial = false; msg = "";
+        if (want < 0.5f) { msg = "Repair parts store is already full"; return 0f; }
+        if (n < 1f) { msg = "Not enough credits for repair parts"; return 0f; }
+        parts += n;
+        cost = n * Data.PARTS_PRICE;
+        credits -= cost;
+        partial = n < want - 0.5f;
+        Save();
+        return n;
     }
 
     /// Buy the next level of a refit. Returns whether it went through, and a message for the toast.

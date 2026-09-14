@@ -128,6 +128,8 @@ namespace UnityEngine
         public static int Clamp(int v, int a, int b) => v < a ? a : (v > b ? b : v);
         public static float Clamp01(float v) => Clamp(v, 0f, 1f);
         public static float Round(float x) => (float)Math.Round(x);
+        public static float Floor(float x) => (float)Math.Floor(x);
+        public static float Ceil(float x) => (float)Math.Ceiling(x);
         public static int RoundToInt(float x) => (int)Math.Round(x);
         public static int FloorToInt(float x) => (int)Math.Floor(x);
         public static int CeilToInt(float x) => (int)Math.Ceiling(x);
@@ -238,6 +240,7 @@ namespace UnityEngine
         public Vector3 localScale { get; set; }
         public Quaternion rotation { get; set; }
         public Quaternion localRotation { get; set; }
+        public Vector3 localEulerAngles { get; set; }
         public Vector3 forward => Vector3.forward;
         public Vector3 up => Vector3.up;
         public Vector3 right => Vector3.right;
@@ -327,6 +330,7 @@ namespace UnityEngine
     {
         public Vector3[] vertices { get; set; }
         public int[] triangles { get; set; }
+        public Rendering.IndexFormat indexFormat { get; set; }
         public Bounds bounds { get; set; }
         public void SetVertices(List<Vector3> v) { vertices = v.ToArray(); }
         public void SetTriangles(List<int> t, int sub) { triangles = t.ToArray(); }
@@ -353,6 +357,7 @@ namespace UnityEngine
 
     public class Renderer : Component
     {
+        public bool enabled { get; set; }
         public void SetPropertyBlock(MaterialPropertyBlock b) { }
         public Material sharedMaterial { get; set; }
         public Material material { get; set; }
@@ -450,6 +455,7 @@ namespace UnityEngine
     {
         public enum AmbientMode { Skybox, Trilight, Flat, Custom }
         public enum ShadowCastingMode { Off, On, TwoSided, ShadowsOnly }
+        public enum IndexFormat { UInt16, UInt32 }
     }
 
     namespace Events

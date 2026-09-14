@@ -25,6 +25,15 @@ public static class Data
     public const int PARTS_CAP = 400;
     public const int STORE_SLOTS = 50;
     public const float DOCK_RANGE = 4500f;   // E within this of the carrier hands the ship to approach control (2,250 m on the readout)
+    /// The colony market: fuel and repair parts for the cargo ship, and how prices drift.
+    public const float CARGO_FUEL_PRICE = 0.6f;
+    public const float PARTS_PRICE = 2f;
+    public const float MARKET_PERIOD = 90f;
+    /// Where the cargo ship holds station off Meridian Colony (true world coordinates) and the heading it holds, nose toward the hub.
+    public static readonly Vector3 HOLD_PARK = new Vector3(-40000f, 14000f, 56000f);
+    public static readonly Vector3 HOLD_DIR = new Vector3(40000f, -9000f, -56000f);
+    /// Meridian Colony proportions (the HTML COLONY constants).
+    public const float COL_R = 52000f, COL_RING_W = 3000f, COL_RING_H = 2600f, COL_R2 = 30000f, COL_RING2_W = 1800f, COL_RING2_H = 1800f, COL_HUB = 7000f, COL_CORE_R = 2600f, COL_CORE_H = 24000f, COL_PAD_Y = 15000f, COL_PAD_R = 5200f, COL_BERTH_Y = 12000f, COL_TERM_X = 4200f, COL_TERM_Y = 1500f, COL_TERM_Z = 3200f, COL_BERTH_Z = 6230f;
 
     public class Ore
     {
@@ -146,7 +155,7 @@ public static class Data
 
     public class Zone
     {
-        public string id, name, tag, planetName;
+        public string id, name, tag, planetName, colony;
         public bool hub, central;
         public float density, amountMult, planetR;
         public Dictionary<string, float>[] belts;
@@ -169,7 +178,23 @@ public static class Data
         planetName = "Ferron", planetR = 900f, tint = Hex("#7E5F4B"), central = true, planetPos = Vector3.zero,
         sunDir = new Vector3(0.55f, 0.42f, -0.72f), bg = Hex("#070912"),
     };
-    public static readonly Zone[] ZONES = { ZONE_KESSLER };
+    /// The Hub: Meridian Colony at the origin, no belts and no central gravity; the homeworld hangs below the colony lanes.
+    public static readonly Zone ZONE_HUB = new Zone
+    {
+        id = "hub", name = "The Hub", hub = true, colony = "Meridian Colony", map = new Vector2(50, 57), accent = Hex("#6BD69A"),
+        tag = "Meridian Colony above a blue ocean world. Green continents, white clouds, and familiar lights on the night side: a home to return to, with safe lanes and the sector ore market.",
+        density = 0f, amountMult = 1f,
+        belts = new[] { new Dictionary<string, float>(), new Dictionary<string, float>(), new Dictionary<string, float>() },
+        planetName = "Meridian", planetR = 1280f, tint = Hex("#3C86B5"), central = false, planetPos = new Vector3(150000f, -430000f, -360000f),
+        sunDir = new Vector3(-0.85f, 0.45f, 0.10f), bg = Hex("#080a14"),
+    };
+    public static readonly Zone[] ZONES = { ZONE_HUB, ZONE_KESSLER };
+
+    /// Light-years between two zones, from their chart positions.
+    public static float ZoneLy(Zone a, Zone b)
+    {
+        return Mathf.Round(Vector2.Distance(a.map, b.map) * 0.12f * 10f) / 10f;
+    }
 
     public static Zone ZoneById(string id)
     {

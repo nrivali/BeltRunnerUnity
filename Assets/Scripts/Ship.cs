@@ -9,6 +9,8 @@ public class Ship : MonoBehaviour
 {
     public const float TURN = 30f * Mathf.Deg2Rad;   // yaw and pitch: 30 degrees a second at full deflection
     public const float REPAIR_RATE = 6f;
+    public const float WARP_DUR = 8.6f;
+    public const float WARP_LOAD_AT = 4.3f;   // the screen is black from 4.2 s to 5.4 s; the zone swaps underneath
 
     public Vector3 vel;
     public float throttle;
@@ -26,6 +28,7 @@ public class Ship : MonoBehaviour
 
     // the hangar
     public bool docked;
+    public bool hold;          // docked at the Hub holding station rather than on a hangar pad
     public int dockSide;
     public bool depWait;        // W has to be released once after docking before it departs (you usually fly in holding it)
     public bool exitPending;    // just left the hangar: the mouth cannot capture the ship until it is clear of the corridor
@@ -46,6 +49,15 @@ public class Ship : MonoBehaviour
     }
     public Cut cut;
 
+    /// The jump between zones: a fade to black while the zone swaps underneath, then the arrival.
+    public class Warp
+    {
+        public Data.Zone z;
+        public float t;
+        public bool loaded, skip, fromHold;
+    }
+    public Warp warp;
+
     public Game game;
     public Belt belt;
     public CargoShip carrier;
@@ -59,7 +71,18 @@ public class Ship : MonoBehaviour
     public Vector3 TruePos { get { return transform.position + game.worldOffset; } }
     public Vector3 Forward { get { return transform.forward; } }
     public float Speed { get { return vel.magnitude; } }
-    public bool InCinematic { get { return cut != null; } }
+    public bool InCinematic { get { return cut != null || warp != null; } }
+
+    public static Vector3 HoldFwd()
+    {
+        var d = Data.HOLD_DIR;
+        return new Vector3(d.x, 0f, d.z).normalized;
+    }
+
+    public static Vector3 HoldSide()
+    {
+        return Vector3.Cross(HoldFwd(), Vector3.up);
+    }
 
     public void Build()
     {
@@ -126,6 +149,12 @@ public class Ship : MonoBehaviour
 
     public void Tick(float dt)
     {
+        if (warp != null)
+        {
+            if (Input.GetKeyDown(KeyCode.Space)) warp.skip = true;
+            WarpUpdate(dt);
+            return;
+        }
         if (cut != null)
         {
             if (Input.GetKeyDown(KeyCode.Space)) SkipCut();
@@ -297,7 +326,7 @@ public class Ship : MonoBehaviour
     /// Flying into a mouth slowly enough docks the ship; anything else meeting the hull is pushed off it.
     void CarrierContact()
     {
-        if (carrier == null) return;
+        if (carrier == null || carrier.hold) return;
         var L = carrier.ToLocalTrue(TruePos);
         var rel = vel - carrier.vel;
         if (!carrier.InCorridor(L))
@@ -329,7 +358,7 @@ public class Ship : MonoBehaviour
     /// the far pad already facing that pad's own mouth, then lets it down.
     public void StartApproach()
     {
-        if (docked || cut != null || carrier == null) return;
+        if (docked || cut != null || carrier == null || carrier.hold) return;
         if ((TruePos - carrier.truePos).magnitude >= Data.DOCK_RANGE)
         {
             game.Toast("Too far from the cargo ship for an approach · close to " + Data.Fm(Data.DOCK_RANGE) + " m", true);
@@ -361,6 +390,12 @@ public class Ship : MonoBehaviour
     public void StartDeparture()
     {
         if (!docked || cut != null) return;
+        if (hold)
+        {
+            game.Toast("Set a course on the nav map to leave Meridian Colony", false);
+            game.OpenMap();
+            return;
+        }
         int b = dockSide;
         LeaveHangar();
         var pts = new List<Vector3> { CargoShip.ParkLocal(b), new Vector3(0f, -112f, b * 620f), new Vector3(0f, -40f, b * 1000f), new Vector3(0f, 60f, b * 2500f) };
@@ -388,6 +423,24 @@ public class Ship : MonoBehaviour
         float u = C.mode == "depart" ? (k * k * (2f - k) * 0.5f + k * 0.5f * k) : k * k * (3f - 2f * k);
         var p = CurvePoint(C.pts, Mathf.Min(1f, u));
         var tan = CurveTangent(C.pts, Mathf.Min(u, 0.999f));
+        if (C.mode == "hold")
+        {
+            // the carrier flies the path; the last stretch blends onto the holding heading
+            var q = CargoShip.HeadingAlong(tan);
+            if (k > 0.9f) q = Quaternion.Slerp(q, CargoShip.HeadingAlong(Data.HOLD_DIR), (k - 0.9f) / 0.1f);
+            carrier.SetPose(p, Quaternion.Slerp(carrier.basisQ, q, 1f - Mathf.Exp(-1.8f * dt)));
+            transform.position = carrier.transform.position;
+            transform.rotation = LevelHeading(carrier.Nose);
+            vel = Vector3.zero;
+            if (k >= 1f)
+            {
+                cut = null;
+                carrier.SetPose(Data.HOLD_PARK, CargoShip.HeadingAlong(Data.HOLD_DIR));
+                transform.position = carrier.transform.position;
+                EnterBerth();
+            }
+            return;
+        }
         if (C.mode == "dock")
         {
             vel = carrier.vel;
@@ -433,6 +486,7 @@ public class Ship : MonoBehaviour
     public void EnterHangar(int side)
     {
         docked = true;
+        hold = false;
         dockSide = side;
         throttle = 0f;
         vel = Vector3.zero;
@@ -453,6 +507,7 @@ public class Ship : MonoBehaviour
     {
         if (!docked) return;
         docked = false;
+        hold = false;
         exitPending = true;
         flownOut = true;
         vel = carrier.vel;
@@ -463,12 +518,26 @@ public class Ship : MonoBehaviour
 
     void DockUpdate(float dt)
     {
-        // settle onto the pad and stay there, nose out of the mouth, riding along with the carrier
-        var park = carrier.ToTrue(CargoShip.ParkLocal(dockSide)) - game.worldOffset;
-        float k2 = 1f - Mathf.Exp(-1.4f * dt);
-        transform.position = Vector3.Lerp(transform.position, park, k2);
-        transform.rotation = Quaternion.Slerp(transform.rotation, LevelHeading(carrier.Dir(CargoShip.FaceLocal(dockSide))), k2);
-        vel = carrier.vel;
+        if (hold)
+        {
+            // aboard the carrier at its holding point: it drifts gently on station
+            float t = State.time;
+            var drift = new Vector3(Mathf.Sin(t * 0.21f) * 320f, Mathf.Sin(t * 0.17f) * 240f, Mathf.Cos(t * 0.13f) * 320f);
+            float k = 1f - Mathf.Exp(-0.4f * dt);
+            carrier.SetPose(Vector3.Lerp(carrier.truePos, Data.HOLD_PARK + drift, k), carrier.basisQ);
+            transform.position = carrier.transform.position;
+            transform.rotation = LevelHeading(carrier.Nose);
+            vel = Vector3.zero;
+        }
+        else
+        {
+            // settle onto the pad and stay there, nose out of the mouth, riding along with the carrier
+            var park = carrier.ToTrue(CargoShip.ParkLocal(dockSide)) - game.worldOffset;
+            float k2 = 1f - Mathf.Exp(-1.4f * dt);
+            transform.position = Vector3.Lerp(transform.position, park, k2);
+            transform.rotation = Quaternion.Slerp(transform.rotation, LevelHeading(carrier.Dir(CargoShip.FaceLocal(dockSide))), k2);
+            vel = carrier.vel;
+        }
         // the tank fills from the cargo ship's supply for free; the hull mends from its repair parts, one part per point
         float tank = State.Stat("tank").cap;
         if (State.fuel < tank)
@@ -509,6 +578,126 @@ public class Ship : MonoBehaviour
             StartDeparture();
         }
         if (Input.GetKeyDown(KeyCode.E)) DepositAll();
+    }
+
+    /// Holding station off the colony: the carrier is parked, you are aboard, and the market and services are open.
+    public void EnterBerth()
+    {
+        docked = true;
+        hold = true;
+        dockSide = 1;
+        throttle = 0f;
+        vel = Vector3.zero;
+        target = -1;
+        laserOn = false;
+        firing = false;
+        _laser.enabled = false;
+        depWait = true;
+        hangarT = 0f;
+        cut = null;
+        game.Toast("Holding station off Meridian Colony · the market is open", false);
+        game.OnDocked(true);
+        State.Save();
+    }
+
+    /// Every arrival at the Hub: the cargo ship comes in from deep space behind its holding point, sweeps wide past the
+    /// outer ring and eases onto station nose toward the hub. The path is in true world coordinates; the ship rides inside.
+    public void StartHoldApproach()
+    {
+        if (docked || cut != null) return;
+        var p = Data.HOLD_PARK;
+        var f = HoldFwd();
+        var r = HoldSide();
+        var pts = new List<Vector3> { carrier.truePos, p - f * 95000f + r * 32000f + new Vector3(0, 11000, 0), p - f * 34000f + r * 4000f + new Vector3(0, 1500, 0), p };
+        if ((carrier.truePos - pts[1]).magnitude < 20000f) pts.RemoveAt(1);
+        float len = CurveLength(pts);
+        cut = new Cut { mode = "hold", pts = pts, t = 0f, dur = Mathf.Clamp(len / 6500f, 14f, 28f) };
+        throttle = 0f;
+        game.Toast("Arriving · Meridian Colony · Space skips", false);
+    }
+
+    // ---- the warp: the cargo ship makes the jump, so you have to be aboard it. A fade to black while the zone swaps
+    // underneath, then the arrival (the Hub: the holding-station flight; a belt: on the pad in the dock that faces the planet).
+    public void StartWarp(Data.Zone z)
+    {
+        if (warp != null) return;
+        if (!docked)
+        {
+            game.Toast("Dock with the cargo ship before warping · it makes the jump", true);
+            return;
+        }
+        if (z.id == game.zone.id) return;
+        warp = new Warp { z = z, t = 0f, loaded = false, skip = false, fromHold = hold };
+        game.OnDocked(false);
+        game.Toast("Jump · " + z.name + " · " + Data.ZoneLy(game.zone, z) + " ly · Space skips", false);
+    }
+
+    static float SmoothStep(float a, float b, float x)
+    {
+        float t = Mathf.Clamp01((x - a) / (b - a));
+        return t * t * (3f - 2f * t);
+    }
+
+    /// 0 = clear, 1 = black: the HUD's fade for the jump.
+    public float WarpFade()
+    {
+        if (warp == null) return 0f;
+        float t = warp.t;
+        if (warp.loaded) return warp.skip ? 0f : 1f - SmoothStep(WARP_LOAD_AT + 1.1f, WARP_LOAD_AT + 2.3f, t);
+        return SmoothStep(WARP_LOAD_AT - 1.2f, WARP_LOAD_AT, t);
+    }
+
+    void WarpUpdate(float dt)
+    {
+        var W = warp;
+        W.t += dt;
+        if (!W.loaded && (W.skip || W.t >= WARP_LOAD_AT))
+        {
+            W.loaded = true;
+            docked = false;
+            hold = false;
+            cut = null;
+            game.WarpLoad(W.z);   // swaps the zone and places the carrier and ship for the arrival
+        }
+        if (W.loaded && (W.skip || W.t >= WARP_DUR))
+        {
+            warp = null;
+            game.WarpDone(W.z);
+        }
+    }
+
+    // ---- the market, only while holding station at the Hub
+    public void Sell(string[] keys, bool fromHold, bool fromStore)
+    {
+        float cr;
+        float units = State.Sell(keys, fromHold, fromStore, out cr);
+        if (units < 0.5f)
+        {
+            game.Toast("Nothing to sell", true);
+            return;
+        }
+        game.Toast("Sold " + Mathf.RoundToInt(units) + " · +" + Data.Fmt(cr) + " cr", false);
+        game.OnDocked(true);
+    }
+
+    public void RefuelCargoShip()
+    {
+        float cost; bool partial; string msg;
+        float u = State.RefuelCargoShip(out cost, out partial, out msg);
+        if (u < 1f) { game.Toast(msg, true); return; }
+        _fuelDryWarned = false;
+        game.Toast("Refuelled " + Mathf.FloorToInt(u) + " · " + Data.Fmt(cost) + " cr" + (partial ? " · out of credits before full" : ""), false);
+        game.OnDocked(true);
+    }
+
+    public void BuyParts()
+    {
+        float cost; bool partial; string msg;
+        float n = State.BuyParts(out cost, out partial, out msg);
+        if (n < 1f) { game.Toast(msg, true); return; }
+        _partsWarned = false;
+        game.Toast("Restocked " + Mathf.RoundToInt(n) + " repair parts · " + Data.Fmt(cost) + " cr" + (partial ? " · out of credits before full" : ""), false);
+        game.OnDocked(true);
     }
 
     public void DepositAll()
@@ -645,6 +834,23 @@ public class Ship : MonoBehaviour
     public void UpdateCamera(float dt)
     {
         float s = Data.SHIP_SCALE;
+        if (warp != null)
+        {
+            // the exterior shot: behind and beside the carrier as it jumps, ahead of it as it arrives
+            if (warp.loaded) CarrierShot(new Vector3(12500f, 3600f, 7200f), new Vector3(600f, 0f, 0f));
+            else CarrierShot(new Vector3(-12000f, 3200f, 6900f), new Vector3(2400f, 0f, 0f));
+            return;
+        }
+        if (cut != null && cut.mode == "hold")
+        {
+            CarrierShot(new Vector3(-12500f, 3600f, 7200f), new Vector3(600f, 0f, 0f));
+            return;
+        }
+        if (docked && hold)
+        {
+            HoldingCamera(dt);
+            return;
+        }
         if (cut != null && cut.mode == "dock")
         {
             if (cut.phase == "fly")
@@ -688,6 +894,28 @@ public class Ship : MonoBehaviour
         var cp = carrier.ToTrue(camL) - game.worldOffset;
         cam.transform.position = cp;
         cam.transform.rotation = Quaternion.LookRotation(transform.position + carrier.Dir(new Vector3(0f, 6f, 0f)) - cp, carrier.Dir(Vector3.up));
+        _camQ = transform.rotation;
+    }
+
+    /// A camera fixed in the carrier's frame (offsets along nose, up, side), looking at a point ahead of it.
+    void CarrierShot(Vector3 offset, Vector3 lookAhead)
+    {
+        var cp = carrier.ToTrue(offset) - game.worldOffset;
+        cam.transform.position = cp;
+        cam.transform.rotation = Quaternion.LookRotation(carrier.ToTrue(lookAhead) - game.worldOffset - cp, Vector3.up);
+        _camQ = transform.rotation;
+    }
+
+    /// Holding station: a slow swing round the carrier with the colony beyond it (the HTML's holding shot).
+    void HoldingCamera(float dt)
+    {
+        hangarT += dt;
+        var f = HoldFwd();
+        var r = HoldSide();
+        var c = carrier.transform.position;
+        var cp = c - f * 15500f + r * (7000f + Mathf.Sin(hangarT * 0.04f) * 3500f) + new Vector3(0, 7000, 0);
+        cam.transform.position = cp;
+        cam.transform.rotation = Quaternion.LookRotation(c + f * 22000f + new Vector3(0, -11000, 0) - cp, Vector3.up);
         _camQ = transform.rotation;
     }
 

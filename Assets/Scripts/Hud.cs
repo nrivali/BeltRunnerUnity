@@ -92,14 +92,27 @@ public class Hud : MonoBehaviour
         _version = Label(_root, "Version", new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(14f, 10f), new Vector2(200f, 18f), 11, TextAnchor.MiddleLeft, new Color(0.5f, 0.53f, 0.6f));
         _version.text = "v" + Data.VERSION;
         BuildServices();
+        BuildMap();
+        // the fade for a jump, over everything but the menu
+        var fg = new GameObject("Fade", typeof(RectTransform));
+        var fr = fg.GetComponent<RectTransform>();
+        fr.SetParent(_root, false);
+        fr.anchorMin = Vector2.zero;
+        fr.anchorMax = Vector2.one;
+        fr.offsetMin = fr.offsetMax = Vector2.zero;
+        _fade = fg.AddComponent<Image>();
+        _fade.color = new Color(0.008f, 0.012f, 0.039f, 0f);
+        _fade.raycastTarget = false;
         BuildMenu();
     }
 
+    Image _fade;
+
     // ---- the cargo ship services panel (#station): a side panel over the live view of the ship on the pad
     GameObject _services;
-    Text _svcEyebrow, _svcCredits, _svcGauges, _svcHold;
+    Text _svcEyebrow, _svcCredits, _svcGauges, _svcHold, _svcRefitCap;
     RectTransform _svcRefits;
-    Button _depositBtn;
+    Button _depositBtn, _departBtn, _warpBtn;
     bool _servicesVisible;
 
     void BuildServices()
@@ -118,7 +131,8 @@ public class Hud : MonoBehaviour
         _svcHold = Label(panel, "Hold", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -152f), new Vector2(360f, 36f), 12, TextAnchor.UpperLeft, TEXT);
         _depositBtn = SmallButton(panel, "DEPOSIT ALL  (E)", new Vector2(20f, -192f), 170f, () => { if (ship != null) ship.DepositAll(); });
         SmallButton(panel, "TAKE ALL", new Vector2(200f, -192f), 120f, () => { if (ship != null) ship.TakeAll(); });
-        Label(panel, "RefitCap", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -236f), new Vector2(360f, 16f), 11, TextAnchor.MiddleLeft, MUTED).text = "PERSONAL SHIP · REFITS";
+        _svcRefitCap = Label(panel, "RefitCap", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -236f), new Vector2(360f, 16f), 11, TextAnchor.MiddleLeft, MUTED);
+        _svcRefitCap.text = "PERSONAL SHIP · REFITS";
         var rg = new GameObject("Refits", typeof(RectTransform));
         _svcRefits = rg.GetComponent<RectTransform>();
         _svcRefits.SetParent(panel, false);
@@ -126,8 +140,9 @@ public class Hud : MonoBehaviour
         _svcRefits.pivot = new Vector2(0f, 1f);
         _svcRefits.anchoredPosition = new Vector2(20f, -254f);
         _svcRefits.sizeDelta = new Vector2(360f, 380f);
-        SmallButton(panel, "DEPART  (W)", new Vector2(20f, 14f), 150f, () => { if (ship != null) ship.StartDeparture(); }, true);
-        SmallButton(panel, "HIDE  (F)", new Vector2(180f, 14f), 110f, () => ToggleServices(), true);
+        _departBtn = SmallButton(panel, "DEPART  (W)", new Vector2(20f, 14f), 140f, () => { if (ship != null) ship.StartDeparture(); }, true);
+        _warpBtn = SmallButton(panel, "WARP TO THE HUB", new Vector2(170f, 14f), 130f, () => { if (ship != null && ship.docked && !zone.hub) ship.StartWarp(Data.ZONE_HUB); }, true);
+        SmallButton(panel, "HIDE  (F)", new Vector2(310f, 14f), 70f, () => ToggleServices(), true);
         _services.SetActive(false);
     }
 
@@ -175,7 +190,11 @@ public class Hud : MonoBehaviour
     public void RefreshServices()
     {
         if (ship == null) return;
-        _svcEyebrow.text = "DOCKED · " + CargoShip.BayName(ship.dockSide).ToUpperInvariant();
+        bool atHub = ship.hold;
+        _svcEyebrow.text = atHub ? "HOLDING STATION · OFF MERIDIAN COLONY" : "DOCKED · " + CargoShip.BayName(ship.dockSide).ToUpperInvariant();
+        _departBtn.GetComponentInChildren<Text>().text = atHub ? "NAV MAP  (N)" : "DEPART  (W)";
+        _warpBtn.gameObject.SetActive(!atHub);
+        _svcRefitCap.text = atHub ? "CARGO SHIP · SUPPLIES AND MARKET" : "PERSONAL SHIP · REFITS";
         _svcCredits.text = Data.Fmt(State.credits) + " cr";
         int su = State.StoreUsed();
         _svcGauges.text = "Cargo ship storage   " + su + " / " + Data.STORE_SLOTS + " slots" + (su >= Data.STORE_SLOTS ? " · FULL" : "") + "\n" +
@@ -188,6 +207,11 @@ public class Hud : MonoBehaviour
         foreach (var k in Data.ORE_KEYS) if (State.store[k] > 0.5f) stored.Add(Data.ORES[Data.OreIndex(k)].name + " " + Mathf.RoundToInt(State.store[k]));
         if (stored.Count > 0) _svcHold.text += "\nStored aboard: " + string.Join(", ", stored.ToArray());
         foreach (Transform c in _svcRefits) Destroy(c.gameObject);
+        if (atHub)
+        {
+            RefreshMarket();
+            return;
+        }
         float y = 0f;
         foreach (var key in Data.UPGRADE_KEYS)
         {
@@ -217,6 +241,142 @@ public class Hud : MonoBehaviour
         bool ok = State.Buy(key, out msg);
         Toast(msg, !ok);
         RefreshServices();
+    }
+
+    /// The colony market (renderMarket): what is aboard and what it fetches, the sell buttons, today's prices; and
+    /// the cargo ship's fuel and parts purchases. Shown in the refits' place while holding station at the Hub.
+    void RefreshMarket()
+    {
+        float y = 0f;
+        float fuelCost = Mathf.Ceil((Data.CARGO_FUEL_CAP - State.shipFuel) * Data.CARGO_FUEL_PRICE);
+        float partsCost = Mathf.Ceil((Data.PARTS_CAP - State.parts) * Data.PARTS_PRICE);
+        var fb = SmallButton(_svcRefits, fuelCost > 0f ? "REFUEL SUPPLY · " + Data.Fmt(fuelCost) + " cr" : "FUEL SUPPLY FULL", new Vector2(0f, y), 200f, () => { if (ship != null) ship.RefuelCargoShip(); });
+        fb.interactable = fuelCost > 0f && State.credits >= 1f;
+        var pb = SmallButton(_svcRefits, partsCost > 0f ? "RESTOCK PARTS · " + Data.Fmt(partsCost) + " cr" : "PARTS STORE FULL", new Vector2(0f, y - 34f), 200f, () => { if (ship != null) ship.BuyParts(); });
+        pb.interactable = partsCost > 0f && State.credits >= Data.PARTS_PRICE;
+        y -= 76f;
+        var cap = Label(_svcRefits, "MarketCap", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, y), new Vector2(360f, 16f), 11, TextAnchor.MiddleLeft, MUTED);
+        cap.text = "MERIDIAN COLONY MARKET";
+        y -= 18f;
+        var lines = new List<string>();
+        float total = 0f;
+        foreach (var k in Data.ORE_KEYS)
+        {
+            float h = State.cargo[k], s = State.store[k];
+            if (h + s < 0.5f) continue;
+            float p = State.Price(k);
+            float v = (h + s) * p;
+            total += v;
+            var o = Data.ORES[Data.OreIndex(k)];
+            lines.Add(o.name.PadRight(11) + " hold " + Data.Fmt(h).PadLeft(4) + "  stored " + Data.Fmt(s).PadLeft(4) + "  @ " + p.ToString("0.0") + " = " + Data.Fmt(v) + " cr" + (o.zone != null ? "  (exotic +50%)" : ""));
+        }
+        var list = Label(_svcRefits, "Market", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, y), new Vector2(360f, 120f), 11, TextAnchor.UpperLeft, TEXT);
+        list.text = lines.Count > 0 ? string.Join("\n", lines.ToArray()) + "\nEverything aboard  " + Data.Fmt(total) + " cr" : "Nothing aboard to sell. Cut ore in a belt zone and bring it back.";
+        y -= 14f * Mathf.Max(2, lines.Count + 1) + 8f;
+        if (lines.Count > 0)
+        {
+            var sb = SmallButton(_svcRefits, "SELL EVERYTHING", new Vector2(0f, y), 140f, () => { if (ship != null) ship.Sell(Data.ORE_KEYS, true, true); });
+            SmallButton(_svcRefits, "SELL HOLD", new Vector2(150f, y), 100f, () => { if (ship != null) ship.Sell(Data.ORE_KEYS, true, false); });
+            SmallButton(_svcRefits, "SELL STORAGE", new Vector2(260f, y), 100f, () => { if (ship != null) ship.Sell(Data.ORE_KEYS, false, true); });
+            y -= 40f;
+        }
+        var pc = Label(_svcRefits, "PricesCap", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, y), new Vector2(360f, 16f), 11, TextAnchor.MiddleLeft, MUTED);
+        pc.text = "PRICES TODAY · cr each";
+        y -= 18f;
+        var plines = new List<string>();
+        foreach (var k in Data.ORE_KEYS)
+        {
+            var o = Data.ORES[Data.OreIndex(k)];
+            int d = Mathf.RoundToInt((State.market[k] - 1f) * 100f);
+            string delta = d == 0 ? "" : (d > 0 ? "  ▲" + d + "%" : "  ▼" + (-d) + "%");
+            string need = o.unlock > State.up["laser"] + 1 ? "  needs laser Lv" + o.unlock : "";
+            plines.Add(o.name.PadRight(11) + State.Price(k).ToString("0.0").PadLeft(6) + delta + need + (o.zone != null ? "  exotic" : ""));
+        }
+        var pl = Label(_svcRefits, "Prices", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, y), new Vector2(360f, 110f), 11, TextAnchor.UpperLeft, MUTED);
+        pl.text = string.Join("\n", plines.ToArray());
+    }
+
+    // ---- the nav map (N): the charted zones, the cargo ship's fuel supply, and the jump
+    GameObject _map;
+    Text _mapFuel, _mapInfo;
+    Button _jumpBtn;
+    Data.Zone _mapSel;
+    public Data.Zone zone = Data.ZONE_KESSLER;
+    public bool MapOpen { get { return _map != null && _map.activeSelf; } }
+
+    void BuildMap()
+    {
+        _map = new GameObject("Map", typeof(RectTransform));
+        var mr = _map.GetComponent<RectTransform>();
+        mr.SetParent(_root, false);
+        mr.anchorMin = Vector2.zero;
+        mr.anchorMax = Vector2.one;
+        mr.offsetMin = mr.offsetMax = Vector2.zero;
+        _map.AddComponent<Image>().color = new Color(0f, 0f, 0f, 0.5f);
+        var card = Panel("MapCard", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(760f, 420f));
+        card.SetParent(mr, false);
+        card.GetComponent<Image>().color = new Color(0.05f, 0.06f, 0.11f, 0.97f);
+        Label(card, "Eyebrow", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -18f), new Vector2(400f, 16f), 11, TextAnchor.MiddleLeft, MUTED).text = "NAV COMPUTER";
+        Label(card, "Title", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(24f, -36f), new Vector2(400f, 30f), 22, TextAnchor.MiddleLeft, TEXT).text = "CHARTED ZONES";
+        Label(card, "FuelCap", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-24f, -18f), new Vector2(300f, 16f), 11, TextAnchor.MiddleRight, MUTED).text = "CARGO SHIP FUEL SUPPLY";
+        _mapFuel = Label(card, "Fuel", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-24f, -36f), new Vector2(300f, 30f), 20, TextAnchor.MiddleRight, AMBER);
+        float y = -84f;
+        foreach (var z in Data.ZONES)
+        {
+            var zz = z;
+            SmallButton(card, z.name.ToUpperInvariant(), new Vector2(24f, y), 220f, () => { _mapSel = zz; RefreshMap(); });
+            y -= 36f;
+        }
+        _mapInfo = Label(card, "Info", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(270f, -84f), new Vector2(466f, 260f), 12, TextAnchor.UpperLeft, TEXT);
+        _jumpBtn = SmallButton(card, "JUMP", new Vector2(24f, 18f), 160f, () => { if (ship != null && _mapSel != null) { ship.StartWarp(_mapSel); CloseMap(); } }, true);
+        SmallButton(card, "CLOSE  (N)", new Vector2(200f, 18f), 120f, () => CloseMap(), true);
+        var foot = Label(card, "Foot", new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(340f, 14f), new Vector2(400f, 40f), 10, TextAnchor.LowerLeft, MUTED);
+        foot.text = "Nothing sells in the belt: haul it to the Hub, where exclusive ore fetches 50% more. Your cargo ship, storage and all, warps with you.";
+        _map.SetActive(false);
+    }
+
+    public void ToggleMap()
+    {
+        if (MapOpen) CloseMap(); else OpenMap();
+    }
+
+    public void OpenMap()
+    {
+        if (ship != null && ship.warp != null) return;
+        _map.SetActive(true);
+        if (_mapSel == null || _mapSel.id == zone.id) _mapSel = null;
+        RefreshMap();
+    }
+
+    public void CloseMap()
+    {
+        _map.SetActive(false);
+    }
+
+    void RefreshMap()
+    {
+        _mapFuel.text = Mathf.FloorToInt(State.shipFuel) + " / " + Mathf.RoundToInt(Data.CARGO_FUEL_CAP);
+        var sel = _mapSel ?? zone;
+        bool isCur = sel.id == zone.id;
+        var sb = new System.Text.StringBuilder();
+        sb.Append(isCur ? "CURRENT ZONE\n" : (sel.hub ? "COLONY ZONE\n" : "CHARTED BELT\n"));
+        sb.Append(sel.name.ToUpperInvariant() + "\n\n");
+        sb.Append(sel.tag + "\n\n");
+        if (!isCur) sb.Append("Distance  " + Data.ZoneLy(zone, sel) + " ly\n");
+        if (sel.hub)
+        {
+            sb.Append("Market: every ore; exclusive ores fetch +50%.\nFuel and repair parts for the cargo ship.\n");
+        }
+        else
+        {
+            var ex = new List<string>();
+            foreach (var o in Data.ORES) if (o.zone == sel.id) ex.Add(o.name);
+            sb.Append("Exclusive ores: " + string.Join(", ", ex.ToArray()) + "\nCommon ores in three belts and the ring belt.\n");
+        }
+        if (!isCur && ship != null && !ship.docked) sb.Append("\nDock with the cargo ship to jump: it makes the jump.");
+        _mapInfo.text = sb.ToString();
+        _jumpBtn.interactable = !isCur && ship != null && ship.docked && ship.warp == null;
+        _jumpBtn.GetComponentInChildren<Text>().text = isCur ? "HERE" : "JUMP · " + sel.name.ToUpperInvariant();
     }
 
     void BuildMenu()
@@ -380,6 +540,9 @@ public class Hud : MonoBehaviour
         }
         LayoutToasts();
         _world.transform.parent.gameObject.SetActive(!ServicesVisible);
+        var fc = _fade.color;
+        fc.a = ship.WarpFade();
+        _fade.color = fc;
         var hullMax = State.Stat("hull").hp;
         var fuelMax = State.Stat("tank").cap;
         _hull.text = Mathf.RoundToInt(State.hull) + " / " + Mathf.RoundToInt(hullMax);

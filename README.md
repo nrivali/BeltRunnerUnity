@@ -48,6 +48,19 @@ the ore, flies, saves, and quits, printing `smoke:` lines to the log and saving 
 (`%USERPROFILE%AppDataocallow
 rivalibelt runner`).
 
+## Milestone 3 — the Hub, the colony, the market, the warp
+
+| Piece | Where | Status |
+|---|---|---|
+| The Hub zone: Meridian Colony at the origin, no belts and no central gravity, the homeworld hanging below the colony lanes, its own sun and sky colour | `Assets/Scripts/Data.cs` (`ZONE_HUB`), `Assets/Scripts/Game.cs` (`LoadZone`) | ported |
+| Meridian Colony: two habitat rings with modules, beacons and pylons, six spokes with lift cars, the hub sphere and core, pads and docking arms, the comms dish, four solar wings, the cargo terminals; the ring assembly turns, the beacons cycle | `Assets/Scripts/Colony.cs` | simplified port of buildColonyAt (plain meshes, the same proportions) |
+| Holding station: the carrier parked off the colony, drifting gently, the market and services open; the slow swing camera | `Assets/Scripts/Ship.cs` (`EnterBerth`, `HoldingCamera`), `CargoShip.hold` | ported |
+| The arrival flight: from deep space behind the holding point, wide past the outer ring, onto station nose toward the hub; the exterior camera | `Assets/Scripts/Ship.cs` (`StartHoldApproach`, the `hold` cut) | ported |
+| The warp: docked only, a fade to black while the zone swaps underneath, then the arrival (the Hub flight, or a belt pad facing the planet); Space skips | `Assets/Scripts/Ship.cs` (`StartWarp`, `WarpUpdate`, `WarpFade`), `Game.WarpLoad` / `WarpDone` | the simple fade version; the hyperspace tunnel comes later |
+| The market: prices drifting every 90 s, exclusive ores +50%, sell everything / hold / storage, refuel the cargo ship supply, restock repair parts, prices today | `Assets/Scripts/GameState.cs` (`Sell`, `RefuelCargoShip`, `BuyParts`), `Assets/Scripts/Hud.cs` (`RefreshMarket`) | ported; shown in the refits place while holding station |
+| The nav map (N): the charted zones, distance in light-years, the fuel supply, Jump; the services panel offers Warp to the Hub in a belt and Nav map at the Hub | `Assets/Scripts/Hud.cs` (`BuildMap`, `RefreshMap`) | rebuilt, plainer than the browser chart |
+| The smoke run continues: dock again, jump to the Hub, arrive, sell and refuel, jump home, land on the pad; thirteen screenshots | `Assets/Scripts/Game.cs` (`SmokeStep`) | |
+
 ## Milestone 2 — the cargo ship, the hangar, approach control, the pad
 
 | Piece | Where | Status |
@@ -60,7 +73,7 @@ rivalibelt runner`).
 | Cameras: a fixed camera by the entry mouth during the approach, a slow walk round the pad while docked | `Assets/Scripts/Ship.cs` (`UpdateCamera`, `HangarCamera`) | ported |
 | The smoke run now goes pad → depart → mine → collect → approach → dock → deposit → depart, with eight screenshots | `Assets/Scripts/Game.cs` (`SmokeStep`) | |
 
-Not yet: the Hub, the market and the warp (the Depart button only ever departs); the cargo ship upgrades (dish, drones); the force fields; the curved hull; Astra's carrier model.
+Not yet: the cargo ship upgrades (dish, drones); the force fields; the curved hull; Astra's carrier model.
 
 ## Milestone 1 — one belt, flight, the laser, ore, HUD, save
 
@@ -79,6 +92,6 @@ Not yet: the Hub, the market and the warp (the Depart button only ever departs);
 | Save: JSON under `Application.persistentDataPath` with the browser save's field names; F5 quick-saves, autosave every 30 s | `Assets/Scripts/GameState.cs` | ported |
 | Lighting: a directional sun from the zone's sun direction, one soft shadow box a few kilometres round the ship (as the browser casts), a dark flat ambient | `Assets/Scripts/Game.cs` (`SetupLighting`) | approximated; Astra's lighting module is not ported yet |
 
-Not yet ported (see the Godot port's README for the full list of what the browser has): the Hub, colony, market and warp; Astra's rock, ship, planet and carrier models
+Not yet ported (see the Godot port's README for the full list of what the browser has): the hyperspace tunnel; colony traffic; Astra's rock, ship, planet and carrier models
 (the rocks are the browser's own procedural shapes, the ship a placeholder); sky, nebula, stars and sun disc; the
 tutorial and voice; the dish, drones, tow and lock; sparks, scrap, scorches; music and sound.

@@ -14,6 +14,7 @@ public class Game : MonoBehaviour
     public Belt belt;
     public Ship ship;
     public CargoShip carrier;
+    public Colony colony;
     public Hud hud;
     public Camera cam;
     public Light sun;
@@ -122,11 +123,18 @@ public class Game : MonoBehaviour
     {
         zone = z;
         State.zoneId = z.id;
+        hud.zone = z;
         foreach (var p in _drops) if (p != null) Destroy(p.gameObject);
         _drops.Clear();
         ship.nearRocks = new List<int>();
         belt.Clear();
         belt.Build(z, z.id == "kessler" ? SEED : SEED + 11);
+        if (colony != null) { Destroy(colony.gameObject); colony = null; }
+        if (z.hub)
+        {
+            colony = new GameObject("Colony").AddComponent<Colony>();
+            colony.Build();
+        }
         cam.backgroundColor = z.bg;
         sun.transform.rotation = Quaternion.LookRotation(-z.sunDir.normalized, Vector3.up);
         float r = z.planetR * Data.PLANET_SCALE;
@@ -143,9 +151,37 @@ public class Game : MonoBehaviour
         _planet.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
     }
 
-    /// Place the carrier and the ship for the zone: on the pad in the dock that faces the planet.
-    void SpawnInZone()
+    /// Place the carrier and the ship for the zone: on the pad in the dock that faces the planet in a belt; at the Hub, at
+    /// the holding point (or, `arriving`, out in deep space where the arrival flight starts).
+    void SpawnInZone(bool arriving = false)
     {
+        if (zone.hub)
+        {
+            carrier.hold = true;
+            var p = Data.HOLD_PARK;
+            if (arriving)
+            {
+                var start = p - Ship.HoldFwd() * 170000f + Ship.HoldSide() * 70000f + new Vector3(0, 26000, 0);
+                worldOffset = start;
+                carrier.SetPose(start, CargoShip.HeadingAlong(p - start));
+                ship.transform.position = Vector3.zero;
+                ship.docked = false;
+                ship.hold = false;
+                ship.transform.rotation = Ship.LevelHeading(carrier.Nose);
+                ApplyOffsets();
+            }
+            else
+            {
+                worldOffset = p;
+                carrier.SetPose(p, CargoShip.HeadingAlong(Data.HOLD_DIR));
+                ship.transform.position = Vector3.zero;
+                ship.transform.rotation = Ship.LevelHeading(carrier.Nose);
+                ApplyOffsets();
+                ship.EnterBerth();
+            }
+            return;
+        }
+        carrier.hold = false;
         carrier.ang = _smoke ? Mathf.PI / 2f : UnityEngine.Random.value * Mathf.PI * 2f;
         worldOffset = Vector3.zero;
         carrier.Place();
@@ -162,8 +198,28 @@ public class Game : MonoBehaviour
     {
         belt.ApplyOffset(worldOffset);
         _planet.transform.position = _planetTrue - worldOffset;
+        if (colony != null) colony.transform.position = -worldOffset;
         carrier.Place();
         belt.Cull(ship.TruePos);
+    }
+
+    public void WarpLoad(Data.Zone z)
+    {
+        LoadZone(z);
+        SpawnInZone(true);
+        ship.UpdateCamera(1f);
+    }
+
+    /// The jump is over: the Hub arrival flight starts; in a belt the ship is already on its pad.
+    public void WarpDone(Data.Zone z)
+    {
+        if (z.hub) ship.StartHoldApproach();
+        else hud.Toast("Arrived · " + z.name, false);
+    }
+
+    public void OpenMap()
+    {
+        hud.OpenMap();
     }
 
     /// The ship docked or left: the services panel follows.
@@ -312,6 +368,7 @@ public class Game : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Escape))
         {
             if (!started) { }
+            else if (hud.MapOpen) hud.CloseMap();
             else if (paused) Resume();
             else Pause();
         }
@@ -325,6 +382,7 @@ public class Game : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F5)) { State.Save(); hud.Toast("Saved", false); }
         if (Input.GetKeyDown(KeyCode.C)) hud.ToggleControls();
         if (Input.GetKeyDown(KeyCode.F) && ship.docked) hud.ToggleServices();
+        if (Input.GetKeyDown(KeyCode.N) && ship.warp == null) hud.ToggleMap();
         State.time += dt;
         State.TickMarket(dt);
         // the carrier drifts round its orbit; a docked ship rides along with it
@@ -332,6 +390,7 @@ public class Game : MonoBehaviour
         if (ship.docked) ship.transform.position += moved;
         ship.Tick(dt);
         belt.Tick(dt, ship.TruePos);
+        if (colony != null) colony.Tick(dt);
         for (int i = _drops.Count - 1; i >= 0; i--)
         {
             var p = _drops[i];
@@ -350,6 +409,7 @@ public class Game : MonoBehaviour
             ship.transform.position = Vector3.zero;
             belt.ApplyOffset(worldOffset);
             _planet.transform.position = _planetTrue - worldOffset;
+            if (colony != null) colony.transform.position = -worldOffset;
             carrier.Place();
             foreach (var p in _drops) if (p != null) p.transform.localPosition -= delta;
             ship.OnShift(delta);
@@ -380,6 +440,8 @@ public class Game : MonoBehaviour
     float _smokeHp;
     string _phase = "start";
     int _phaseFrame;
+    bool _shotArrival;
+    int _mapFrames;
 
     void Next(string phase)
     {
@@ -495,15 +557,71 @@ public class Game : MonoBehaviour
                 {
                     var local = carrier.ToLocalTrue(ship.TruePos);
                     Debug.Log("smoke: departed again · local=" + local.ToString("0") + " speed=" + ship.Speed.ToString("0") + " · exit_pending=" + ship.exitPending);
-                    State.Save();
-                    Debug.Log("smoke: saved to " + State.SavePath + " · screenshots in " + Application.persistentDataPath);
-                    Quit();
+                    // straight back in, then the jump to the Hub with the storage full of ore to sell
+                    int entry = carrier.NearestSide(ship.TruePos);
+                    var startL = CargoShip.OpeningLocal(entry) + new Vector3(300f, 120f, entry * 3000f);
+                    ship.transform.position = carrier.ToTrue(startL) - worldOffset;
+                    ship.vel = carrier.vel;
+                    ship.throttle = 0f;
+                    ship.transform.rotation = Ship.LevelHeading(carrier.Dir(new Vector3(0f, 0f, -entry)));
+                    ship.StartApproach();
+                    Next("redock");
                 }
                 if (_phaseFrame > 900)
                 {
                     Debug.Log("smoke: FAIL · the departure never finished");
                     Quit();
                 }
+                break;
+            case "redock":
+                if (ship.docked && !hud.MapOpen && _phaseFrame < 3990) hud.OpenMap();
+                if (ship.docked && hud.MapOpen && _mapFrames++ == 3)
+                {
+                    Shot("smoke_map");
+                }
+                if (ship.docked && _mapFrames > 5)
+                {
+                    hud.CloseMap();
+                    ship.StartWarp(Data.ZONE_HUB);
+                    Debug.Log("smoke: warp to the Hub requested · warp=" + (ship.warp != null) + " ly=" + Data.ZoneLy(zone, Data.ZONE_HUB));
+                    Next("warp");
+                }
+                if (_phaseFrame > 4000) { Debug.Log("smoke: FAIL · never re-docked"); Quit(); }
+                break;
+            case "warp":
+                if (_phaseFrame == 200) Shot("smoke_warp");
+                if (ship.warp == null && zone.hub && ship.cut != null && _phaseFrame % 60 == 0 && !_shotArrival)
+                {
+                    _shotArrival = true;
+                    Shot("smoke_arrival");
+                }
+                if (ship.warp == null && zone.hub && ship.docked && ship.hold)
+                {
+                    Shot("smoke_hub");
+                    float before = State.credits;
+                    ship.Sell(Data.ORE_KEYS, true, true);
+                    ship.RefuelCargoShip();
+                    Debug.Log("smoke: at the Hub · holding=" + ship.hold + " credits " + before.ToString("0") + " -> " + State.credits.ToString("0") + " · store=" + State.StoreTotal().ToString("0") + " · shipFuel=" + State.shipFuel.ToString("0") + " · carrier at " + carrier.truePos.ToString("0") + " · rocks=" + belt.count);
+                    Next("hub");
+                }
+                if (_phaseFrame > 6000) { Debug.Log("smoke: FAIL · never arrived at the Hub · warp=" + (ship.warp != null) + " zone=" + zone.id + " docked=" + ship.docked + " cut=" + (ship.cut != null)); Quit(); }
+                break;
+            case "hub":
+                if (_phaseFrame == 120)
+                {
+                    Shot("smoke_market");
+                    ship.StartWarp(Data.ZONE_KESSLER);
+                    Debug.Log("smoke: warp home requested · warp=" + (ship.warp != null));
+                }
+                if (_phaseFrame > 130 && ship.warp == null && !zone.hub && ship.docked)
+                {
+                    Shot("smoke_home");
+                    Debug.Log("smoke: home · zone=" + zone.id + " docked=" + ship.docked + " hold=" + ship.hold + " dock=" + CargoShip.BayName(ship.dockSide) + " local=" + carrier.ToLocalTrue(ship.TruePos).ToString("0") + " rocks=" + belt.count);
+                    State.Save();
+                    Debug.Log("smoke: saved to " + State.SavePath + " · screenshots in " + Application.persistentDataPath);
+                    Quit();
+                }
+                if (_phaseFrame > 4000) { Debug.Log("smoke: FAIL · never got home"); Quit(); }
                 break;
         }
     }

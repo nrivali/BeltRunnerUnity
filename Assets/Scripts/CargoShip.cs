@@ -25,6 +25,7 @@ public class CargoShip : MonoBehaviour
     public float ang = Mathf.PI / 2f;
     public float orbit = Data.DEPOT_ORBIT;
     public float speed = Data.STATION_SPEED;
+    public bool hold;   // at the Hub the carrier does not orbit: it is flown to its holding point and parked there
     public Game game;
 
     /// The carrier heading whose nose (+X) points along a world direction, deck level.
@@ -61,6 +62,12 @@ public class CargoShip : MonoBehaviour
     /// Advance the orbit and refresh the transform. Returns how far the carrier moved this frame (a docked ship rides along).
     public Vector3 Tick(float dt)
     {
+        if (hold)
+        {
+            vel = Vector3.zero;
+            Place();
+            return Vector3.zero;
+        }
         var prev = truePos;
         ang -= (speed / orbit) * dt;
         Place();
@@ -70,8 +77,11 @@ public class CargoShip : MonoBehaviour
 
     public void Place()
     {
-        truePos = new Vector3(Mathf.Cos(ang) * orbit, 0f, Mathf.Sin(ang) * orbit);
-        basisQ = Quaternion.AngleAxis((Mathf.PI / 2f - ang) * Mathf.Rad2Deg, Vector3.up);   // nose (+X) along the direction of travel
+        if (!hold)
+        {
+            truePos = new Vector3(Mathf.Cos(ang) * orbit, 0f, Mathf.Sin(ang) * orbit);
+            basisQ = Quaternion.AngleAxis((Mathf.PI / 2f - ang) * Mathf.Rad2Deg, Vector3.up);   // nose (+X) along the direction of travel
+        }
         transform.position = truePos - game.worldOffset;
         transform.rotation = basisQ;
     }
@@ -268,6 +278,40 @@ public class CargoShip : MonoBehaviour
 /// Small procedural meshes.
 public static class MeshUtil
 {
+    /// A torus round Y: `rMid` to the tube centre, `tube` the tube radius.
+    public static Mesh Torus(float rMid, float tube, int rings, int segs)
+    {
+        var verts = new System.Collections.Generic.List<Vector3>();
+        var tris = new System.Collections.Generic.List<int>();
+        for (int i = 0; i <= rings; i++)
+        {
+            float a = (float)i / rings * Mathf.PI * 2f;
+            float ca = Mathf.Cos(a), sa = Mathf.Sin(a);
+            for (int j = 0; j <= segs; j++)
+            {
+                float b = (float)j / segs * Mathf.PI * 2f;
+                float r = rMid + tube * Mathf.Cos(b);
+                verts.Add(new Vector3(ca * r, tube * Mathf.Sin(b), sa * r));
+            }
+        }
+        for (int i = 0; i < rings; i++)
+        {
+            for (int j = 0; j < segs; j++)
+            {
+                int a = i * (segs + 1) + j, b = a + segs + 1;
+                tris.Add(a); tris.Add(a + 1); tris.Add(b);
+                tris.Add(b); tris.Add(a + 1); tris.Add(b + 1);
+            }
+        }
+        var m = new Mesh();
+        m.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        m.SetVertices(verts);
+        m.SetTriangles(tris, 0);
+        m.RecalculateNormals();
+        m.RecalculateBounds();
+        return m;
+    }
+
     /// A cone or cylinder along +X, centred at the origin: `rTop` at the +X end, `rBottom` at -X, capped.
     public static Mesh ConeX(float rTop, float rBottom, float length, int segments)
     {
