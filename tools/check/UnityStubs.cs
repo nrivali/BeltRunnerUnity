@@ -70,6 +70,7 @@ namespace UnityEngine
     {
         public float x, y, z, w;
         public static Quaternion identity => new Quaternion { w = 1f };
+        public static Quaternion Inverse(Quaternion q) => q;
         public static Quaternion Euler(float x, float y, float z) => identity;
         public static Quaternion LookRotation(Vector3 f, Vector3 up) => identity;
         public static Quaternion LookRotation(Vector3 f) => identity;
@@ -229,8 +230,9 @@ namespace UnityEngine
 
     public class MonoBehaviour : Behaviour { }
 
-    public class Transform : Component
+    public class Transform : Component, System.Collections.IEnumerable
     {
+        public System.Collections.IEnumerator GetEnumerator() => new List<Transform>().GetEnumerator();
         public Vector3 position { get; set; }
         public Vector3 localPosition { get; set; }
         public Vector3 localScale { get; set; }
@@ -277,6 +279,7 @@ namespace UnityEngine
         public float shadowStrength { get; set; }
         public float shadowBias { get; set; }
         public float shadowNormalBias { get; set; }
+        public float range { get; set; }
     }
 
     public static class RenderSettings
@@ -495,6 +498,7 @@ namespace UnityEngine
         }
         public class Button : Behaviour
         {
+            public bool interactable { get; set; }
             public ColorBlock colors { get; set; }
             public Events.UnityEvent onClick => new Events.UnityEvent();
         }

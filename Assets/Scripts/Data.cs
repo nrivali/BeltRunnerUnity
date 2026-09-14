@@ -18,6 +18,13 @@ public static class Data
     public const float PULSE_CD = 5f;
     public const float PULSE_TIME = 2.6f;
     public const string VERSION = "0.9.120-unity";
+    /// The cargo ship: its orbit round the planet (inside the ring belt), fuel supply and repair-parts store, and 50-slot storage.
+    public const float DEPOT_ORBIT = 925000f;
+    public const float STATION_SPEED = 102f;
+    public const float CARGO_FUEL_CAP = 2500f;
+    public const int PARTS_CAP = 400;
+    public const int STORE_SLOTS = 50;
+    public const float DOCK_RANGE = 4500f;   // E within this of the carrier hands the ship to approach control (2,250 m on the readout)
 
     public class Ore
     {

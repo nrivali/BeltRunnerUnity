@@ -16,6 +16,7 @@ public class Hud : MonoBehaviour
     public static readonly Color BAD = Data.Hex("#FF6B5B");
 
     public Action onStart, onNewGame, onQuit;
+    public Ship ship;
 
     Font _font;
     Canvas _canvas;
@@ -90,7 +91,132 @@ public class Hud : MonoBehaviour
             "Esc     Pause · the menu";
         _version = Label(_root, "Version", new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(14f, 10f), new Vector2(200f, 18f), 11, TextAnchor.MiddleLeft, new Color(0.5f, 0.53f, 0.6f));
         _version.text = "v" + Data.VERSION;
+        BuildServices();
         BuildMenu();
+    }
+
+    // ---- the cargo ship services panel (#station): a side panel over the live view of the ship on the pad
+    GameObject _services;
+    Text _svcEyebrow, _svcCredits, _svcGauges, _svcHold;
+    RectTransform _svcRefits;
+    Button _depositBtn;
+    bool _servicesVisible;
+
+    void BuildServices()
+    {
+        var panel = Panel("Services", new Vector2(1f, 0f), new Vector2(1f, 1f), Vector2.zero, new Vector2(400f, 0f));
+        panel.pivot = new Vector2(1f, 0f);
+        panel.offsetMin = new Vector2(-400f, 0f);
+        panel.offsetMax = new Vector2(0f, 0f);
+        panel.GetComponent<Image>().color = new Color(0.04f, 0.05f, 0.09f, 0.93f);
+        _services = panel.gameObject;
+        _svcEyebrow = Label(panel, "Eyebrow", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -16f), new Vector2(360f, 16f), 11, TextAnchor.MiddleLeft, MUTED);
+        Label(panel, "Title", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -32f), new Vector2(240f, 30f), 22, TextAnchor.MiddleLeft, TEXT).text = "CARGO SHIP";
+        _svcCredits = Label(panel, "Credits", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(200f, -32f), new Vector2(180f, 30f), 20, TextAnchor.MiddleRight, AMBER);
+        _svcGauges = Label(panel, "Gauges", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -72f), new Vector2(360f, 60f), 12, TextAnchor.UpperLeft, TEXT);
+        Label(panel, "HoldCap", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -136f), new Vector2(360f, 16f), 11, TextAnchor.MiddleLeft, MUTED).text = "YOUR HOLD";
+        _svcHold = Label(panel, "Hold", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -152f), new Vector2(360f, 36f), 12, TextAnchor.UpperLeft, TEXT);
+        _depositBtn = SmallButton(panel, "DEPOSIT ALL  (E)", new Vector2(20f, -192f), 170f, () => { if (ship != null) ship.DepositAll(); });
+        SmallButton(panel, "TAKE ALL", new Vector2(200f, -192f), 120f, () => { if (ship != null) ship.TakeAll(); });
+        Label(panel, "RefitCap", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(20f, -236f), new Vector2(360f, 16f), 11, TextAnchor.MiddleLeft, MUTED).text = "PERSONAL SHIP · REFITS";
+        var rg = new GameObject("Refits", typeof(RectTransform));
+        _svcRefits = rg.GetComponent<RectTransform>();
+        _svcRefits.SetParent(panel, false);
+        _svcRefits.anchorMin = _svcRefits.anchorMax = new Vector2(0f, 1f);
+        _svcRefits.pivot = new Vector2(0f, 1f);
+        _svcRefits.anchoredPosition = new Vector2(20f, -254f);
+        _svcRefits.sizeDelta = new Vector2(360f, 380f);
+        SmallButton(panel, "DEPART  (W)", new Vector2(20f, 14f), 150f, () => { if (ship != null) ship.StartDeparture(); }, true);
+        SmallButton(panel, "HIDE  (F)", new Vector2(180f, 14f), 110f, () => ToggleServices(), true);
+        _services.SetActive(false);
+    }
+
+    Button SmallButton(RectTransform parent, string label, Vector2 pos, float width, Action onClick, bool fromBottom = false)
+    {
+        var go = new GameObject("Btn " + label, typeof(RectTransform));
+        var rt = go.GetComponent<RectTransform>();
+        rt.SetParent(parent, false);
+        var anchor = fromBottom ? new Vector2(0f, 0f) : new Vector2(0f, 1f);
+        rt.anchorMin = rt.anchorMax = anchor;
+        rt.pivot = anchor;
+        rt.anchoredPosition = pos;
+        rt.sizeDelta = new Vector2(width, 30f);
+        var img = go.AddComponent<Image>();
+        img.color = new Color(0.12f, 0.15f, 0.24f, 1f);
+        var b = go.AddComponent<Button>();
+        var colors = b.colors;
+        colors.highlightedColor = new Color(0.9f, 0.7f, 0.4f, 1f);
+        colors.pressedColor = AMBER;
+        b.colors = colors;
+        b.onClick.AddListener(() => onClick());
+        var t = Label(rt, "Label", Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 12, TextAnchor.MiddleCenter, TEXT);
+        t.rectTransform.offsetMin = t.rectTransform.offsetMax = Vector2.zero;
+        t.text = label;
+        return b;
+    }
+
+    public bool ServicesVisible { get { return _services.activeSelf; } }
+
+    public void ToggleServices()
+    {
+        _servicesVisible = !_servicesVisible;
+        _services.SetActive(_servicesVisible && ship != null && ship.docked);
+        if (_services.activeSelf) RefreshServices();
+    }
+
+    public void OnDocked(bool isDocked)
+    {
+        if (isDocked && !_servicesVisible) _servicesVisible = true;
+        if (!isDocked) _servicesVisible = false;
+        _services.SetActive(isDocked && _servicesVisible);
+        if (isDocked) RefreshServices();
+    }
+
+    public void RefreshServices()
+    {
+        if (ship == null) return;
+        _svcEyebrow.text = "DOCKED · " + CargoShip.BayName(ship.dockSide).ToUpperInvariant();
+        _svcCredits.text = Data.Fmt(State.credits) + " cr";
+        int su = State.StoreUsed();
+        _svcGauges.text = "Cargo ship storage   " + su + " / " + Data.STORE_SLOTS + " slots" + (su >= Data.STORE_SLOTS ? " · FULL" : "") + "\n" +
+            "Fuel supply          " + Mathf.FloorToInt(State.shipFuel) + " / " + Mathf.RoundToInt(Data.CARGO_FUEL_CAP) + (State.shipFuel < Data.CARGO_FUEL_CAP * 0.2f ? " · LOW" : "") + "\n" +
+            "Repair parts         " + Mathf.FloorToInt(State.parts) + " / " + Data.PARTS_CAP + (State.parts < Data.PARTS_CAP * 0.2f ? " · LOW" : "");
+        var lines = new List<string>();
+        foreach (var k in Data.ORE_KEYS) if (State.cargo[k] > 0.5f) lines.Add(Data.ORES[Data.OreIndex(k)].name + " " + Mathf.RoundToInt(State.cargo[k]) + " u");
+        _svcHold.text = lines.Count > 0 ? string.Join(", ", lines.ToArray()) + "  ·  worth " + Data.Fmt(State.ValueOf(State.cargo)) + " cr at the Hub" : "The hold is empty.";
+        var stored = new List<string>();
+        foreach (var k in Data.ORE_KEYS) if (State.store[k] > 0.5f) stored.Add(Data.ORES[Data.OreIndex(k)].name + " " + Mathf.RoundToInt(State.store[k]));
+        if (stored.Count > 0) _svcHold.text += "\nStored aboard: " + string.Join(", ", stored.ToArray());
+        foreach (Transform c in _svcRefits) Destroy(c.gameObject);
+        float y = 0f;
+        foreach (var key in Data.UPGRADE_KEYS)
+        {
+            var u = Data.UPGRADES[key];
+            int i = State.up[key];
+            bool maxed = i >= u.costs.Length;
+            var name = Label(_svcRefits, "Name", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, y), new Vector2(240f, 16f), 12, TextAnchor.MiddleLeft, TEXT);
+            name.text = u.name + "  Lv" + (i + 1) + "/" + u.levels.Length;
+            var desc = Label(_svcRefits, "Desc", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, y - 16f), new Vector2(240f, 16f), 10, TextAnchor.MiddleLeft, MUTED);
+            desc.text = maxed ? Data.Describe(key, i) + " · fully upgraded" : Data.Describe(key, i) + "  →  " + Data.Describe(key, i + 1);
+            if (!maxed)
+            {
+                float cost = u.costs[i];
+                var k2 = key;
+                var b = SmallButton(_svcRefits, Data.Fmt(cost) + " cr", new Vector2(250f, y - 2f), 110f, () => Buy(k2));
+                b.interactable = State.credits >= cost;
+                var bt = b.GetComponentInChildren<Text>();
+                bt.color = State.credits >= cost ? AMBER : MUTED;
+            }
+            y -= 40f;
+        }
+    }
+
+    void Buy(string key)
+    {
+        string msg;
+        bool ok = State.Buy(key, out msg);
+        Toast(msg, !ok);
+        RefreshServices();
     }
 
     void BuildMenu()
@@ -224,6 +350,15 @@ public class Hud : MonoBehaviour
             Destroy(_toasts[0].Key.gameObject);
             _toasts.RemoveAt(0);
         }
+        LayoutToasts();
+    }
+
+    void LayoutToasts()
+    {
+        for (int i = 0; i < _toasts.Count; i++)
+        {
+            _toasts[i].Key.rectTransform.anchoredPosition = new Vector2(0f, -24f * (_toasts.Count - 1 - i));
+        }
     }
 
     public void UpdateHud(float dt, Ship ship, Belt belt, Data.Zone zone)
@@ -243,10 +378,8 @@ public class Hud : MonoBehaviour
             c.a = Mathf.Clamp01(left / 0.6f);
             _toasts[i].Key.color = c;
         }
-        for (int i = 0; i < _toasts.Count; i++)
-        {
-            _toasts[i].Key.rectTransform.anchoredPosition = new Vector2(0f, -24f * (_toasts.Count - 1 - i));
-        }
+        LayoutToasts();
+        _world.transform.parent.gameObject.SetActive(!ServicesVisible);
         var hullMax = State.Stat("hull").hp;
         var fuelMax = State.Stat("tank").cap;
         _hull.text = Mathf.RoundToInt(State.hull) + " / " + Mathf.RoundToInt(hullMax);
@@ -258,7 +391,8 @@ public class Hud : MonoBehaviour
         _cargo.text = State.UsedSlots() + " / " + State.CargoSlots() + " slots";
         string laser = ship.laserOn ? "CUTTING" : (ship.firing ? "no target" : "ready");
         string radar = ship.radarCd > 0f ? ship.radarCd.ToString("0.0") + "s" : "READY";
-        _world.text = "ZONE " + zone.name + "    LASER " + laser + "\nRANGE " + Data.Fm(State.Stat("range").reach) + " m    RADAR " + radar + "    CR " + Data.Fmt(State.credits);
+        string carrierTxt = ship.carrier != null ? "    CARGO SHIP " + Data.Fm((ship.carrier.truePos - ship.TruePos).magnitude) + " m" : "";
+        _world.text = "ZONE " + zone.name + "    LASER " + laser + carrierTxt + "\nRANGE " + Data.Fm(State.Stat("range").reach) + " m    RADAR " + radar + "    CR " + Data.Fmt(State.credits);
         if (ship.target >= 0 && ship.target < belt.count && belt.alive[ship.target])
         {
             int t = ship.target;
@@ -274,6 +408,10 @@ public class Hud : MonoBehaviour
         {
             _target.transform.parent.gameObject.SetActive(false);
         }
-        _hint.text = ship.target >= 0 ? "LMB  Hold to mine" : (ship.firing ? "Aim the nose at a rock" : "");
+        if (ship.docked) _hint.text = "W  Depart   ·   E  Deposit the hold   ·   F  Services panel";
+        else if (ship.InCinematic) _hint.text = "Approach control has the ship · Space skips";
+        else if (ship.target >= 0) _hint.text = "LMB  Hold to mine";
+        else if (ship.carrier != null && (ship.carrier.truePos - ship.TruePos).magnitude < Data.DOCK_RANGE) _hint.text = "E  Auto-dock with the cargo ship · or fly in through either hangar mouth";
+        else _hint.text = ship.firing ? "Aim the nose at a rock" : "";
     }
 }

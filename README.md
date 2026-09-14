@@ -44,9 +44,23 @@ They prove syntax, types and the pure logic, not the rendering or the feel. The 
 
 With `-smoke` on the command line the player starts without the menu, cuts the nearest copper rock through, waits for
 the ore, flies, saves, and quits, printing `smoke:` lines to the log and saving `smoke_launch.png`, `smoke_mine.png`,
-`smoke_broken.png` and `smoke_flight.png` under `Application.persistentDataPath`
+`smoke_broken.png`, `smoke_flight.png`, `smoke_taxi.png`, `smoke_approach.png`, `smoke_dock.png` and `smoke_pad.png` under `Application.persistentDataPath`
 (`%USERPROFILE%AppDataocallow
 rivalibelt runner`).
+
+## Milestone 2 — the cargo ship, the hangar, approach control, the pad
+
+| Piece | Where | Status |
+|---|---|---|
+| The cargo ship: the carrier with the through-hangar, orbiting the planet at 925,000 u and 102 u/s, the ship riding along while docked; placeholder hull of decks, mid-band slabs, tapered bow and stern, engine bells, bridge, window rows, mouth lights, pads | `Assets/Scripts/CargoShip.cs` | ported from DEPOT / STATION / placeDepot via the Godot port |
+| Hull collision: the box hull with the prow cone, the hangar corridor clamped to its walls, a hard knock costing plating; flying slowly into a mouth docks the ship | `Assets/Scripts/Ship.cs` (`CarrierContact`), `CargoShip.Collide` | ported from depotCollide |
+| Approach control (E within 2,250 m): a Catmull-Rom path in by the nearest mouth, along the deck, to a hover over the far pad, then the settle onto it; the departure taxi out of the pad's own mouth on W or the Depart button; Space skips | `Assets/Scripts/Ship.cs` (`StartApproach`, `StartDeparture`, `CutUpdate`) | ported |
+| The pad: fuel from the cargo ship's supply, hull mended from its repair parts, E deposits the hold into the 50-slot storage, Take all, W departs after a release | `Assets/Scripts/Ship.cs` (`DockUpdate`), `Assets/Scripts/GameState.cs` | ported |
+| The services panel: docked status, credits, storage / fuel supply / parts, the hold and what is stored, Deposit all / Take all, the nine refits with level, what the next level gives and a buy button, Depart, Hide (F) | `Assets/Scripts/Hud.cs` (`BuildServices`, `RefreshServices`) | rebuilt in UGUI, plainer than the browser's |
+| Cameras: a fixed camera by the entry mouth during the approach, a slow walk round the pad while docked | `Assets/Scripts/Ship.cs` (`UpdateCamera`, `HangarCamera`) | ported |
+| The smoke run now goes pad → depart → mine → collect → approach → dock → deposit → depart, with eight screenshots | `Assets/Scripts/Game.cs` (`SmokeStep`) | |
+
+Not yet: the Hub, the market and the warp (the Depart button only ever departs); the cargo ship upgrades (dish, drones); the force fields; the curved hull; Astra's carrier model.
 
 ## Milestone 1 — one belt, flight, the laser, ore, HUD, save
 
@@ -65,7 +79,6 @@ rivalibelt runner`).
 | Save: JSON under `Application.persistentDataPath` with the browser save's field names; F5 quick-saves, autosave every 30 s | `Assets/Scripts/GameState.cs` | ported |
 | Lighting: a directional sun from the zone's sun direction, one soft shadow box a few kilometres round the ship (as the browser casts), a dark flat ambient | `Assets/Scripts/Game.cs` (`SetupLighting`) | approximated; Astra's lighting module is not ported yet |
 
-Not yet ported (see the Godot port's README for the full list of what the browser has): the cargo ship, hangar,
-approach control and the pad; the Hub, colony, market and warp; Astra's rock, ship, planet and carrier models
+Not yet ported (see the Godot port's README for the full list of what the browser has): the Hub, colony, market and warp; Astra's rock, ship, planet and carrier models
 (the rocks are the browser's own procedural shapes, the ship a placeholder); sky, nebula, stars and sun disc; the
 tutorial and voice; the dish, drones, tow and lock; sparks, scrap, scorches; music and sound.

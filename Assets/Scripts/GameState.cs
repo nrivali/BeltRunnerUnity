@@ -18,6 +18,8 @@ public static class State
     public static Dictionary<string, float> store = new Dictionary<string, float>();
     public static float fuel = 100f;
     public static float hull = 100f;
+    public static float shipFuel = 1200f;   // the cargo ship's fuel supply, which the ship's tank fills from while docked
+    public static float parts = 120f;       // repair parts aboard the cargo ship, one per hull point mended while docked
     public static Dictionary<string, int> up = new Dictionary<string, int>();
     public static Dictionary<string, float> market = new Dictionary<string, float>();
     public static Dictionary<string, float> marketNext = new Dictionary<string, float>();
@@ -104,6 +106,68 @@ public static class State
         return took;
     }
 
+    // ---- the cargo ship's storage: the same slot rules, 50 slots
+    public static int StoreUsed()
+    {
+        int n = 0;
+        foreach (var k in Data.ORE_KEYS) n += Stacks(store[k]);
+        return n;
+    }
+
+    public static int StoreFree()
+    {
+        return Mathf.Max(0, Data.STORE_SLOTS - StoreUsed());
+    }
+
+    public static float StoreRoom(string ore)
+    {
+        float have = store[ore];
+        return (Stacks(have) * Data.STACK - have) + StoreFree() * Data.STACK;
+    }
+
+    public static float StoreTotal()
+    {
+        float t = 0f;
+        foreach (var k in Data.ORE_KEYS) t += store[k];
+        return t;
+    }
+
+    /// Everything in the hold into the storage. Returns the units moved.
+    public static float StowAll()
+    {
+        float moved = 0f;
+        foreach (var k in Data.ORE_KEYS)
+        {
+            float u = Mathf.Min(cargo[k], StoreRoom(k));
+            if (u > 0.01f)
+            {
+                cargo[k] -= u;
+                store[k] += u;
+                moved += u;
+                if (cargo[k] < 0.01f) cargo[k] = 0f;
+            }
+        }
+        return moved;
+    }
+
+    /// Everything in the storage back into the hold, as far as it fits. Returns the units moved.
+    public static float TakeAll()
+    {
+        float moved = 0f;
+        foreach (var k in Data.ORE_KEYS)
+        {
+            float u = Mathf.Min(store[k], CargoRoom(k));
+            if (u > 0.01f)
+            {
+                store[k] -= u;
+                cargo[k] += u;
+                moved += u;
+                if (store[k] < 0.01f) store[k] = 0f;
+            }
+        }
+        return moved;
+    }
+
     public static float Price(string k)
     {
         var o = Data.ORES[Data.OreIndex(k)];
@@ -151,7 +215,7 @@ public static class State
     [Serializable]
     public class SaveData
     {
-        public float credits, fuel, hull, mined, earned, time;
+        public float credits, fuel, hull, mined, earned, time, shipFuel = 1200f, parts = 120f;
         public Bag cargo, store, market;
         public Ups up;
         public string zone;
@@ -174,7 +238,7 @@ public static class State
     {
         var s = new SaveData
         {
-            credits = credits, fuel = fuel, hull = hull, mined = mined, earned = earned, time = time,
+            credits = credits, fuel = fuel, hull = hull, mined = mined, earned = earned, time = time, shipFuel = shipFuel, parts = parts,
             cargo = ToBag(cargo), store = ToBag(store), market = ToBag(market),
             up = new Ups { laser = up["laser"], cargo = up["cargo"], engine = up["engine"], tank = up["tank"], scanner = up["scanner"], range = up["range"], hull = up["hull"], thrusters = up["thrusters"], overcharge = up["overcharge"] },
             zone = zoneId, tut = tut, settings = new Settings { sound = soundOn, volume = volume },
@@ -200,6 +264,8 @@ public static class State
         credits = s.credits;
         fuel = s.fuel;
         hull = s.hull;
+        shipFuel = Mathf.Min(Data.CARGO_FUEL_CAP, s.shipFuel);
+        parts = Mathf.Min(Data.PARTS_CAP, s.parts);
         mined = s.mined;
         earned = s.earned;
         time = s.time;
@@ -226,6 +292,8 @@ public static class State
         credits = 60f;
         fuel = 100f;
         hull = 100f;
+        shipFuel = 1200f;
+        parts = 120f;
         foreach (var k in Data.ORE_KEYS) { cargo[k] = 0f; store[k] = 0f; market[k] = 1f; marketNext[k] = 1f; }
         foreach (var k in Data.UPGRADE_KEYS) up[k] = 0;
         marketT = 0f;

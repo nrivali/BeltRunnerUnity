@@ -13,6 +13,7 @@ public class Game : MonoBehaviour
     public Data.Zone zone = Data.ZONE_KESSLER;
     public Belt belt;
     public Ship ship;
+    public CargoShip carrier;
     public Hud hud;
     public Camera cam;
     public Light sun;
@@ -36,19 +37,26 @@ public class Game : MonoBehaviour
         State.Init();
         var args = Environment.GetCommandLineArgs();
         foreach (var a in args) if (a == "-smoke" || a == "--smoke") _smoke = true;
+        if (_smoke) State.Reset();   // the run starts from a fresh pilot every time
         var t0 = Time.realtimeSinceStartup;
         SetupCamera();
         SetupLighting();
         belt = new Belt();
         _pickups = new GameObject("Pickups").transform;
+        var cgo = new GameObject("CargoShip");
+        carrier = cgo.AddComponent<CargoShip>();
+        carrier.game = this;
+        carrier.BuildHull();
         var shipGo = new GameObject("Ship");
         ship = shipGo.AddComponent<Ship>();
         ship.game = this;
         ship.belt = belt;
+        ship.carrier = carrier;
         ship.cam = cam;
         ship.Build();
         var hudGo = new GameObject("HUD");
         hud = hudGo.AddComponent<Hud>();
+        hud.ship = ship;
         hud.Build();
         hud.onStart = StartGame;
         hud.onNewGame = NewGame;
@@ -135,23 +143,33 @@ public class Game : MonoBehaviour
         _planet.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
     }
 
-    /// The ship starts in the ring belt, where the cargo ship orbits, nose along the orbit.
+    /// Place the carrier and the ship for the zone: on the pad in the dock that faces the planet.
     void SpawnInZone()
     {
-        float a = _smoke ? Mathf.PI / 2f : UnityEngine.Random.value * Mathf.PI * 2f;
-        var start = new Vector3(Mathf.Cos(a) * 925000f, 0f, Mathf.Sin(a) * 925000f);
-        worldOffset = start;
+        carrier.ang = _smoke ? Mathf.PI / 2f : UnityEngine.Random.value * Mathf.PI * 2f;
+        worldOffset = Vector3.zero;
+        carrier.Place();
+        int side = carrier.PlanetSide();
+        worldOffset = carrier.ToTrue(CargoShip.ParkLocal(side));
         ship.transform.position = Vector3.zero;
-        ship.transform.rotation = Quaternion.LookRotation(new Vector3(-Mathf.Sin(a), 0f, Mathf.Cos(a)), Vector3.up);
+        ship.transform.rotation = Ship.LevelHeading(carrier.Dir(CargoShip.FaceLocal(side)));
         ship.vel = Vector3.zero;
         ApplyOffsets();
+        ship.EnterHangar(side);
     }
 
     void ApplyOffsets()
     {
         belt.ApplyOffset(worldOffset);
         _planet.transform.position = _planetTrue - worldOffset;
+        carrier.Place();
         belt.Cull(ship.TruePos);
+    }
+
+    /// The ship docked or left: the services panel follows.
+    public void OnDocked(bool isDocked)
+    {
+        hud.OnDocked(isDocked);
     }
 
     // ---- start, pause, resume, new game (the browser's startGame / pauseGame / resumeGame / newGame / resetSave)
@@ -236,6 +254,7 @@ public class Game : MonoBehaviour
         bool splits = c > 0;
         float total = belt.Kill(i);
         float loose = splits ? total * 0.25f : total;
+        if (_smoke) Debug.Log("smoke: break · " + rname + " total=" + total.ToString("0") + " loose=" + loose.ToString("0") + " splits=" + splits);
         if (oreI >= 0 && loose > 0f)
         {
             int k = Mathf.Clamp(Mathf.RoundToInt(loose / 40f), 1, 8);
@@ -305,8 +324,12 @@ public class Game : MonoBehaviour
         }
         if (Input.GetKeyDown(KeyCode.F5)) { State.Save(); hud.Toast("Saved", false); }
         if (Input.GetKeyDown(KeyCode.C)) hud.ToggleControls();
+        if (Input.GetKeyDown(KeyCode.F) && ship.docked) hud.ToggleServices();
         State.time += dt;
         State.TickMarket(dt);
+        // the carrier drifts round its orbit; a docked ship rides along with it
+        var moved = carrier.Tick(dt);
+        if (ship.docked) ship.transform.position += moved;
         ship.Tick(dt);
         belt.Tick(dt, ship.TruePos);
         for (int i = _drops.Count - 1; i >= 0; i--)
@@ -327,6 +350,7 @@ public class Game : MonoBehaviour
             ship.transform.position = Vector3.zero;
             belt.ApplyOffset(worldOffset);
             _planet.transform.position = _planetTrue - worldOffset;
+            carrier.Place();
             foreach (var p in _drops) if (p != null) p.transform.localPosition -= delta;
             ship.OnShift(delta);
         }
@@ -347,71 +371,142 @@ public class Game : MonoBehaviour
         if (_smoke) SmokeStep();
     }
 
-    // ---- `-smoke`: an unattended run that prints what happened and saves screenshots under persistentDataPath
+    // ---- `-smoke`: an unattended run through the loop that prints what happened and saves screenshots under
+    // persistentDataPath: off the pad, cut the nearest copper rock, collect the ore, back to the carrier under
+    // approach control, dock, deposit, depart again
     bool _smoke;
     int _frame;
     int _smokeRock = -1;
     float _smokeHp;
+    string _phase = "start";
+    int _phaseFrame;
+
+    void Next(string phase)
+    {
+        _phase = phase;
+        _phaseFrame = 0;
+    }
 
     void SmokeStep()
     {
         _frame++;
-        if (_frame == 5)
+        _phaseFrame++;
+        switch (_phase)
         {
-            Debug.Log("smoke: zone=" + zone.id + " rocks=" + belt.count + " chunks=" + belt.ChunkCount + " visible=" + belt.VisibleChunks());
-            Shot("smoke_launch");
-            int nearest;
-            float dist;
-            int n = belt.Scan(ship.TruePos, 200000f, Data.OreIndex("copper"), 0f, out nearest, out dist);
-            _smokeRock = nearest;
-            Debug.Log("smoke: copper rocks within 200,000 u: " + n + " · nearest " + (nearest >= 0 ? belt.RockName(nearest) + " at " + Mathf.RoundToInt(dist) : "none"));
-            if (nearest >= 0)
-            {
-                belt.SetFree(nearest, Vector3.zero);   // a rock knocked off its rail and at rest, so the parked ship keeps the beam on it
-                var rp = belt.RockPos(nearest) - worldOffset;
-                var dir = (rp - ship.transform.position).normalized;
-                ship.transform.position = rp - dir * (belt.radius[nearest] + 560f);
-                ship.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
-                ship.vel = Vector3.zero;
-                ship.UpdateCamera(1f);
-                belt.hp[nearest] = 45f;
-                _smokeHp = belt.hp[nearest];
-                ship.autoFire = true;
-            }
-        }
-        if (_frame == 10)
-        {
-            Debug.Log("smoke: draw · " + belt.DrawReport());
-        }
-        if (_frame == 60 && _smokeRock >= 0)
-        {
-            Shot("smoke_mine");
-            Debug.Log("smoke: cutting " + belt.RockName(_smokeRock) + " · target=" + ship.target + " laser_on=" + ship.laserOn + " hp=" + belt.hp[_smokeRock].ToString("0") + " (was " + _smokeHp.ToString("0") + ")");
-        }
-        if (_frame >= 400 && _smokePhase == 0 && (_smokeRock < 0 || !belt.alive[_smokeRock] || _frame > 1500))
-        {
-            _smokePhase = 1;
-            _smokeFrame = _frame;
-            ship.autoFire = false;
-            Debug.Log("smoke: mined · rock_alive=" + (_smokeRock >= 0 && belt.alive[_smokeRock]) + " pickups_left=" + _drops.Count + " cargo=" + State.CargoTotal().ToString("0") + " fuel=" + State.fuel.ToString("0.0") + " fps=" + (1f / Mathf.Max(0.0001f, Time.smoothDeltaTime)).ToString("0"));
-            Shot("smoke_broken");
-            ship.throttle = 1f;
-        }
-        if (_smokePhase == 1 && _frame == _smokeFrame + 300)
-        {
-            Shot("smoke_flight");
-            Debug.Log("smoke: flight · speed=" + ship.Speed.ToString("0") + " throttle=" + ship.throttle.ToString("0.00") + " cargo=" + State.CargoTotal().ToString("0") + " offset=" + worldOffset.ToString("0"));
-        }
-        if (_smokePhase == 1 && _frame == _smokeFrame + 320)
-        {
-            State.Save();
-            Debug.Log("smoke: saved to " + State.SavePath + " · screenshots in " + Application.persistentDataPath);
-            Quit();
+            case "start":
+                if (_phaseFrame == 10)
+                {
+                    Debug.Log("smoke: zone=" + zone.id + " rocks=" + belt.count + " chunks=" + belt.ChunkCount + " docked=" + ship.docked + " dock=" + CargoShip.BayName(ship.dockSide) + " services=" + hud.ServicesVisible + " · " + belt.DrawReport());
+                    Shot("smoke_launch");
+                }
+                if (_phaseFrame == 20)
+                {
+                    ship.StartDeparture();
+                    Next("leaving");
+                }
+                break;
+            case "leaving":
+                if (_phaseFrame == 90) Shot("smoke_taxi");
+                if (ship.cut == null && !ship.docked)
+                {
+                    Debug.Log("smoke: launched · speed=" + ship.Speed.ToString("0") + " throttle=" + ship.throttle.ToString("0.00"));
+                    int nearest; float dist;
+                    belt.Scan(ship.TruePos, 200000f, Data.OreIndex("copper"), 0f, out nearest, out dist);
+                    _smokeRock = nearest;
+                    if (nearest >= 0)
+                    {
+                        belt.SetFree(nearest, Vector3.zero);   // a rock knocked off its rail and at rest, so the parked ship keeps the beam on it
+                        var rp = belt.RockPos(nearest) - worldOffset;
+                        var dir = (rp - ship.transform.position).normalized;
+                        ship.transform.position = rp - dir * (belt.radius[nearest] + 560f);
+                        ship.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+                        ship.vel = Vector3.zero;
+                        ship.throttle = 0f;
+                        ship.UpdateCamera(1f);
+                        belt.hp[nearest] = 45f;
+                        _smokeHp = belt.hp[nearest];
+                        ship.autoFire = true;
+                    }
+                    Next("mining");
+                }
+                break;
+            case "mining":
+                if (_phaseFrame == 60)
+                {
+                    Shot("smoke_mine");
+                    Debug.Log("smoke: cutting " + (_smokeRock >= 0 ? belt.RockName(_smokeRock) : "nothing") + " · target=" + ship.target + " laser_on=" + ship.laserOn + " hp=" + (_smokeRock >= 0 ? belt.hp[_smokeRock].ToString("0") : "-") + " (was " + _smokeHp.ToString("0") + ")");
+                }
+                if (_phaseFrame > 400 && (_smokeRock < 0 || !belt.alive[_smokeRock] || _phaseFrame > 1500))
+                {
+                    ship.autoFire = false;
+                    Debug.Log("smoke: mined · rock_alive=" + (_smokeRock >= 0 && belt.alive[_smokeRock]) + " pickups_left=" + _drops.Count + " cargo=" + State.CargoTotal().ToString("0") + " fuel=" + State.fuel.ToString("0.0") + " fps=" + (1f / Mathf.Max(0.0001f, Time.smoothDeltaTime)).ToString("0"));
+                    ship.throttle = 1f;
+                    Next("collect");
+                }
+                break;
+            case "collect":
+                if (_phaseFrame == 300 || _drops.Count == 0)
+                {
+                    Shot("smoke_flight");
+                    Debug.Log("smoke: flight · speed=" + ship.Speed.ToString("0") + " cargo=" + State.CargoTotal().ToString("0") + " pickups_left=" + _drops.Count + " offset=" + worldOffset.ToString("0"));
+                    // back to the carrier with a hold worth depositing: park 3,000 off the nearer mouth and ask approach control for the ship
+                    State.AddCargo("copper", 120f);
+                    State.AddCargo("gold", 30f);
+                    int entry = carrier.NearestSide(ship.TruePos);
+                    var startL = CargoShip.OpeningLocal(entry) + new Vector3(300f, 120f, entry * 3000f);
+                    ship.transform.position = carrier.ToTrue(startL) - worldOffset;
+                    ship.vel = carrier.vel;
+                    ship.throttle = 0f;
+                    ship.transform.rotation = Ship.LevelHeading(carrier.Dir(new Vector3(0f, 0f, -entry)));
+                    ship.UpdateCamera(1f);
+                    ship.StartApproach();
+                    Debug.Log("smoke: approach requested · cut=" + (ship.cut != null) + " dist=" + (ship.TruePos - carrier.truePos).magnitude.ToString("0"));
+                    Next("approach");
+                }
+                break;
+            case "approach":
+                if (_phaseFrame == 120) Shot("smoke_approach");
+                if (ship.docked)
+                {
+                    Shot("smoke_dock");
+                    float before = State.StoreTotal();
+                    ship.DepositAll();
+                    Debug.Log("smoke: docked in " + CargoShip.BayName(ship.dockSide) + " · store " + before.ToString("0") + " -> " + State.StoreTotal().ToString("0") + " · hold=" + State.CargoTotal().ToString("0") + " · fuel=" + State.fuel.ToString("0.0") + "/" + State.Stat("tank").cap.ToString("0") + " shipFuel=" + State.shipFuel.ToString("0") + " · services " + hud.ServicesVisible);
+                    Next("docked");
+                }
+                if (_phaseFrame > 4000)
+                {
+                    Debug.Log("smoke: FAIL · the approach never docked · cut=" + (ship.cut != null) + " local=" + carrier.ToLocalTrue(ship.TruePos).ToString("0"));
+                    Quit();
+                }
+                break;
+            case "docked":
+                if (_phaseFrame == 150)
+                {
+                    Shot("smoke_pad");
+                    var local = carrier.ToLocalTrue(ship.TruePos);
+                    Debug.Log("smoke: on the pad · local=" + local.ToString("0") + " · park=" + CargoShip.ParkLocal(ship.dockSide).ToString("0") + " · carrier speed " + carrier.vel.magnitude.ToString("0") + " u/s");
+                    ship.StartDeparture();
+                    Next("depart2");
+                }
+                break;
+            case "depart2":
+                if (ship.cut == null && !ship.docked)
+                {
+                    var local = carrier.ToLocalTrue(ship.TruePos);
+                    Debug.Log("smoke: departed again · local=" + local.ToString("0") + " speed=" + ship.Speed.ToString("0") + " · exit_pending=" + ship.exitPending);
+                    State.Save();
+                    Debug.Log("smoke: saved to " + State.SavePath + " · screenshots in " + Application.persistentDataPath);
+                    Quit();
+                }
+                if (_phaseFrame > 900)
+                {
+                    Debug.Log("smoke: FAIL · the departure never finished");
+                    Quit();
+                }
+                break;
         }
     }
-
-    int _smokePhase;
-    int _smokeFrame;
 
     void Shot(string name)
     {
