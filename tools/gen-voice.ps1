@@ -8,7 +8,7 @@ $ErrorActionPreference='Stop'
 $root=Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $key=(Get-Content (Join-Path (Split-Path -Parent $root) 'BeltRunner\elevenlabs.key') -Raw).Trim()
 $out=Join-Path $root 'Assets\Resources\Sfx'
-$VOICE='weA4Q36twV5kwSaTEL0Q'   # the voice of Vega (the user's pick)
+$VOICE='kIYbb5iUo0dJb8oRw5Mt'   # the voice of Vega (the user's pick): energetic, approachable, friendly
 $lines=[ordered]@{
   launch = "Vega here, your ship's assistant. Press W on the pad and approach control taxis you out of the hangar; the ship is yours the moment it lets go."
   steer  = "The mouse steers. W and S work the throttle, A and D roll, X cuts the throttle. Open her up and give me a turn."
@@ -30,9 +30,10 @@ foreach ($id in $lines.Keys){
   if ($Only.Count -gt 0 -and $Only -notcontains $id) { continue }
   $file=Join-Path $out ("tut_$id.mp3")
   if ((Test-Path $file) -and -not $Force) { "skip  tut_$id (exists)"; continue }
-  # v3 ignores speed and break tags: pacing comes from the sentence ends; stability 0.5 is "natural"
-  $text=$lines[$id] -replace '\. ', '... '
-  $body=@{text=$text; model_id='eleven_v3'; voice_settings=@{stability=0.5; similarity_boost=0.8}} | ConvertTo-Json -Depth 4
+  # v3 ignores speed and break tags: pacing comes from the sentence ends. The audio tag sets the delivery (energetic,
+  # approachable, friendly) and is not spoken; stability 0.35 leans "creative" so the tag actually shows in the read
+  $text='[cheerful] [upbeat] '+($lines[$id] -replace '\. ', '... ')
+  $body=@{text=$text; model_id='eleven_v3'; voice_settings=@{stability=0.35; similarity_boost=0.8}} | ConvertTo-Json -Depth 4
   try {
     Invoke-WebRequest -Uri ("https://api.elevenlabs.io/v1/text-to-speech/$VOICE"+'?output_format=mp3_44100_96') -Method Post -Headers @{'xi-api-key'=$key; 'Content-Type'='application/json'; 'Accept'='audio/mpeg'} -Body ([Text.Encoding]::UTF8.GetBytes($body)) -OutFile $file | Out-Null
     $chars+=$text.Length; "made  tut_$id  $((Get-Item $file).Length) bytes"
