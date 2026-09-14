@@ -3,16 +3,16 @@ using UnityEngine;
 
 /// Combat: pirate raiders holding station off the rich pockets, brought back from the browser's scrapped hazards code
 /// (makePirate / updateHazards) with its numbers. A hold of one to three raiders wanders round each rich pocket; when
-/// the ship comes within 6,500 u (flying, and outside the cargo ship's gun cover) they attack, closing to 900 u and
+/// the ship comes within 9,000 u (flying, and outside the cargo ship's gun cover) they attack, closing to 900 u and
 /// orbiting, firing bolts that lead the ship whenever their nose is on it (the guns are fixed forward). They give up beyond 11,000 u or when the ship is disabled or docked, and
 /// they die under the cargo ship's guns inside SAFE_R. The player's autocannon (a refit) fires bolts from the dish
 /// focus; a kill pays a bounty and sometimes drops salvage. Positions are true world coordinates.
 public class Raiders
 {
     public const float SAFE_R = 9000f;      // cargo ship gun cover: raiders die here and never engage inside it
-    public const float ENGAGE = 6500f;
-    public const float GIVE_UP = 11000f;
-    public const float BOLT_SPEED = 2200f;
+    public const float ENGAGE = 9000f;      // aggressive: they come for a ship 4,500 m out
+    public const float GIVE_UP = 14000f;
+    public const float BOLT_SPEED = 2600f;  // the same bolt as the player's
     public const float PLAYER_BOLT_SPEED = 2600f;
     public const float RADIUS = 14f;
     // a raider flies like a ship: it turns no faster than this, and speeds up and slows down no harder than this
@@ -26,7 +26,8 @@ public class Raiders
         public Transform node;
         public Material exhaust;
         public float hp, maxHp, dmg, speed, bounty, a, fireCd;
-        public float shield, maxShield, sinceHit = 99f;   // the shield soaks damage first and recharges after ten quiet seconds
+        public float shield, maxShield, sinceHit = 99f;
+        public float gunDmg, gunRate, gunReach;   // the same weapon as the player's base autocannon   // the shield soaks damage first and recharges after ten quiet seconds
         public string state = "idle";
         public bool dead;
         public bool frozen;   // the combat test: holds its place (still turns to face the ship and fires)
@@ -155,6 +156,7 @@ public class Raiders
         {
             pos = pos, home = home, wp = home, node = go.transform, exhaust = ex, hp = hp, maxHp = hp, shield = shield, maxShield = shield, dmg = Mathf.Round(3f + 4f * danger),
             heading = Random.onUnitSphere, spd = 120f,
+            gunDmg = Data.UPGRADES["gun"].levels[0].mult, gunRate = Data.UPGRADES["gun"].levels[0].rate, gunReach = Data.UPGRADES["gun"].levels[0].reach,   // the player's own base autocannon
             a = Random.value * 6f, fireCd = Random.Range(1f, 2f), speed = 820f + danger * 90f, bounty = Mathf.Round(120f * danger + 80f), frozen = frozen,
         });
         return raiders[raiders.Count - 1];
@@ -325,7 +327,7 @@ public class Raiders
                 {
                     // the run in: toward the ship, weaving side to side, until close
                     desired = sp + side * Mathf.Sin(r.weave) * 260f + Vector3.up * Mathf.Sin(r.weave * 0.6f) * 90f;
-                    if (d < 750f) { r.move = "strafe"; r.moveT = Random.Range(2.5f, 6f); r.orbitR = Random.Range(300f, 700f); r.orbitDir = Random.value < 0.5f ? -1f : 1f; }
+                    if (d < 600f) { r.move = "strafe"; r.moveT = Random.Range(3f, 7f); r.orbitR = Random.Range(200f, 500f); r.orbitDir = Random.value < 0.5f ? -1f : 1f; }
                 }
                 else if (r.move == "strafe")
                 {
@@ -336,20 +338,20 @@ public class Raiders
                     if (r.moveT <= 0f)
                     {
                         float roll = Random.value;
-                        if (roll < 0.25f)
+                        if (roll < 0.15f)
                         {
-                            // a long run: out to a point 2,000 to 5,000 m from the ship, then back in from wherever that leaves it
+                            // a long run: out to a point 1,500 to 3,000 m from the ship, then back in from wherever that leaves it
                             r.move = "long";
                             var away = -toShip + side * Random.Range(-0.8f, 0.8f) + Vector3.up * Random.Range(-0.3f, 0.3f);
-                            float reach = Random.Range(4000f, 10000f);
+                            float reach = Random.Range(3000f, 6000f);
                             r.longTo = sp + away.normalized * reach;
                             r.moveT = reach / r.speed * 1.6f;
                         }
                         else
                         {
-                            r.move = roll < 0.55f ? "strafe" : "break";
-                            r.moveT = r.move == "break" ? Random.Range(1.5f, 3.5f) : Random.Range(2.5f, 6f);
-                            r.orbitR = Random.Range(300f, 700f);
+                            r.move = roll < 0.8f ? "strafe" : "break";   // aggressive: mostly another pass
+                            r.moveT = r.move == "break" ? Random.Range(1.2f, 2.5f) : Random.Range(3f, 7f);
+                            r.orbitR = Random.Range(200f, 500f);
                             if (Random.value < 0.5f) r.orbitDir = -r.orbitDir;
                         }
                     }
@@ -363,21 +365,21 @@ public class Raiders
                 else
                 {
                     // the breakaway: out to 1,600 u off to one side, then a fresh run
-                    desired = sp - toShip * 1600f + side * r.orbitDir * 700f + Vector3.up * Mathf.Sin(r.weave * 0.5f) * 200f;
-                    if (r.moveT <= 0f || d > 1900f) { r.move = "run"; r.moveT = 0f; }
+                    desired = sp - toShip * 1000f + side * r.orbitDir * 500f + Vector3.up * Mathf.Sin(r.weave * 0.5f) * 200f;
+                    if (r.moveT <= 0f || d > 1300f) { r.move = "run"; r.moveT = 0f; }
                 }
                 // the jink: a hard turn aside, as hard as the ship can turn
                 r.dodgeCd -= dt;
                 if (r.dodgeT > 0f) { r.dodgeT -= dt; desired = r.pos + r.dodgeDir * 900f; }
                 r.fireCd -= dt;
                 // the guns are fixed forward: a raider only fires when its nose is on the ship (within 20 degrees)
-                bool facing = Vector3.Dot(r.node.forward, (sp - r.pos).normalized) > Mathf.Cos(20f * Mathf.Deg2Rad);
-                if (r.fireCd <= 0f && d < 5000f && facing)   // 2,500 m on the readout
+                bool facing = Vector3.Dot(r.node.forward, (sp - r.pos).normalized) > Mathf.Cos(25f * Mathf.Deg2Rad);
+                if (r.fireCd <= 0f && d < r.gunReach && facing)   // the player's own gun: its range, its rate, its damage
                 {
-                    r.fireCd = 0.5f;
-                    float spread = 0.09f / Mathf.Max(0.7f, danger);   // raiders in quiet zones are poor shots
+                    r.fireCd = 1f / r.gunRate;
+                    float spread = 0.05f;
                     var dir = (sp + ship.vel * (d / BOLT_SPEED) - r.pos).normalized + new Vector3(Random.Range(-spread, spread), Random.Range(-spread, spread), Random.Range(-spread, spread));
-                    Fire(r.pos, dir.normalized, r.dmg, false);
+                    Fire(r.pos, dir.normalized, r.gunDmg, false);
                     Audio.Play("zap", -6f * Mathf.Clamp01(d / 1200f));
                 }
             }
