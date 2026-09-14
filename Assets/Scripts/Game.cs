@@ -503,7 +503,7 @@ public class Game : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F9)) JumpToHold();
         if (Input.GetKeyDown(KeyCode.F10) && raiders != null) { raiders.holdFire = !raiders.holdFire; hud.Toast(raiders.holdFire ? "Test · raiders hold their fire" : "Test · raiders fire again", false); }
         if (Input.GetKeyDown(KeyCode.C)) hud.ToggleControls();
-        if (Input.GetKeyDown(KeyCode.F) && ship.docked) hud.ToggleServices();
+        if (Input.GetKeyDown(KeyCode.F) && (ship.docked || State.sandbox)) hud.ToggleServices();   // the test: the refits anywhere
         if (Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.I)) hud.ToggleInventory();
         if (Input.GetKeyDown(KeyCode.N) && ship.warp == null) hud.ToggleMap();
         State.time += dt;
@@ -565,7 +565,7 @@ public class Game : MonoBehaviour
         hud.UpdateHud(dt, ship, belt, carrier, zone, started);
         hud.menu.Tick(dt);
         tutorial.Update(dt);
-        if (_combat) State.fuel = State.Stat("tank").cap;   // the test: fuel never runs out
+        if (_combat) { State.fuel = State.Stat("tank").cap; State.credits = Mathf.Max(State.credits, 9999999f); }   // the test: fuel never runs out, nor credits
         if (_combat && ++_combatFrame == 240) { Shot("combat_test"); Debug.Log("combat test: " + raiders.Stats() + " · hull " + State.hull.ToString("0") + " · lock " + ship.lockKind + " · target " + (ship.raiderTarget != null)); }
         if (_smoke) SmokeStep();
     }

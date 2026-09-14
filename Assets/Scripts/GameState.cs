@@ -366,6 +366,20 @@ public static class State
         return true;
     }
 
+    /// Take a level off a refit (the combat test's minus button): the price of that level comes back.
+    public static bool Downgrade(string key, out string msg)
+    {
+        var u = Data.UPGRADES[key];
+        int i = up[key];
+        if (i <= 0) { msg = u.name + " is at the base level"; return false; }
+        up[key] = i - 1;
+        credits += u.costs[i - 1];
+        if (key == "hull") hull = Mathf.Min(hull, Stat("hull").hp);
+        Save();
+        msg = u.name + " back to Lv" + i;
+        return true;
+    }
+
     // ---- the save file: the browser's field names, written by JsonUtility through a mirror of the save object
     [Serializable] public class Bag { public float iron, copper, gold, platinum, crystal, cobalt, beryl; }
     [Serializable] public class Ups { public int laser, cargo, engine, tank, scanner, range, hull, thrusters, overcharge, gun; }

@@ -264,6 +264,7 @@ public class Hud : MonoBehaviour
         new object[] { new[] { "F5" }, "Quick-save" },
         new object[] { new[] { "F9" }, "Test · jump to the next raider hold" },
         new object[] { new[] { "F10" }, "Test · raiders hold their fire · again to let them fire" },
+        new object[] { new[] { "F" }, "Test · the refit panel anywhere · bottomless credits · − takes a level off" },
         new object[] { new[] { "Esc" }, "Pause · the menu with settings and controls" },
     };
 
@@ -464,14 +465,14 @@ public class Hud : MonoBehaviour
 
     public void ToggleServices()
     {
-        if (ship == null || !ship.docked) return;
+        if (ship == null || (!ship.docked && !State.sandbox)) return;   // the combat test: the refits anywhere
         _servicesVisible = !_servicesVisible;
         _services.gameObject.SetActive(_servicesVisible);
         if (_servicesVisible) { _svcSig = ""; RefreshServices(); }
     }
 
     /// One refit row (.up): name and pips, the description with the next level in bold, the price button on the right.
-    void RefitRow(Ui.Flow f, string name, int total, int have, string desc, float cost, bool maxed, Action fn, bool first)
+    void RefitRow(Ui.Flow f, string name, int total, int have, string desc, float cost, bool maxed, Action fn, bool first, Action down = null)
     {
         if (!first) { f.Rule(); f.Gap(13f); }
         float top = f.y;
@@ -484,11 +485,18 @@ public class Hud : MonoBehaviour
             Ui.Fill(pip, j < have ? Ui.AMBER : Ui.LINE2);
         }
         f.y -= 23f;
-        f.Para(desc, "body", 13, Ui.MUTED, 0f, TextAnchor.UpperLeft, 0f, f.w - 118f - 14f);
+        f.Para(desc, "body", 13, Ui.MUTED, 0f, TextAnchor.UpperLeft, 0f, f.w - 118f - 14f - (down != null ? 48f : 0f));
         float rowH = top - f.y;
         var b = Ui.Button(f.parent, maxed ? "Max" : Data.Fmt(cost) + " cr", fn, !maxed && State.credits >= cost, true, 118f, 14);
         b.rt.anchoredPosition = new Vector2(f.x + f.w - 118f, top - (rowH - b.Height) * 0.5f);
         if (maxed || State.credits < cost) b.interactable = false;
+        if (down != null)
+        {
+            // the test's minus: a level off
+            var m = Ui.Button(f.parent, "−", down, have > 1, true, 40f, 14);
+            m.rt.anchoredPosition = new Vector2(f.x + f.w - 118f - 48f, top - (rowH - m.Height) * 0.5f);
+            if (have <= 1) m.interactable = false;
+        }
         f.Gap(13f);
     }
 
@@ -548,7 +556,7 @@ public class Hud : MonoBehaviour
             bool maxed = i >= u.costs.Length;
             string desc = maxed ? Ui.Col("<b>" + Data.Describe(key, i) + "</b>", Ui.TEXT) + " · Fully upgraded" : Data.Describe(key, i) + " → " + Ui.Col("<b>" + Data.Describe(key, i + 1) + "</b>", Ui.TEXT);
             var k2 = key;
-            RefitRow(f, u.name, u.levels.Length, i + 1, desc, maxed ? 0f : u.costs[i], maxed, () => Buy(k2), first);
+            RefitRow(f, u.name, u.levels.Length, i + 1, desc, maxed ? 0f : u.costs[i], maxed, () => Buy(k2), first, State.sandbox ? () => Downgrade(k2) : (Action)null);
             first = false;
         }
         _refitsBox = Ui.Rect("RefitsBox", _svcScroll.content, Ui.TL, Ui.TL, new Vector2(f.x, refitsTop), new Vector2(f.w, refitsTop - f.y));
@@ -593,6 +601,16 @@ public class Hud : MonoBehaviour
         Toast(msg, !ok);
         if (ok) Audio.Play("chime");
         if (ok && ship != null) ship.ConfigureModel();   // the fitting on the hull changes with its tier
+        _svcSig = "";
+        RefreshServices();
+    }
+
+    void Downgrade(string key)
+    {
+        string msg;
+        bool ok = State.Downgrade(key, out msg);
+        Toast(msg, !ok);
+        if (ok && ship != null) ship.ConfigureModel();
         _svcSig = "";
         RefreshServices();
     }
