@@ -502,6 +502,7 @@ public class Game : MonoBehaviour
     bool _shotArrival;
     int _mapFrames;
     bool _droneDone;
+    float _smokeCr;
 
     void Next(string phase)
     {
@@ -570,6 +571,8 @@ public class Game : MonoBehaviour
                         ship.UpdateCamera(1f);
                         belt.hp[nearest] = 45f;
                         _smokeHp = belt.hp[nearest];
+                        ship.LockOnRock(nearest);   // what Q does with the mouse on the rock
+                        Debug.Log("smoke: locked · kind=" + ship.lockKind + " rock=" + ship.lockRock + " dist=" + ship.lockDist.ToString("0") + " · " + ship.LockName());
                         ship.autoFire = true;
                     }
                     Next("mining");
@@ -683,21 +686,28 @@ public class Game : MonoBehaviour
                     var plays = new List<string>();
                     foreach (var kv in Audio.I.plays) plays.Add(kv.Key + "x" + kv.Value);
                     Debug.Log("smoke: audio plays · " + string.Join(" ", plays.ToArray()) + " · loops " + Audio.I.LoopState());
-                    // straight back in, then the jump to the Hub with the storage full of ore to sell
-                    int entry = carrier.NearestSide(ship.TruePos);
-                    var startL = CargoShip.OpeningLocal(entry) + new Vector3(300f, 120f, entry * 3000f);
-                    ship.transform.position = carrier.ToTrue(startL) - worldOffset;
-                    ship.vel = carrier.vel;
-                    ship.throttle = 0f;
-                    ship.transform.rotation = Ship.LevelHeading(carrier.Dir(new Vector3(0f, 0f, -entry)));
-                    ship.StartApproach();
-                    Next("redock");
+                    // out of fuel just off the mouth: T calls for recovery, which sets the ship back down on a pad
+                    State.fuel = 0f;
+                    ship.vel = Vector3.zero;
+                    _smokeCr = State.credits;
+                    ship.CallRecovery();
+                    Debug.Log("smoke: recovery requested · " + (ship.recovery != null ? ship.recovery.reason : "none") + " · fuel=" + State.fuel.ToString("0") + " credits=" + State.credits.ToString("0") + " · lock=" + ship.lockKind);
+                    Next("recover");
                 }
                 if (_phaseFrame > 900)
                 {
                     Debug.Log("smoke: FAIL · the departure never finished");
                     Quit();
                 }
+                break;
+            case "recover":
+                if (_phaseFrame == 40) Shot("smoke_recovery");   // the fade closing over the dry ship
+                if (ship.docked && ship.recovery == null)
+                {
+                    Debug.Log("smoke: recovered · docked=" + ship.docked + " dock=" + CargoShip.BayName(ship.dockSide) + " · credits " + _smokeCr.ToString("0") + " -> " + State.credits.ToString("0") + " (fee " + (_smokeCr - State.credits).ToString("0") + ") · fuel=" + State.fuel.ToString("0") + " · local=" + carrier.ToLocalTrue(ship.TruePos).ToString("0") + " · services " + hud.ServicesVisible);
+                    Next("redock");
+                }
+                if (_phaseFrame > 900) { Debug.Log("smoke: FAIL · recovery never docked · recovery=" + (ship.recovery != null) + " docked=" + ship.docked); Quit(); }
                 break;
             case "redock":
                 if (ship.docked && !hud.MapOpen && _phaseFrame < 3990) hud.OpenMap();

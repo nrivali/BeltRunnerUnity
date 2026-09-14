@@ -91,6 +91,33 @@ public class Ship : MonoBehaviour
     public Light torch;
     public bool torchOn = true;   // F in flight; not saved, as in the browser
 
+    // ---- the Q lock (the HTML's lock / hover / lockType / lockDist): Q locks whatever the mouse is over, switches to a
+    // different hovered target, or releases; the ship steers itself to keep the lock on the nose ray until released
+    public const float LOCK_RANGE = 100000f;   // a lock holds out to this distance (well beyond laser reach: it is for navigating to things too)
+    public string lockKind = "";               // "", "rock" or "station" (the cargo ship)
+    public int lockRock = -1;
+    public float lockDist;
+    public class HoverInfo { public string kind; public int rock = -1; public float dist; public string name; }
+    public HoverInfo hover;                     // what the mouse is over (refreshed at 10 Hz, and afresh on Q)
+    int _hoverFrame;
+
+    // ---- recovery, in place of the browser's tow tug (the user's call for the Unity port): a hull breach disables the
+    // ship on the spot, and T with a dry tank, or the breach itself, brings the ship straight back to the cargo ship's
+    // pad behind a short fade, for the tug's fee (15% of credits), a hull patch to 35% and a tank topped to 30%
+    public class Recovery { public string reason; public float t; public bool done; }
+    public Recovery recovery;
+    public bool disabled;
+    bool _lowHullWarned;
+    public const float RECOVER_DUR = 3.2f;
+    public const float RECOVER_AT = 1.6f;
+    public bool CanFly { get { return !disabled && recovery == null; } }
+
+    /// The laser's origin in true coordinates: the dish focus on the model.
+    public Vector3 LaserOrigin()
+    {
+        return (focus != null ? focus.position : transform.position + Forward * 20f) + game.worldOffset;
+    }
+
     public void Build()
     {
         BuildLaser();
@@ -248,6 +275,7 @@ public class Ship : MonoBehaviour
             CutUpdate(dt);
             return;
         }
+        if (recovery != null) RecoveryUpdate(dt);
         if (docked)
         {
             DockUpdate(dt);
@@ -265,12 +293,219 @@ public class Ship : MonoBehaviour
         CarrierContact();
         if (docked) return;
         RockContact();
+        CheckBreach();
+        if (!CanFly)
+        {
+            // systems down: nothing answers, the ship drifts until it is recovered
+            laserOn = false;
+            firing = false;
+            target = -1;
+            if (_laser != null) _laser.enabled = false;
+            hover = null;
+            return;
+        }
+        if (++_hoverFrame % 6 == 0) hover = HoverPick();
+        TickLock();
         TickLaser(dt);
         radarCd = Mathf.Max(0f, radarCd - dt);
         if (Input.GetKeyDown(KeyCode.R)) Radar();
         if (Input.GetKeyDown(KeyCode.G)) ToggleOvercharge();
         if (Input.GetKeyDown(KeyCode.F)) ToggleTorch();
         if (Input.GetKeyDown(KeyCode.E)) StartApproach();
+        if (Input.GetKeyDown(KeyCode.Q)) ToggleLock();
+        if (Input.GetKeyDown(KeyCode.T)) CallRecovery();
+    }
+
+    // ---- the Q lock
+    /// What the mouse is over (hoverPick): every live rock within 120 km of the camera and the cargo ship are projected to
+    /// the screen, and the nearest one whose disc (with a 10 px minimum so distant rocks stay hoverable) contains the
+    /// cursor wins. dist is measured from the nose to the surface, in the same units as laser reach.
+    public HoverInfo HoverPick()
+    {
+        if (docked || cut != null || warp != null || !CanFly || game.hud == null || game.hud.InvOpen || game.hud.MapOpen || game.hud.MenuVisible) return null;
+        var m = Input.mousePosition;
+        if (m.x < 0f || m.y < 0f || m.x > Screen.width || m.y > Screen.height) return null;
+        float f = Mathf.Tan(cam.fieldOfView * Mathf.Deg2Rad * 0.5f);
+        var origin = LaserOrigin();
+        var camTrue = cam.transform.position + game.worldOffset;
+        HoverInfo best = null;
+        float bd = float.PositiveInfinity;
+        foreach (int i in belt.RocksNear(camTrue, 120000f))
+        {
+            var p = belt.RockPos(i);
+            float cd = (camTrue - p).magnitude;
+            if (cd > 120000f || cd >= bd) continue;
+            var sp = cam.WorldToScreenPoint(p - game.worldOffset);
+            if (sp.z < 0f) continue;
+            float r = belt.radius[i];
+            float pr = Mathf.Max(10f, r * (Screen.height * 0.5f) / (cd * f)) * 1.15f;
+            float dx = sp.x - m.x, dy = sp.y - m.y;
+            if (dx * dx + dy * dy > pr * pr) continue;
+            bd = cd;
+            best = new HoverInfo { kind = "rock", rock = i, dist = Mathf.Max(0f, (origin - p).magnitude - r), name = belt.RockName(i) };
+        }
+        if (carrier != null && !carrier.hold)
+        {
+            var p = carrier.truePos;
+            float cd = (camTrue - p).magnitude;
+            if (cd < 120000f && cd < bd)
+            {
+                var sp = cam.WorldToScreenPoint(p - game.worldOffset);
+                if (sp.z >= 0f)
+                {
+                    float pr = Mathf.Max(10f, CargoShip.HALF.x * (Screen.height * 0.5f) / (cd * f)) * 1.15f;
+                    float dx = sp.x - m.x, dy = sp.y - m.y;
+                    if (dx * dx + dy * dy <= pr * pr) best = new HoverInfo { kind = "station", rock = -1, dist = Mathf.Max(0f, (origin - p).magnitude - CargoShip.HALF.x), name = "Cargo ship" };
+                }
+            }
+        }
+        return best;
+    }
+
+    public bool HoverIsLock(HoverInfo h)
+    {
+        return h != null && h.kind == lockKind && (lockKind != "rock" || h.rock == lockRock);
+    }
+
+    /// Q: lock the hovered target, switch to a different hovered target, or release the current lock.
+    public void ToggleLock()
+    {
+        hover = HoverPick();   // the cursor's position now, even if it moved since the last hover pass
+        if (hover != null && !HoverIsLock(hover))
+        {
+            lockKind = hover.kind;
+            lockRock = hover.rock;
+            lockDist = hover.dist;
+            game.Toast("Locked on " + hover.name, false);
+        }
+        else if (lockKind != "")
+        {
+            ReleaseLock();
+            game.Toast("Lock released", false);
+        }
+        else game.Toast("Nothing under the mouse to lock on", true);
+    }
+
+    /// The smoke run's Q: a lock on a given rock.
+    public void LockOnRock(int i)
+    {
+        lockKind = "rock";
+        lockRock = i;
+        lockDist = Mathf.Max(0f, (belt.RockPos(i) - LaserOrigin()).magnitude - belt.radius[i]);
+        game.Toast("Locked on " + belt.RockName(i), false);
+    }
+
+    public void ReleaseLock()
+    {
+        lockKind = "";
+        lockRock = -1;
+        lockDist = 0f;
+    }
+
+    public Vector3 LockPos()
+    {
+        return lockKind == "rock" ? belt.RockPos(lockRock) : carrier.truePos;
+    }
+
+    public string LockName()
+    {
+        return lockKind == "rock" ? belt.RockName(lockRock) : "Cargo ship";
+    }
+
+    /// The lock lapses when its rock breaks up or it falls far out of range (the cargo ship never goes away).
+    void TickLock()
+    {
+        if (lockKind == "") return;
+        bool gone = lockKind == "rock" && (lockRock >= belt.count || !belt.alive[lockRock]);
+        float r = lockKind == "rock" && !gone ? belt.radius[lockRock] : CargoShip.HALF.x;
+        lockDist = gone ? 0f : Mathf.Max(0f, (LockPos() - LaserOrigin()).magnitude - r);
+        if (gone || lockDist > LOCK_RANGE)
+        {
+            game.Toast(gone ? "Lock lost · rock broke up" : "Lock lost · out of range", true);
+            ReleaseLock();
+        }
+    }
+
+    // ---- recovery
+    /// A breach: plating gone, the ship is disabled and recovery is automatic. Under a quarter, one warning.
+    void CheckBreach()
+    {
+        float hp = State.Stat("hull").hp;
+        if (State.hull <= 0f && recovery == null) StartRecovery("breach");
+        else if (State.hull > 0f && State.hull < hp * 0.25f && !_lowHullWarned)
+        {
+            _lowHullWarned = true;
+            Audio.Play("alarm");
+            game.Toast("Hull under 25% · the pad mends it, one repair part per point", true);
+        }
+    }
+
+    /// T: a dry tank calls for recovery.
+    public void CallRecovery()
+    {
+        if (docked || recovery != null) return;
+        if (State.fuel > 0.5f)
+        {
+            game.Toast("Fuel in the tank · recovery only comes for a dry ship", true);
+            return;
+        }
+        StartRecovery("fuel");
+    }
+
+    public void StartRecovery(string reason)
+    {
+        if (recovery != null || docked) return;
+        recovery = new Recovery { reason = reason };
+        ReleaseLock();
+        throttle = 0f;
+        laserOn = false;
+        firing = false;
+        if (_laser != null) _laser.enabled = false;
+        if (reason == "breach")
+        {
+            disabled = true;
+            game.hud.WreckFlash();
+            Audio.Play("boom_big");
+            Audio.Play("alarm");
+            game.Toast("Hull breach · systems down · recovery beacon sent", true);
+        }
+        else game.Toast("Recovery requested · returning to the cargo ship", false);
+    }
+
+    public string RecoveryStatus()
+    {
+        if (recovery != null) return recovery.done ? "Recovered · on the pad" : "Recovery · returning to the cargo ship";
+        if (disabled) return "Hull breach · drifting";
+        return "";
+    }
+
+    /// The drift dies away behind the fade; at the midpoint the ship is set down on the nearer dock's pad, the fee is
+    /// charged, a breached hull patched and an empty tank topped up, and the bay takes it from there.
+    void RecoveryUpdate(float dt)
+    {
+        var R = recovery;
+        R.t += dt;
+        if (!docked) vel *= Mathf.Exp(-1.5f * dt);
+        if (!R.done && R.t >= RECOVER_AT)
+        {
+            R.done = true;
+            int side = carrier.NearestSide(TruePos);
+            transform.position = carrier.ToTrue(CargoShip.ParkLocal(side)) - game.worldOffset;
+            transform.rotation = LevelHeading(carrier.Dir(CargoShip.FaceLocal(side)));
+            vel = carrier.vel;
+            float fee = Mathf.Floor(State.credits * 0.15f);
+            State.credits -= fee;
+            bool breach = R.reason == "breach";
+            if (breach) State.hull = Mathf.Max(State.hull, Mathf.Round(State.Stat("hull").hp * 0.35f));
+            float tank = State.Stat("tank").cap;
+            if (State.fuel < tank * 0.3f) State.fuel = tank * 0.3f;
+            disabled = false;
+            _lowHullWarned = false;
+            EnterHangar(side);
+            UpdateCamera(1f);
+            game.Toast("Recovered to " + CargoShip.BayName(side) + " · " + Data.Fmt(fee) + " cr fee" + (breach ? " · emergency hull patch applied" : ""), false);
+        }
+        if (R.t >= RECOVER_DUR) recovery = null;
     }
 
     void Fly(float dt)
@@ -278,7 +513,19 @@ public class Ship : MonoBehaviour
         var eng = State.Stat("engine");
         // steering: the cursor's offset from screen centre yaws and pitches; A/D roll; arrow keys pitch
         float yaw = 0f, pitchUp = 0f, roll = 0f;
-        if (mouseSteer)
+        bool flying = CanFly;   // nothing answers while disabled or being recovered: the ship drifts
+        if (flying && lockKind != "")
+        {
+            // Q lock: the ship turns itself to put the locked object on the nose ray (the laser's line, not the camera's);
+            // the mouse is ignored until the lock is released (roll is still yours). Proportional: full rate beyond about
+            // seven degrees off, easing in as the nose comes on.
+            var L = transform.InverseTransformPoint(LockPos() - game.worldOffset) - new Vector3(0f, 0f, 20f);
+            float ey = Mathf.Atan2(L.x, L.z);
+            float ep = Mathf.Atan2(L.y, Mathf.Sqrt(L.x * L.x + L.z * L.z));
+            yaw = Mathf.Clamp(ey * 8f, -1f, 1f) * 1.2f;
+            pitchUp = Mathf.Clamp(ep * 8f, -1f, 1f);
+        }
+        else if (flying && mouseSteer)
         {
             var m = Input.mousePosition;
             float sx = (m.x - Screen.width * 0.5f) / (Screen.width * 0.5f);
@@ -286,10 +533,13 @@ public class Ship : MonoBehaviour
             yaw = Shape(Mathf.Clamp(sx, -1f, 1f));
             pitchUp = Shape(Mathf.Clamp(sy, -1f, 1f));
         }
-        if (Input.GetKey(KeyCode.A)) roll += 1f;
-        if (Input.GetKey(KeyCode.D)) roll -= 1f;
-        if (Input.GetKey(KeyCode.UpArrow)) pitchUp += 1f;
-        if (Input.GetKey(KeyCode.DownArrow)) pitchUp -= 1f;
+        if (flying)
+        {
+            if (Input.GetKey(KeyCode.A)) roll += 1f;
+            if (Input.GetKey(KeyCode.D)) roll -= 1f;
+            if (Input.GetKey(KeyCode.UpArrow)) pitchUp += 1f;
+            if (Input.GetKey(KeyCode.DownArrow)) pitchUp -= 1f;
+        }
         yaw = Mathf.Clamp(yaw, -1f, 1f);
         pitchUp = Mathf.Clamp(pitchUp, -1f, 1f);
         transform.Rotate(Vector3.up, yaw * TURN * dt * Mathf.Rad2Deg, Space.Self);
@@ -297,11 +547,14 @@ public class Ship : MonoBehaviour
         transform.Rotate(Vector3.forward, roll * 0.6f * dt * Mathf.Rad2Deg, Space.Self);
 
         // throttle: W raises, S lowers, X cuts; holding S at zero fires the retros
-        if (Input.GetKey(KeyCode.W)) throttle = Mathf.Min(1f, throttle + 0.7f * dt);
-        if (Input.GetKey(KeyCode.S)) throttle = Mathf.Max(0f, throttle - 0.9f * dt);
-        if (Input.GetKey(KeyCode.X)) throttle = 0f;
+        if (flying)
+        {
+            if (Input.GetKey(KeyCode.W)) throttle = Mathf.Min(1f, throttle + 0.7f * dt);
+            if (Input.GetKey(KeyCode.S)) throttle = Mathf.Max(0f, throttle - 0.9f * dt);
+            if (Input.GetKey(KeyCode.X)) throttle = 0f;
+        }
         float abMult = State.Stat("thrusters").mult;
-        afterburning = throttle > 0f && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && abMult > 1f && State.fuel > 0f;
+        afterburning = flying && throttle > 0f && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && abMult > 1f && State.fuel > 0f;
         float mult = afterburning ? abMult : 1f;
         thrusting = false;
         braking = false;
@@ -315,7 +568,7 @@ public class Ship : MonoBehaviour
                 State.fuel = Mathf.Max(0f, State.fuel - Data.FUEL_BURN * throttle * Data.BurnMult(mult) * dt);
                 thrusting = true;
             }
-            else if (Input.GetKey(KeyCode.S))
+            else if (flying && Input.GetKey(KeyCode.S))
             {
                 float sp = vel.magnitude;
                 if (sp > 1f)
@@ -589,6 +842,9 @@ public class Ship : MonoBehaviour
         exitPending = false;
         hangarT = 0f;
         cut = null;
+        ReleaseLock();
+        hover = null;
+        _lowHullWarned = false;
         Audio.Play("dock");
         // the deck welcomes you back over the intercom, one of four announcements, once the clamps have clunked (not on a
         // session's first dock, and not during the tutorial, whose own line for this step would talk over it)
@@ -740,6 +996,11 @@ public class Ship : MonoBehaviour
     /// 0 = clear, 1 = black: the HUD's fade for the jump.
     public float WarpFade()
     {
+        if (recovery != null)
+        {
+            float rt = recovery.t;
+            return rt < RECOVER_AT ? SmoothStep(RECOVER_AT - 1.2f, RECOVER_AT, rt) : 1f - SmoothStep(RECOVER_AT + 0.3f, RECOVER_DUR, rt);
+        }
         if (warp == null) return 0f;
         float t = warp.t;
         if (warp.loaded) return warp.skip ? 0f : 1f - SmoothStep(WARP_LOAD_AT + 1.1f, WARP_LOAD_AT + 2.3f, t);

@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// The Flight Ops questline, ported from TUT in belt-runner-3d.html: fourteen steps that walk a new pilot through the
-/// launch, the controls, the HUD, the radar, a copper rock under the nose, cutting it, the hold, docking, the pad,
+/// launch, the controls, the HUD, the radar, a copper rock locked with Q, cutting it, the hold, docking, the pad,
 /// stowing, refits, the Hub and the departure. Every step is spoken by a recorded line (Sfx/tut_<id>) when it appears,
 /// and again from the card's Replay button. Steps with `wait` wait for the pilot to actually do the thing; the rest
 /// wait for Next (Enter). Progress is State.tut (-1 once finished or skipped).
@@ -21,7 +21,7 @@ public class Tutorial
         new Step("steer", "Take the stick", "The mouse steers. W and S work the throttle, A and D roll, X cuts the throttle. Open her up and give me a turn.", "open the throttle and turn", false, "controls"),
         new Step("hud", "Ship and world", "Bottom centre is your ship: hull, fuel, speed, thrust and cargo. Top right is the world: zone, laser, radar, and whatever you are looking at.", null, false, "status", "readout"),
         new Step("radar", "Find ore", "Press R to pulse the radar. Every rock it reaches is marked for a while. Ore shows as coloured veins and crystals; plain grey rock is barren, so do not waste the laser on it.", "press R", false, "readout"),
-        new Step("lock", "Find a copper rock", "Find a copper rock (orange veins) and put it under the nose. The target panel shows its size and what is left in it.", "put a copper rock under the nose", false, "target"),
+        new Step("lock", "Lock a copper rock", "Find a copper rock (orange veins), put the mouse on it and press Q to lock it. The target panel shows its size and what is left in it.", "press Q on a copper rock", false, "target"),
         new Step("mine", "Cut it", "Get within laser reach and hold the left mouse button (Space or L too). The dish under the nose cuts while you hold. When the rock breaks, fly through the glow and the ore comes aboard.", "collect copper", false, "target"),
         new Step("inv", "Your hold", "Copper in the hold. Press Tab for your inventory: four slots, one stack each. Deposit all moves it aboard the cargo ship once you are docked.", "press Tab"),
         new Step("return", "Head home", "Follow the CARGO SHIP readout. Within 2,250 press E and approach control brings you in, or fly slowly into either hangar mouth yourself.", "dock with the cargo ship", false, "marker"),
@@ -51,7 +51,7 @@ public class Tutorial
             case "launch": return !ship.docked && ship.cut == null;
             case "steer": return _flown;
             case "radar": return ship.radarPulsed;
-            case "lock": return ship.target >= 0 && ship.target < belt.count && belt.ore[ship.target] >= 0 && Data.ORE_KEYS[belt.ore[ship.target]] == "copper";
+            case "lock": return ship.lockKind == "rock" && ship.lockRock >= 0 && ship.lockRock < belt.count && belt.ore[ship.lockRock] >= 0 && Data.ORE_KEYS[belt.ore[ship.lockRock]] == "copper";
             case "mine": return State.cargo["copper"] >= 1f;
             case "inv": return hud.InvOpen;
             case "return": return ship.docked;

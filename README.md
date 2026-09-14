@@ -48,6 +48,27 @@ the ore, flies, saves, and quits, printing `smoke:` lines to the log and saving 
 (`%USERPROFILE%AppDataocallow
 rivalibelt runner`).
 
+## Milestone 12 — the Q lock and recovery
+
+The browser's tow tug is not ported: at the user's request the Unity port brings a stranded ship straight back to the
+cargo ship instead. Everything else in the milestone follows the browser.
+
+| Piece | Where | Status |
+|---|---|---|
+| Hover pick: every live rock within 120 km of the camera and the cargo ship are projected to the screen; the nearest whose disc (10 px minimum) holds the cursor is the hover, shown as a label beside the cursor with its range from the nose | `Assets/Scripts/Ship.cs` (`HoverPick`), `Assets/Scripts/Hud.cs` | ported from hoverPick / .hoverLbl (the pick runs at 10 Hz for the label, and afresh on Q) |
+| Q: lock the hovered target, switch to a different hovered target, or release; the lock holds out to 50,000 m and lapses when the rock breaks up or falls out of range | `Ship.cs` (`ToggleLock`, `TickLock`) | ported |
+| Lock steering: the ship turns itself to put the locked object on the nose ray (proportional, full rate beyond about seven degrees off); the mouse is ignored, roll stays yours; the laser still only cuts what the crosshair is on | `Ship.cs` (`Fly`) | ported |
+| HUD: the target pane follows the lock (LOCKED TARGET; the cargo ship as a carrier with no health bar), the RANGE readout shows the lock's distance against the beam's reach, heavier reticle corners when the crosshair is on the lock, Q hints in the hint bar, Q and T rows in the controls list and the menu | `Hud.cs`, `Menu.cs` | ported |
+| Recovery: T with a dry tank calls it (a hull breach calls it by itself, with the flash and the alarm, and disables the ship: no thrust, no steering, it drifts); the screen fades, the ship is set down on the pad of the nearer dock, and the fade lifts | `Ship.cs` (`CallRecovery`, `StartRecovery`, `RecoveryUpdate`) | replaces the tug flight (the user's call); 3.2 s end to end |
+| Recovered: 15% of credits as the fee, a breached hull patched to 35%, an empty tank topped to 30%, then the pad's own refuel and repair | `Ship.cs` (`RecoveryUpdate`) | the browser's tow fee and patch |
+| A warning once the hull is under a quarter | `Ship.cs` (`CheckBreach`) | ported |
+| Tutorial lock step: press Q on a copper rock, as the browser's | `Assets/Scripts/Tutorial.cs` | ported |
+
+The smoke run locks the tutorial rock with Q (what the mouse would do), runs dry off the mouth after the second
+departure, calls for recovery and prints the fee and the fuel once the ship is back on the pad.
+
+Not ported: the tug model, its beam and its flight; the free look while disabled.
+
 ## Milestone 9 — the HUD and the menus
 
 The browser HUD's stylesheet, rebuilt in UGUI: `Assets/Scripts/Ui.cs` holds the palette, the three type families the
@@ -73,8 +94,8 @@ The smoke run now also captures the inventory and the three menu pages, and driv
 pointer would (storage to hold, hold to storage, a stack let go outside the grids). Escape closes the pause menu first,
 then the nav map, then the inventory, and only then pauses.
 
-Still to come from the browser HUD: the hover readout beside the cursor and the Q lock (milestone 12), the tow status,
-and the music settings.
+Still to come from the browser HUD: the music settings (the hover readout, the Q lock and the recovery status came
+with milestone 12).
 
 ## Milestone 8 — lighting and the sky
 

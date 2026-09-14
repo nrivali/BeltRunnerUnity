@@ -32,7 +32,8 @@ public class Hud : MonoBehaviour
     RectTransform _reticleRt;
     Ui.Marker _marker, _fieldMarker;
     readonly List<Ui.Marker> _droneMarkers = new List<Ui.Marker>();
-    RectTransform _status, _readouts, _target, _controls, _prompt, _notice, _toastBox, _version;
+    RectTransform _status, _readouts, _target, _controls, _prompt, _notice, _toastBox, _version, _hoverLbl;
+    Text _hoverTxt;
     Ui.Pane _statusPane;
     Ui.Gauge _gHull, _gFuel, _gThr, _gCargo;
     Text _speedBig, _row1, _row2, _tEyebrow, _tName, _tRows, _tHpT, _tWarn, _promptText, _caption;
@@ -241,7 +242,9 @@ public class Hud : MonoBehaviour
         new object[] { new[] { "↑", "↓" }, "Pitch" },
         new object[] { new[] { "LMB" }, "Hold to fire the mining laser (Space or L too). It cuts only what the crosshair is on: aim the nose at a rock" },
         new object[] { new[] { "R" }, "Radar pulse" },
+        new object[] { new[] { "Q" }, "Lock the crosshair on whatever the mouse is over · hover another target and press Q to switch · otherwise press Q to release" },
         new object[] { new[] { "F" }, "Flashlight on · off in flight · cargo ship services when docked" },
+        new object[] { new[] { "T" }, "Out of fuel · recovery to the cargo ship (15% of credits)" },
         new object[] { new[] { "E" }, "Approach control within 2,250 m of the cargo ship · deposit ore on the pad" },
         new object[] { new[] { "Tab", "I" }, "Inventory · slots of 100 · jettison stacks" },
         new object[] { new[] { "N" }, "Nav map · warp (docked in the cargo ship)" },
@@ -287,6 +290,12 @@ public class Hud : MonoBehaviour
         _promptText = Ui.Label(_prompt, "", "body", 14, Ui.TEXT, TextAnchor.MiddleCenter);
         Ui.At(_promptText.rectTransform, Ui.MID, Ui.MID, Vector2.zero, new Vector2(900f, 36f));
         _prompt.gameObject.SetActive(false);
+        // the hover readout (.hoverLbl): what the mouse is over and how far it is, beside the cursor
+        _hoverLbl = Ui.Rect("Hover", _root, Ui.BL, Ui.BL, Vector2.zero, new Vector2(100f, 20f));
+        Ui.MakeBox(_hoverLbl, new Color(0.055f, 0.071f, 0.141f, 0.72f), Ui.LINE2, 1f);
+        _hoverTxt = Ui.Label(_hoverLbl, "", "mono", 11, Ui.TEXT, TextAnchor.MiddleCenter);
+        Ui.At(_hoverTxt.rectTransform, Ui.MID, Ui.MID, Vector2.zero, new Vector2(100f, 20f));
+        _hoverLbl.gameObject.SetActive(false);
     }
 
     void BuildNotice()
@@ -1351,18 +1360,34 @@ public class Hud : MonoBehaviour
         if (ship.overcharge) laser += " ⚡×" + State.Stat("overcharge").mult;
         string radar = ship.radarCd <= 0f ? "READY" : ship.radarCd.ToString("0.0") + "s";
         float reach = State.Stat("range").reach;
-        _row2.text = Kv("LASER", laser) + "   " + Kv("RANGE", Data.Fm(reach) + " m") + "   " + Kv("RADAR", radar);
+        bool locked = ship.lockKind != "" && !docked;
+        string rangeTxt = locked ? Data.Fm(ship.lockDist) + " / " + Data.Fm(reach) + " m" : Data.Fm(reach) + " m";   // the lock's distance against the beam's reach
+        _row2.text = Kv("LASER", laser) + "   " + Kv("RANGE", rangeTxt) + "   " + Kv("RADAR", radar);
         float rw = Mathf.Max(Ui.Measure(_row1), Ui.Measure(_row2)) + 28f;
         if (Mathf.Abs(_readouts.sizeDelta.x - rw) > 0.5f) _readouts.sizeDelta = new Vector2(rw, 58f);
-        // the target
+        // the target: the panel follows the lock when there is one, else the crosshair target
         bool hasTarget = ship.target >= 0 && ship.target < belt.count && belt.alive[ship.target] && !docked;
-        if (hasTarget)
+        int panelRock = locked && ship.lockKind == "rock" ? ship.lockRock : (hasTarget ? ship.target : -1);
+        bool showTarget = false;
+        if (locked && ship.lockKind == "station")
         {
-            int i = ship.target;
-            float tdist = Mathf.Max(0f, (belt.RockPos(i) - ship.TruePos).magnitude - belt.radius[i]);
-            _tEyebrow.text = "TARGET";
+            showTarget = true;
+            _tEyebrow.text = "LOCKED TARGET";
+            _tName.text = "Cargo ship";
+            _tRows.text = Kv("SIZE", "Carrier") + "   " + Kv("RANGE", Data.Fm(ship.lockDist) + " m");
+            _tHpRow.gameObject.SetActive(false);
+            _tWarn.gameObject.SetActive(false);
+            _target.sizeDelta = new Vector2(Mathf.Max(230f, Ui.Measure(_tRows) + 28f), 74f);
+        }
+        else if (panelRock >= 0 && panelRock < belt.count && belt.alive[panelRock])
+        {
+            showTarget = true;
+            int i = panelRock;
+            float tdist = Mathf.Max(0f, (belt.RockPos(i) - ship.LaserOrigin()).magnitude - belt.radius[i]);
+            _tEyebrow.text = locked ? "LOCKED TARGET" : "TARGET";
             _tName.text = (belt.ore[i] < 0 ? "Barren" : Data.ORES[belt.ore[i]].name) + " Rock";
             _tRows.text = Kv("SIZE", Belt.CLS_NAME[belt.cls[i]]) + "   " + Kv("RANGE", Data.Fm(tdist) + " m" + (tdist <= reach ? "" : " · beyond reach"));
+            _tHpRow.gameObject.SetActive(true);
             _tHp.Set(belt.hp[i] / Mathf.Max(1f, belt.hpMax[i]), Ui.AMBER2);
             _tHpT.text = Mathf.CeilToInt(Mathf.Max(0f, belt.hp[i])) + " / " + Mathf.RoundToInt(belt.hpMax[i]);
             string reason = "";
@@ -1376,9 +1401,27 @@ public class Hud : MonoBehaviour
             float tw = Mathf.Max(230f, Ui.Measure(_tRows) + 28f);
             _target.sizeDelta = new Vector2(tw, reason != "" ? 108f : 92f);
         }
+        // the hover label beside the cursor: what the mouse is over and how far it is
+        var hv = ship.hover;
+        if (hv != null && !docked && !inCut && started)
+        {
+            _hoverLbl.gameObject.SetActive(true);
+            string ht = hv.name + " · " + Data.Fm(hv.dist) + " m";
+            if (_hoverTxt.text != ht)
+            {
+                _hoverTxt.text = ht;
+                float hw = Mathf.Ceil(_hoverTxt.preferredWidth) + 12f;
+                _hoverLbl.sizeDelta = new Vector2(hw, 20f);
+                _hoverTxt.rectTransform.sizeDelta = new Vector2(hw, 20f);
+            }
+            var mp = Input.mousePosition;
+            _hoverLbl.anchoredPosition = new Vector2(mp.x, mp.y) / _canvas.scaleFactor + new Vector2(14f, -14f - 20f);
+        }
+        else _hoverLbl.gameObject.SetActive(false);
         // the hint bar
         var segs = new List<string>();
-        if (!docked)
+        if (!docked && (ship.recovery != null || ship.disabled)) segs.Add(ship.RecoveryStatus());
+        else if (!docked)
         {
             if (ship.cut != null)
             {
@@ -1387,6 +1430,7 @@ public class Hud : MonoBehaviour
                 if (ship.cut.mode != "depart") segs.Add(Kbd("Space") + " Skip");
             }
             else if (carrier != null && toCarrier < Data.DOCK_RANGE && !hold) segs.Add(Kbd("E") + " Auto-dock with the cargo ship · or fly in through either hangar mouth");
+            else if (State.fuel <= 0.5f && ship.cut == null) segs.Add(Kbd("T") + " Out of fuel · recovery to the cargo ship (15% of credits)");
             if (hasTarget && ship.cut == null)
             {
                 int i = ship.target;
@@ -1396,6 +1440,11 @@ public class Hud : MonoBehaviour
             }
         }
         else if (started && State.CargoTotal() > 0.5f && !hold) segs.Add(Kbd("E") + " Deposit all ore into the cargo ship");
+        if (started && !docked && ship.cut == null && ship.CanFly)
+        {
+            if (hv != null && !ship.HoverIsLock(hv)) segs.Add(Kbd("Q") + " " + (locked ? "Switch lock to " : "Lock on ") + hv.name);
+            else if (locked) segs.Add(Kbd("Q") + " Release lock");
+        }
         string ptext = string.Join(Ui.Col("  ·  ", Ui.DIM), segs.ToArray());
         if (ptext != _promptText.text)
         {
@@ -1414,7 +1463,7 @@ public class Hud : MonoBehaviour
         _readouts.gameObject.SetActive(showFlight && !docked);
         _controls.gameObject.SetActive(showFlight && !docked && _controlsShown);
         _prompt.gameObject.SetActive(showFlight && !docked && segs.Count > 0);
-        _target.gameObject.SetActive(hasTarget && showFlight);
+        _target.gameObject.SetActive(showTarget && showFlight);
         if (inCut && _tutBox.gameObject.activeSelf) _tutBox.gameObject.SetActive(false);
         _barTop.gameObject.SetActive(inCut);
         _barBot.gameObject.SetActive(inCut);
@@ -1440,7 +1489,7 @@ public class Hud : MonoBehaviour
             bool behind = Project(belt.RockPos(ship.target) - game.worldOffset, out sp);
             _reticleRt.gameObject.SetActive(!behind);
             _reticleRt.anchoredPosition = sp;
-            _reticle.Set(ship.laserOn, false);
+            _reticle.Set(ship.laserOn, ship.lockKind == "rock" && ship.lockRock == ship.target);   // locked on: heavier, wider corners
         }
         else _reticleRt.gameObject.SetActive(false);
         // the cargo ship marker, the nearest charted field's (hidden while inside one), and one on every collector drone
