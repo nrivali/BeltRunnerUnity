@@ -12,8 +12,8 @@ public class Raiders
     public const float SAFE_R = 9000f;      // cargo ship gun cover: raiders die here and never engage inside it
     public const float ENGAGE = 9000f;      // aggressive: they come for a ship 4,500 m out
     public const float GIVE_UP = 14000f;
-    public const float BOLT_SPEED = 2600f;  // the same bolt as the player's
-    public const float PLAYER_BOLT_SPEED = 2600f;
+    public const float BOLT_SPEED = 2600f;  // a raider's bolt
+    public const float PLAYER_BOLT_SPEED = 5000f;   // the player's bolt is faster: 0.8 s of flight covers 4,000 u, past any gun reach
     public const float RADIUS = 14f;
     // a raider flies like a ship: it turns no faster than this, and speeds up and slows down no harder than this
     public const float TURN_RATE = 35f * Mathf.Deg2Rad;   // the player's ship turns at 30 degrees a second
@@ -255,7 +255,7 @@ public class Raiders
 
     public void Fire(Vector3 from, Vector3 dir, float dmg, bool player)
     {
-        var b = new Bolt { pos = from, dir = dir.normalized, life = 1.6f, dmg = dmg, player = player, node = BoltNode(player) };
+        var b = new Bolt { pos = from, dir = dir.normalized, life = player ? 0.8f : 1.6f, dmg = dmg, player = player, node = BoltNode(player) };
         b.node.rotation = Quaternion.FromToRotation(Vector3.up, b.dir);
         bolts.Add(b);
         if (player)
