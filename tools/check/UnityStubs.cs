@@ -703,7 +703,12 @@ namespace UnityEngine
     {
         public static AudioClip Create(string name, int samples, int channels, int rate, bool stream) => new AudioClip();
         public void SetData(float[] d, int offset) { }
+        public bool GetData(float[] d, int offset) => true;
+        public bool LoadAudioData() => true;
+        public int samples, channels, frequency;
+        public AudioDataLoadState loadState;
     }
+    public enum AudioDataLoadState { Unloaded, Loading, Loaded, Failed }
     public static class AudioSettings { public static int outputSampleRate => 48000; }
     public enum AudioReverbPreset { Off, Generic, Hangar, Room }
     public class AudioSource : Behaviour

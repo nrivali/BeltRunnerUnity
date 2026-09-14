@@ -21,6 +21,10 @@ public class Audio : MonoBehaviour
 
     public static Audio I;
 
+    // loops whose clip gets a seamless seam once its audio data is decoded (the mp3s carry encoder padding, which clicks)
+    static readonly string[] SEAMLESS = { "shield_out", "shield_charge" };
+    readonly List<string> _pendingSeam = new List<string>();
+
     class Loop
     {
         public AudioSource src;
@@ -75,6 +79,7 @@ public class Audio : MonoBehaviour
             s.volume = 0f;
             s.Play();
             _loops[nm] = new Loop { src = s, gain = 0f, target = nm == "space_hum" ? 0.07f : 0f, tau = 0.5f };
+            if (System.Array.IndexOf(SEAMLESS, nm) >= 0) { c.LoadAudioData(); _pendingSeam.Add(nm); }
         }
         ApplySettings();
     }
@@ -120,6 +125,22 @@ public class Audio : MonoBehaviour
     void Update()
     {
         float dt = Time.deltaTime;
+        for (int i = _pendingSeam.Count - 1; i >= 0; i--)
+        {
+            var nm = _pendingSeam[i];
+            var l = _loops[nm];
+            var st = l.src.clip.loadState;
+            if (st == AudioDataLoadState.Loading || st == AudioDataLoadState.Unloaded) continue;
+            _pendingSeam.RemoveAt(i);
+            if (st != AudioDataLoadState.Loaded) continue;
+            var seamed = Seamless(l.src.clip, 0.35f);
+            if (seamed == null) continue;
+            float vol = l.src.volume;
+            l.src.Stop();
+            l.src.clip = seamed;
+            l.src.volume = vol;
+            l.src.Play();
+        }
         foreach (var kv in _loops)
         {
             var l = kv.Value;
@@ -136,6 +157,44 @@ public class Audio : MonoBehaviour
     {
         Loop l;
         if (_loops.TryGetValue(name, out l)) { l.target = g; l.tau = tau; }
+    }
+
+    /// A copy of a clip that loops without a click: the silence the encoder padded on at either end is trimmed, and the
+    /// last `fade` seconds are blended (equal power) under the first `fade` seconds and dropped, so the end runs straight
+    /// into the start.
+    static AudioClip Seamless(AudioClip c, float fade)
+    {
+        int ch = c.channels, n = c.samples, rate = c.frequency;
+        if (n < rate / 2) return null;
+        var d = new float[n * ch];
+        if (!c.GetData(d, 0)) return null;
+        // trim: the first and last frames that carry anything
+        const float floor = 0.004f;
+        int a = 0, b = n - 1;
+        while (a < n) { bool any = false; for (int k = 0; k < ch; k++) if (Mathf.Abs(d[a * ch + k]) > floor) { any = true; break; } if (any) break; a++; }
+        while (b > a) { bool any = false; for (int k = 0; k < ch; k++) if (Mathf.Abs(d[b * ch + k]) > floor) { any = true; break; } if (any) break; b--; }
+        int len = b - a + 1;
+        int L = Mathf.Min(Mathf.RoundToInt(rate * fade), len / 3);
+        if (L < 16) return null;
+        int outLen = len - L;
+        var o = new float[outLen * ch];
+        for (int i = 0; i < outLen; i++)
+        {
+            for (int k = 0; k < ch; k++)
+            {
+                float v = d[(a + i) * ch + k];
+                if (i < L)
+                {
+                    float t = (i + 0.5f) / L;
+                    float wIn = Mathf.Sin(t * Mathf.PI * 0.5f), wOut = Mathf.Cos(t * Mathf.PI * 0.5f);
+                    v = v * wIn + d[(a + outLen + i) * ch + k] * wOut;   // the tail fades out under the head fading in
+                }
+                o[i * ch + k] = v;
+            }
+        }
+        var s = AudioClip.Create(c.name + "_seamless", outLen, ch, rate, false);
+        s.SetData(o, 0);
+        return s;
     }
 
     /// The shield beds: the shield-down loop while it sits at zero, the recharge loop while it climbs (a hit restarts the
