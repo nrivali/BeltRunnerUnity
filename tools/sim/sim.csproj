@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Runs the engine-free logic (belt generation, rock meshes, the ray pick, scans, kills and respawns) against the
+       stub, printing what it finds. dotnet run with tools/sim from the project root. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>CS0649;CS0414;CS0169;CS8632;CS0108</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../check/UnityStubs.cs" />
+    <Compile Include="Sim.cs" />
+    <Compile Include="../../Assets/Scripts/**/*.cs" />
+  </ItemGroup>
+</Project>

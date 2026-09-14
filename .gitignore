@@ -30,3 +30,7 @@ crashlytics-build.properties
 /tools/check/obj/
 /tools/sim/bin/
 /tools/sim/obj/
+
+# the compile-check and sim harnesses are hand-written, unlike the csproj files Unity generates
+!tools/check/check.csproj
+!tools/sim/sim.csproj
