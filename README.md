@@ -6,7 +6,7 @@ game and is the second reference. See `AGENTS.md` for the rules.
 
 ## Running it
 
-1. Install Unity Hub and a Unity 6 editor (6000.0 LTS; the project asks for 6000.0.58f1 and any 6000.0.x will do).
+1. Install Unity Hub and a Unity 6 editor (the project is set to 6000.6.0f1, the version winget installs; any Unity 6 will do).
 2. Add this folder as a project in the Hub and open it. The first open imports the two packages in
    `Packages/manifest.json` (UGUI and the built-in modules) and generates `ProjectSettings` and `Library`.
 3. Press Play in any scene, including the empty default one. Everything is built from code at start-up
