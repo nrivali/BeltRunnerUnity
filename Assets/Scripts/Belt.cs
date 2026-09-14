@@ -839,6 +839,7 @@ public class Belt
             pos[i] = p;
             WriteTranslation(i);
         }
+        TickPairs();
         _respawnT += dt;
         if (_respawnT > 1f)
         {
@@ -1034,6 +1035,55 @@ public class Belt
             _scrapMats[s] = Matrix4x4.TRS(_scrapPos[s] - _offset, rq, Vector3.one * sc);
             _scrapCols[s] = new Vector4(0.36f, 0.34f, 0.31f, 1f);
             _scrapRails[s] = new Vector4(0f, 1f, 0f, Mathf.Pow(Mathf.Max(0f, 1f - t / 30f), 1.6f));
+        }
+    }
+
+    // ---- rock-on-rock (rockPair): only rocks that are adrift need pair tests. Along the line between two rocks the
+    // overlap pushes both out, mass-weighted, and knocks both off their rails with a soft bounce.
+    readonly Dictionary<int, List<int>> _pairCache = new Dictionary<int, List<int>>();
+    int _pairFrame;
+
+    void TickPairs()
+    {
+        if (_freeIds.Count == 0) return;
+        _pairFrame++;
+        bool refresh = _pairFrame % 30 == 1;
+        for (int k = 0; k < _freeIds.Count; k++)
+        {
+            int i = _freeIds[k];
+            if (!alive[i]) continue;
+            var pa = pos[i];
+            float ra = radius[i];
+            List<int> cands;
+            if (refresh || !_pairCache.TryGetValue(i, out cands))
+            {
+                cands = RocksWithin(pa, ra * 3f + 1500f);
+                _pairCache[i] = cands;
+            }
+            foreach (int j in cands)
+            {
+                if (j == i || j >= count || !alive[j]) continue;
+                var pb = RockPos(j);
+                var n = pb - pa;
+                float d = n.magnitude;
+                float minD = (ra + radius[j]) * 0.92f + 4f;
+                if (d < 1e-3f || d >= minD) continue;
+                n /= d;
+                float ma = ra * ra * ra, mb = radius[j] * radius[j] * radius[j];
+                float tot = ma + mb;
+                float overlap = minD - d;
+                if (!free[j]) SetFree(j, RockVel(j));
+                pos[i] = pa - n * overlap * mb / tot;
+                pos[j] = pb + n * overlap * ma / tot;
+                pa = pos[i];
+                WriteTranslation(j);
+                float vrel = Vector3.Dot(vel[j], n) - Vector3.Dot(vel[i], n);
+                if (vrel >= 0f) continue;
+                float jimp = -(1f + 0.3f) * vrel / (1f / ma + 1f / mb);
+                vel[i] -= n * jimp / ma;
+                vel[j] += n * jimp / mb;
+            }
+            WriteTranslation(i);
         }
     }
 

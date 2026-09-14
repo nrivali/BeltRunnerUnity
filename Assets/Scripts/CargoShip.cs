@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// The pilot's cargo ship: the carrier with the through-hangar. Ported from DEPOT / STATION / placeDepot /
@@ -62,6 +63,7 @@ public class CargoShip : MonoBehaviour
     /// Advance the orbit and refresh the transform. Returns how far the carrier moved this frame (a docked ship rides along).
     public Vector3 Tick(float dt)
     {
+        TickFields(dt);
         if (hold)
         {
             vel = Vector3.zero;
@@ -269,8 +271,12 @@ public class CargoShip : MonoBehaviour
     public bool dishFiring;
     public Vector3 dishHit;
     float _retarget;
-    LineRenderer _beam;
+    LineRenderer _beam, _sheath;
     Transform _hitGlow;
+    // the force fields across both hangar mouths: a shimmering drifting grid that flashes when something passes through
+    class Field { public Material mat; public float flash; }
+    readonly Dictionary<int, Field> _fields = new Dictionary<int, Field>();
+    public int fieldFlashes;   // for the smoke run
 
     void BuildDish()
     {
@@ -296,6 +302,7 @@ public class CargoShip : MonoBehaviour
         _beam.endColor = new Color(1f, 0.65f, 0.25f);
         _beam.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         _beam.enabled = false;
+        if (_sheath != null) _sheath.enabled = false;
         var g = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         Object.Destroy(g.GetComponent<Collider>());
         g.name = "DishHitGlow";
@@ -307,6 +314,74 @@ public class CargoShip : MonoBehaviour
         g.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         _hitGlow = g.transform;
         _hitGlow.gameObject.SetActive(false);
+        // the beam's soft sheath (depotBeamSheath): a wider, fainter additive line round the beam
+        var sg = new GameObject("DishBeamSheath");
+        _sheath = sg.AddComponent<LineRenderer>();
+        _sheath.useWorldSpace = true;
+        _sheath.positionCount = 2;
+        _sheath.startWidth = 24f;
+        _sheath.endWidth = 15f;
+        var sm = new Material(Game.Sh("BeltRunner/Spark"));
+        sm.SetColor("_Color", new Color(0.95f, 0.64f, 0.23f, 0.28f));
+        _sheath.material = sm;
+        _sheath.startColor = _sheath.endColor = new Color(0.95f, 0.64f, 0.23f, 0.28f);
+        _sheath.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        _sheath.enabled = false;
+        BuildForceFields();
+    }
+
+    /// A grid texture (lines every 16 texels with a faint diagonal) on a quad across each mouth, drawn additive.
+    void BuildForceFields()
+    {
+        var tex = new Texture2D(128, 128, TextureFormat.RGBA32, false);
+        for (int y = 0; y < 128; y++)
+        {
+            for (int x = 0; x < 128; x++)
+            {
+                int gx = x % 16, gy = y % 16;
+                bool line = gx == 0 || gy == 0 || (gx + gy) % 16 == 0;
+                float a = line ? 0.9f : ((gx < 2 || gy < 2) ? 0.25f : 0f);
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+            }
+        }
+        tex.wrapMode = TextureWrapMode.Repeat;
+        tex.filterMode = FilterMode.Bilinear;
+        tex.Apply();
+        var sh = Game.Sh("BeltRunner/Field");
+        foreach (int side in new[] { -1, 1 })
+        {
+            var go = new GameObject("ForceField" + side);
+            go.transform.SetParent(transform, false);
+            go.transform.localPosition = new Vector3(0f, (BAY_Y0 + BAY_Y1) * 0.5f, side * (BAY_Z_OUT - 2f));
+            var mf = go.AddComponent<MeshFilter>();
+            mf.sharedMesh = MeshUtil.Quad(BAY_X1 - BAY_X0, BAY_Y1 - BAY_Y0, 6f, 2.4f);
+            var mr = go.AddComponent<MeshRenderer>();
+            var m = new Material(sh);
+            m.mainTexture = tex;
+            m.SetColor("_Color", new Color(0.37f, 0.83f, 0.94f, 0.22f));
+            mr.sharedMaterial = m;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _fields[side] = new Field { mat = m };
+        }
+    }
+
+    /// Something passed through a mouth's field: it flashes bright and fades.
+    public void FlashField(int side)
+    {
+        Field f;
+        if (_fields.TryGetValue(side, out f)) { if (f.flash < 0.5f) fieldFlashes++; f.flash = 1f; }
+    }
+
+    void TickFields(float dt)
+    {
+        float t = State.time;
+        foreach (var kv in _fields)
+        {
+            var f = kv.Value;
+            f.flash = Mathf.Max(0f, f.flash - dt * 1.8f);
+            f.mat.SetColor("_Color", new Color(0.37f, 0.83f, 0.94f, 0.11f + 0.05f * Mathf.Sin(t * 2.6f + kv.Key) + f.flash * 0.7f));
+            f.mat.mainTextureOffset = new Vector2(t * 0.02f, t * 0.013f);
+        }
     }
 
     /// The yaw and pitch that point the dish at a carrier-local point.
@@ -351,6 +426,7 @@ public class CargoShip : MonoBehaviour
     {
         var L = Data.DEPOT_UPGRADES["laser"].levels[State.depot["laser"]];
         _beam.enabled = false;
+        if (_sheath != null) _sheath.enabled = false;
         _hitGlow.gameObject.SetActive(false);
         float step = Data.TURRET_SLEW * dt;
         if (L == null)
@@ -420,6 +496,11 @@ public class CargoShip : MonoBehaviour
                             _beam.enabled = true;
                             _beam.SetPosition(0, muzzle - game.worldOffset);
                             _beam.SetPosition(1, dishHit - game.worldOffset);
+                            _sheath.enabled = true;
+                            _sheath.SetPosition(0, muzzle - game.worldOffset);
+                            _sheath.SetPosition(1, dishHit - game.worldOffset);
+                            _sheath.startWidth = 24f * flick;
+                            _sheath.endWidth = 15f * flick;
                             _hitGlow.gameObject.SetActive(true);
                             _hitGlow.position = dishHit - game.worldOffset;
                             _hitGlow.localScale = Vector3.one * 60f * flick;
@@ -508,6 +589,17 @@ public class CargoShip : MonoBehaviour
 /// Small procedural meshes.
 public static class MeshUtil
 {
+    /// A quad in the XY plane, w by h, centred, with its UVs tiled `tu` by `tv` times.
+    public static Mesh Quad(float w, float h, float tu, float tv)
+    {
+        var m = new Mesh();
+        m.SetVertices(new System.Collections.Generic.List<Vector3> { new Vector3(-w * 0.5f, -h * 0.5f, 0f), new Vector3(w * 0.5f, -h * 0.5f, 0f), new Vector3(w * 0.5f, h * 0.5f, 0f), new Vector3(-w * 0.5f, h * 0.5f, 0f) });
+        m.SetUVs(0, new System.Collections.Generic.List<Vector2> { new Vector2(0f, 0f), new Vector2(tu, 0f), new Vector2(tu, tv), new Vector2(0f, tv) });
+        m.SetTriangles(new System.Collections.Generic.List<int> { 0, 2, 1, 0, 3, 2 }, 0);
+        m.RecalculateNormals();
+        return m;
+    }
+
     /// A torus round Y: `rMid` to the tube centre, `tube` the tube radius.
     public static Mesh Torus(float rMid, float tube, int rings, int segs)
     {

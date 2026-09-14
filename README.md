@@ -48,6 +48,21 @@ the ore, flies, saves, and quits, printing `smoke:` lines to the log and saving 
 (`%USERPROFILE%AppDataocallow
 rivalibelt runner`).
 
+## Milestone 14 — fields, markers, the dish's effects, force fields, rock-on-rock
+
+| Piece | Where | Status |
+|---|---|---|
+| The charted fields carry names (K1-A…, rich pockets KP-1…) and ride their rails; the FIELD readout names the one you are in; a marker points to the nearest field's edge while you are outside one | `Assets/Scripts/Belt.cs` (`FieldAt`, `NearestField`), `Assets/Scripts/Hud.cs` | ported with milestone 9 |
+| A cyan marker on every collector drone with what it is doing, its load and its range; the cargo ship marker names the near dock within 4,500 m | `Hud.cs` (`PlaceMarker`) | ported with milestone 9 |
+| The ship's mining dish swings onto the beam's target (a few radians a second, forward half only) and settles forward when idle; six rim emitters glow faintly, pulse while it slews onto a rock and flicker hard while it fires; six rim beams converge on the focus while the beam cuts; the beam starts at the focus | `Assets/Scripts/Ship.cs` (`TickDish`, `BuildDishFx`, `CalibrateDish`) | ported from shipDishAnglesTo / animateDish, driving the model's yaw and pitch nodes; the rig's signs are found by trial at start-up (glTFast mirrors X), and the smoke run prints the rig error |
+| The cargo ship dish's beam gets its soft sheath and a glow where it lands, flickering | `Assets/Scripts/CargoShip.cs` (`BuildDish`, `TickDish`) | ported (the glow came with milestone 6, the sheath here) |
+| Force fields across both hangar mouths: a shimmering drifting grid that flashes whenever the ship or a drone passes through | `CargoShip.cs` (`BuildForceFields`, `FlashField`, `TickFields`), `Assets/Resources/Shaders/Field.shader`, `Drones.cs`, `Ship.cs` | ported |
+| Rock-on-rock contact for rocks that are adrift: overlap pushes both out, mass-weighted, with a soft bounce, knocking the other off its rail | `Belt.cs` (`TickPairs`) | ported from rockPair (the scrap pairs came with milestone 13) |
+
+The player ship's focus and rim empties import at the model origin (their offsets are baked away), so the emitters sit
+on a ring round the dish bowl and the focus a little way ahead of it, in the pitch node's frame. The smoke run counts
+the force field flashes on the way to the pad.
+
 ## Milestone 13 — collisions, sparks, scrap, heat, LOD 0, free look
 
 | Piece | Where | Status |

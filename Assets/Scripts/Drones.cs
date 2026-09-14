@@ -241,6 +241,12 @@ public class Drones
             pos += vel * dt;
             c.vel = vel;
             c.pos = pos;
+            // passing through a mouth's force field flashes it
+            if (c.phase == "enter" || c.phase == "exit")
+            {
+                float lz = carrier.ToLocalTrue(pos).z;
+                if (Mathf.Abs(Mathf.Abs(lz) - CargoShip.BAY_Z_OUT) < 90f) carrier.FlashField(lz > 0f ? 1 : -1);
+            }
             if (c.phase == "unload")
             {
                 c.wait -= dt;

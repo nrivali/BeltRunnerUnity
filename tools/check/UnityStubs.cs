@@ -67,6 +67,7 @@ namespace UnityEngine
         public static Vector3 Lerp(Vector3 a, Vector3 b, float t) => a + (b - a) * Mathf.Clamp01(t);
         public static Vector3 Reflect(Vector3 a, Vector3 n) => a - n * (2f * Dot(a, n));
         public static float Distance(Vector3 a, Vector3 b) => (a - b).magnitude;
+        public static float Angle(Vector3 a, Vector3 b) => 0f;
         public override string ToString() => "(" + x + ", " + y + ", " + z + ")";
         public string ToString(string f) => "(" + x.ToString(f) + ", " + y.ToString(f) + ", " + z.ToString(f) + ")";
     }
@@ -284,6 +285,8 @@ namespace UnityEngine
         public int childCount => 0;
         public Transform GetChild(int i) => null;
         public Vector3 InverseTransformPoint(Vector3 p) => p;
+        public Vector3 TransformPoint(Vector3 p) => p;
+        public Vector3 TransformDirection(Vector3 d) => d;
         public void SetParent(Transform t, bool keep) { }
         public void Rotate(Vector3 axis, float angle, Space s) { }
         public void SetAsLastSibling() { }
@@ -361,6 +364,8 @@ namespace UnityEngine
 
     public class Material : Object
     {
+        public Texture mainTexture { get; set; }
+        public Vector2 mainTextureOffset { get; set; }
         public Material(Shader s) { }
         public Material(Material m) { }
         public Shader shader { get; set; }
@@ -393,6 +398,7 @@ namespace UnityEngine
         public Bounds bounds { get; set; }
         public void SetVertices(List<Vector3> v) { vertices = v.ToArray(); }
         public void SetTriangles(List<int> t, int sub) { triangles = t.ToArray(); }
+        public void SetUVs(int ch, List<Vector2> uv) { }
         public void RecalculateNormals() { }
         public void RecalculateBounds()
         {
@@ -497,7 +503,20 @@ namespace UnityEngine
     }
 
     public class Font : Object { }
-    public class Texture : Object { }
+    public class Texture : Object
+    {
+        public TextureWrapMode wrapMode { get; set; }
+        public FilterMode filterMode { get; set; }
+    }
+    public enum TextureFormat { RGBA32, RGB24 }
+    public enum TextureWrapMode { Repeat, Clamp }
+    public enum FilterMode { Point, Bilinear, Trilinear }
+    public class Texture2D : Texture
+    {
+        public Texture2D(int w, int h, TextureFormat f, bool mips) { }
+        public void SetPixel(int x, int y, Color c) { }
+        public void Apply() { }
+    }
 
     public static class Resources
     {

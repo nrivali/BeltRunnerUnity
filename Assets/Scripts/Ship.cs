@@ -126,10 +126,22 @@ public class Ship : MonoBehaviour
     Material _spotMat;
     Light _spotLight;
 
+    // the mining dish's rig in Astra's model (mining_dish_yaw / mining_dish_pitch, the focus lens and six rim emitters):
+    // it swings onto the beam's target and settles forward when idle; the emitters glow, pulse and flicker (animateDish)
+    Transform _dishYaw, _dishPitch;
+    Vector3 _dishMount = new Vector3(0f, -3.4f, 7f);
+    float _dishYawSign = 1f, _dishPitchSign = 1f;
+    public float aimYaw, aimPitch = 0.05f;
+    public bool aimed;
+    readonly List<Material> _rimMats = new List<Material>();
+    readonly List<Transform> _rimBeams = new List<Transform>();
+    Material _beamRimMat, _focusMat;
+    Transform _focusGlow;
+
     /// The laser's origin in true coordinates: the dish focus on the model.
     public Vector3 LaserOrigin()
     {
-        return (focus != null ? focus.position : transform.position + Forward * 20f) + game.worldOffset;
+        return DishFocusScene() + game.worldOffset;
     }
 
     public void Build()
@@ -162,7 +174,8 @@ public class Ship : MonoBehaviour
                 l.shadows = LightShadows.None;
                 _engineLights.Add(l);
             }
-            Debug.Log("ship: model loaded, focus " + (focus != null ? "found" : "missing"));
+            BuildDishFx();
+            Debug.Log("ship: model loaded, focus " + (focus != null ? "found" : "missing") + " · dish rig " + (_dishPitch != null ? "found" : "missing") + " · rim emitters " + _rimMats.Count);
             return;
         }
         BuildPlaceholder();
@@ -204,6 +217,155 @@ public class Ship : MonoBehaviour
     {
         torchOn = !torchOn;
         game.Toast(torchOn ? "Flashlight on" : "Flashlight off", false);
+    }
+
+    /// The rig nodes, a glow at each rim emitter, six thin beams from the rims to the focus (shown while the beam
+    /// cuts) and a glow at the focus, all under the pitch node so they ride the dish.
+    void BuildDishFx()
+    {
+        _dishYaw = FindDeep(model, "mining_dish_yaw");
+        _dishPitch = FindDeep(model, "mining_dish_pitch");
+        var mount = FindDeep(model, "dish_mount");
+        if (mount != null) _dishMount = model.InverseTransformPoint(mount.position);
+        else if (_dishYaw != null) _dishMount = model.InverseTransformPoint(_dishYaw.position);
+        if (_dishPitch == null) return;
+        CalibrateDish();
+        var sparkSh = Game.Sh("BeltRunner/Spark");
+        _beamRimMat = new Material(sparkSh);
+        _beamRimMat.SetColor("_Color", new Color(1f, 0.77f, 0.4f, 0.8f));
+        _focusMat = new Material(sparkSh);
+        _focusMat.SetColor("_Color", new Color(1f, 0.77f, 0.4f, 0.1f));
+        // the model's focus and rim empties import at the origin (their positions are baked away), so the emitters sit
+        // on a ring round the dish bowl (2.6 across, 0.7 ahead of the pitch pivot) and the focus a little way ahead of it
+        var fp = FOCUS_LOCAL;
+        for (int k = 0; k < 6; k++)
+        {
+            float a = k * Mathf.PI * 2f / 6f;
+            var rp = new Vector3(Mathf.Cos(a) * 1.15f, Mathf.Sin(a) * 1.15f, 1.15f);
+            var g = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            Object.Destroy(g.GetComponent<Collider>());
+            g.name = "RimGlow" + k;
+            g.transform.SetParent(_dishPitch, false);
+            g.transform.localPosition = rp;
+            g.transform.localScale = Vector3.one * 0.44f;
+            var rm = new Material(sparkSh);
+            rm.SetColor("_Color", new Color(0.56f, 0.91f, 1f, 0.12f));
+            var mr = g.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = rm;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _rimMats.Add(rm);
+            var d = fp - rp;
+            var beam = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            Object.Destroy(beam.GetComponent<Collider>());
+            beam.name = "RimBeam" + k;
+            beam.transform.SetParent(_dishPitch, false);
+            beam.transform.localPosition = (rp + fp) * 0.5f;
+            beam.transform.localRotation = Quaternion.LookRotation(d.normalized, Mathf.Abs(d.normalized.y) < 0.98f ? Vector3.up : Vector3.right) * Quaternion.AngleAxis(90f, Vector3.right);
+            beam.transform.localScale = new Vector3(0.05f, d.magnitude * 0.5f, 0.05f);
+            var bmr = beam.GetComponent<MeshRenderer>();
+            bmr.sharedMaterial = _beamRimMat;
+            bmr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            beam.SetActive(false);
+            _rimBeams.Add(beam.transform);
+        }
+        var fg = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        Object.Destroy(fg.GetComponent<Collider>());
+        fg.name = "FocusGlow";
+        fg.transform.SetParent(_dishPitch, false);
+        fg.transform.localPosition = fp;
+        fg.transform.localScale = Vector3.one * 0.9f;
+        var fmr = fg.GetComponent<MeshRenderer>();
+        fmr.sharedMaterial = _focusMat;
+        fmr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        _focusGlow = fg.transform;
+    }
+
+    static readonly Vector3 FOCUS_LOCAL = new Vector3(0f, 0f, 2.4f);   // the focus lens, in the pitch node's frame
+
+    /// Where the beam starts, in scene coordinates: the focus ahead of the dish when the rig is there.
+    public Vector3 DishFocusScene()
+    {
+        if (_dishPitch != null) return _dishPitch.TransformPoint(FOCUS_LOCAL);
+        return focus != null ? focus.position : transform.position + Forward * 20f + transform.up * -1.5f * Data.SHIP_SCALE;
+    }
+
+    /// The rig's yaw and pitch signs are found by trial: a point ahead, right and up in the model's frame is aimed at
+    /// with every sign pair, and the pair that turns the dish axis (the pitch node's +Z) closest to it wins (glTFast
+    /// mirrors the model's X on import).
+    void CalibrateDish()
+    {
+        if (_dishYaw == null || _dishPitch == null) return;
+        var yq = _dishYaw.localRotation;
+        var pq = _dishPitch.localRotation;
+        var probe = model.TransformPoint(_dishMount + new Vector3(40f, 25f, 100f));
+        float bestErr = float.PositiveInfinity; float by = 1f, bp = 1f;
+        foreach (float ys in new[] { 1f, -1f })
+        {
+            foreach (float ps in new[] { 1f, -1f })
+            {
+                _dishYawSign = ys;
+                _dishPitchSign = ps;
+                float yaw, pitch;
+                DishAngles(probe, out yaw, out pitch);
+                ApplyDish(yaw, pitch);
+                float err = Vector3.Angle(_dishPitch.TransformDirection(Vector3.forward), probe - _dishPitch.position);
+                if (err < bestErr) { bestErr = err; by = ys; bp = ps; }
+            }
+        }
+        _dishYawSign = by;
+        _dishPitchSign = bp;
+        _dishYaw.localRotation = yq;
+        _dishPitch.localRotation = pq;
+        Debug.Log("ship: dish rig calibrated · yaw sign " + by + " pitch sign " + bp + " · error " + bestErr.ToString("0.0") + " deg");
+    }
+
+    /// The yaw and pitch (in the model's frame, from the dish mount) that would put the focus on a scene point.
+    void DishAngles(Vector3 sceneP, out float yaw, out float pitch)
+    {
+        var L = model.InverseTransformPoint(sceneP) - _dishMount;
+        yaw = Mathf.Atan2(L.x, L.z);
+        pitch = Mathf.Atan2(L.y, Mathf.Sqrt(L.x * L.x + L.z * L.z));
+    }
+
+    void ApplyDish(float yaw, float pitch)
+    {
+        _dishYaw.localRotation = Quaternion.AngleAxis(_dishYawSign * yaw * Mathf.Rad2Deg, Vector3.up);
+        _dishPitch.localRotation = Quaternion.AngleAxis(_dishPitchSign * pitch * Mathf.Rad2Deg, Vector3.right);
+    }
+
+    /// How far the dish axis is off the line to the aim point right now, in degrees (for the smoke run).
+    public float DishRigError()
+    {
+        if (_dishPitch == null || target < 0 || target >= belt.count) return 0f;
+        var aim = belt.RockPos(target) - game.worldOffset;
+        return Vector3.Angle(_dishPitch.TransformDirection(Vector3.forward), aim - _dishPitch.position);
+    }
+
+    /// The dish swings onto whatever the beam is going to (fast, a few radians a second) and settles forward when
+    /// idle; it only covers the forward half, 90 degrees either side of the nose.
+    void TickDish(float dt)
+    {
+        if (_dishYaw == null || _dishPitch == null) return;
+        bool hasAim = target >= 0 && target < belt.count && !docked;
+        float wantYaw = 0f, wantPitch = 0.05f;
+        if (hasAim) DishAngles(belt.RockPos(target) - game.worldOffset, out wantYaw, out wantPitch);
+        bool inArc = Mathf.Abs(wantYaw) <= Mathf.PI * 0.5f;
+        wantYaw = Mathf.Clamp(wantYaw, -Mathf.PI * 0.5f, Mathf.PI * 0.5f);
+        wantPitch = Mathf.Clamp(wantPitch, -0.7f, 1.3f);
+        float rate = 3.5f * dt;
+        aimYaw += Mathf.Clamp(wantYaw - aimYaw, -rate, rate);
+        aimPitch += Mathf.Clamp(wantPitch - aimPitch, -rate, rate);
+        aimed = hasAim && inArc && Mathf.Abs(wantYaw - aimYaw) < 0.05f && Mathf.Abs(wantPitch - aimPitch) < 0.05f;
+        ApplyDish(aimYaw, aimPitch);
+        if (_rimMats.Count == 0) return;
+        float t = State.time;
+        bool aiming = !firing && hasAim;
+        float ra = laserOn ? 0.7f + Random.value * 0.3f : (aiming ? 0.3f + 0.25f * Mathf.Sin(t * 9f) : 0.12f);
+        foreach (var m in _rimMats) m.SetColor("_Color", new Color(0.56f, 0.91f, 1f, ra));
+        _focusMat.SetColor("_Color", new Color(1f, 0.77f, 0.4f, laserOn ? 0.85f + Random.value * 0.15f : (aiming ? 0.2f + 0.15f * Mathf.Sin(t * 9f) : 0.1f)));
+        if (_focusGlow != null) _focusGlow.localScale = Vector3.one * (laserOn ? 1.4f : 0.9f);
+        _beamRimMat.SetColor("_Color", new Color(1f, 0.77f, 0.4f, 0.6f + Random.value * 0.35f));
+        foreach (var b in _rimBeams) if (b.gameObject.activeSelf != laserOn) b.gameObject.SetActive(laserOn);
     }
 
     void BuildLaser()
@@ -275,6 +437,12 @@ public class Ship : MonoBehaviour
     public void Tick(float dt)
     {
         if (torch != null) torch.enabled = torchOn && !docked && warp == null;
+        // passing through a mouth's force field flashes it, under approach control or on your own
+        if (carrier != null && !carrier.hold && warp == null)
+        {
+            var fl = carrier.ToLocalTrue(TruePos);
+            if (Mathf.Abs(fl.x) < CargoShip.BAY_X1 + 40f && Mathf.Abs(fl.y) < CargoShip.BAY_Y1 + 40f && Mathf.Abs(Mathf.Abs(fl.z) - CargoShip.BAY_Z_OUT) < 70f) carrier.FlashField(fl.z > 0f ? 1 : -1);
+        }
         if (_announceAt > 0f && Time.time >= _announceAt) { _announceAt = -1f; if (docked && !hold) Audio.Announce("hangar_" + Random.Range(1, 5)); }
         if (_colonyAt > 0f && Time.time >= _colonyAt) { _colonyAt = -1f; if (docked && hold) Audio.Say("colony_control"); }
         if (warp != null)
@@ -321,6 +489,7 @@ public class Ship : MonoBehaviour
         if (++_hoverFrame % 6 == 0) hover = HoverPick();
         TickLock();
         TickLaser(dt);
+        TickDish(dt);
         radarCd = Mathf.Max(0f, radarCd - dt);
         if (Input.GetKeyDown(KeyCode.R)) Radar();
         if (Input.GetKeyDown(KeyCode.G)) ToggleOvercharge();
@@ -1222,7 +1391,7 @@ public class Ship : MonoBehaviour
             }
         }
         _laser.enabled = true;
-        _laser.SetPosition(0, focus != null ? focus.position : transform.position + fwd * 20f + transform.up * -1.5f * Data.SHIP_SCALE);
+        _laser.SetPosition(0, DishFocusScene());
         _laser.SetPosition(1, end - game.worldOffset);
         TickSpot(dt, laserOn && target >= 0, end);
     }

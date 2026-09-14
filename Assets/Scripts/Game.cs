@@ -596,7 +596,7 @@ public class Game : MonoBehaviour
                 if (_phaseFrame == 60)
                 {
                     Shot("smoke_mine");
-                    Debug.Log("smoke: cutting " + (_smokeRock >= 0 ? belt.RockName(_smokeRock) : "nothing") + " · target=" + ship.target + " laser_on=" + ship.laserOn + " hp=" + (_smokeRock >= 0 ? belt.hp[_smokeRock].ToString("0") : "-") + " (was " + _smokeHp.ToString("0") + ") · lod0 rocks " + belt.Lod0Count + " (target lod0 " + (_smokeRock >= 0 && belt.IsLod0(_smokeRock)) + " r=" + (_smokeRock >= 0 ? belt.radius[_smokeRock].ToString("0") : "-") + ") · sparks " + sparks.Count + " · spot heat " + ship.spotHeat.ToString("0.00") + " · near rocks " + ship.nearRocks.Count);
+                    Debug.Log("smoke: cutting " + (_smokeRock >= 0 ? belt.RockName(_smokeRock) : "nothing") + " · target=" + ship.target + " laser_on=" + ship.laserOn + " hp=" + (_smokeRock >= 0 ? belt.hp[_smokeRock].ToString("0") : "-") + " (was " + _smokeHp.ToString("0") + ") · lod0 rocks " + belt.Lod0Count + " (target lod0 " + (_smokeRock >= 0 && belt.IsLod0(_smokeRock)) + " r=" + (_smokeRock >= 0 ? belt.radius[_smokeRock].ToString("0") : "-") + ") · sparks " + sparks.Count + " · spot heat " + ship.spotHeat.ToString("0.00") + " · near rocks " + ship.nearRocks.Count + " · ship dish aimed " + ship.aimed + " yaw " + ship.aimYaw.ToString("0.00") + " pitch " + ship.aimPitch.ToString("0.00") + " rig error " + ship.DishRigError().ToString("0.0") + " deg");
                 }
                 if (_smokeRock >= 0 && !belt.alive[_smokeRock] && !_shotBreak) { _shotBreak = true; Shot("smoke_break"); }   // the sparks and the scrap of the break
                 if (_phaseFrame > 400 && (_smokeRock < 0 || !belt.alive[_smokeRock] || _phaseFrame > 1500))
@@ -715,7 +715,7 @@ public class Game : MonoBehaviour
                     if (_phaseFrame == 150 && !_droneDone) { Shot("smoke_pad"); break; }   // the first shot; the run then waits for the drone
                     Shot("smoke_pad");
                     var local = carrier.ToLocalTrue(ship.TruePos);
-                    Debug.Log("smoke: on the pad · local=" + local.ToString("0") + " · park=" + CargoShip.ParkLocal(ship.dockSide).ToString("0") + " · carrier speed " + carrier.vel.magnitude.ToString("0") + " u/s · drone stowed " + State.droneUnits.ToString("0"));
+                    Debug.Log("smoke: on the pad · local=" + local.ToString("0") + " · park=" + CargoShip.ParkLocal(ship.dockSide).ToString("0") + " · carrier speed " + carrier.vel.magnitude.ToString("0") + " u/s · drone stowed " + State.droneUnits.ToString("0") + " · force field flashes " + carrier.fieldFlashes);
                     ship.StartDeparture();
                     Next("depart2");
                 }
