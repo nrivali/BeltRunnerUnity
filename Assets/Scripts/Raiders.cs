@@ -13,6 +13,8 @@ public class Raiders
     public const float ENGAGE = 9000f;      // aggressive: they come for a ship 4,500 m out
     public const float GIVE_UP = 14000f;
     public const float BOLT_SPEED = 2600f;  // a raider's bolt
+    public const float RAIDER_REACH = 6000f; // raiders open fire from 3,000 m; their bolt lives long enough to get there
+    public const float RAIDER_BOLT_LIFE = 2.6f;
     public const float PLAYER_BOLT_SPEED = 5000f;   // the player's bolt is faster: 0.8 s of flight covers 4,000 u, past any gun reach
     public const float RADIUS = 14f;    // the hull, for the reticle, ranges and the pick
     public const float HIT_R = 48f;     // the hit box a bolt has to pass through: generous, the raider is small and fast
@@ -162,7 +164,7 @@ public class Raiders
         {
             pos = pos, home = home, wp = home, node = go.transform, exhaust = ex, hp = hp, maxHp = hp, shield = shield, maxShield = shield, dmg = Mathf.Round(3f + 4f * danger),
             heading = Random.onUnitSphere, spd = 120f,
-            gunDmg = Data.UPGRADES["gun"].levels[0].mult, gunRate = Data.UPGRADES["gun"].levels[0].rate, gunReach = Data.UPGRADES["gun"].levels[0].reach,   // the player's own base autocannon
+            gunDmg = Data.UPGRADES["gun"].levels[0].mult, gunRate = Data.UPGRADES["gun"].levels[0].rate, gunReach = RAIDER_REACH,   // the player's own base autocannon
             a = Random.value * 6f, fireCd = Random.Range(1f, 2f), speed = 820f + danger * 90f, bounty = Mathf.Round(120f * danger + 80f), frozen = frozen,
         });
         return raiders[raiders.Count - 1];
@@ -260,7 +262,7 @@ public class Raiders
 
     public void Fire(Vector3 from, Vector3 dir, float dmg, bool player)
     {
-        var b = new Bolt { pos = from, dir = dir.normalized, life = player ? 0.8f : 1.6f, dmg = dmg, player = player, node = BoltNode(player) };
+        var b = new Bolt { pos = from, dir = dir.normalized, life = player ? 0.8f : RAIDER_BOLT_LIFE, dmg = dmg, player = player, node = BoltNode(player) };
         b.node.rotation = Quaternion.FromToRotation(Vector3.up, b.dir);
         bolts.Add(b);
         if (player)

@@ -71,8 +71,10 @@ public static class State
     {
         sinceHit = 0f;
         float toShield = Mathf.Min(shield, dmg);
+        bool had = shield > 0f;
         shield -= toShield;
         hull = Mathf.Max(0f, hull - (dmg - toShield));
+        if (had && shield <= 0f) Audio.Play("shield_down");   // the shield stripped: the pilot hears it go
     }
 
     /// The shield recharges once ten seconds have passed without a hit.

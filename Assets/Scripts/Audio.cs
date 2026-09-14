@@ -15,7 +15,7 @@ public class Audio : MonoBehaviour
     static readonly Dictionary<string, float> GAIN_DB = new Dictionary<string, float>
     {
         { "radio_on", -6f }, { "radio_off", -7f }, { "pa_chime", -6f }, { "dock", -3f }, { "chime", -6f }, { "cash", -4f }, { "stow", -4f }, { "pickup", -7f },
-        { "rock_break", -3f }, { "hit", -3f }, { "laser_on", -6f }, { "laser_off", -8f }, { "laser_bite", -7f }, { "radar_ping", -6f }, { "warp_charge", -4f }, { "warp_jump", -2f },
+        { "rock_break", -3f }, { "hit", -3f }, { "shield_down", -2f }, { "laser_on", -6f }, { "laser_off", -8f }, { "laser_bite", -7f }, { "radar_ping", -6f }, { "warp_charge", -4f }, { "warp_jump", -2f },
     };
     static readonly string[] LOOP_NAMES = { "engine_idle", "engine_thrust", "engine_boost", "retro", "laser_beam", "laser_cut", "space_hum" };
 
@@ -99,7 +99,7 @@ public class Audio : MonoBehaviour
     {
         AudioClip c;
         if (_clips.TryGetValue(name, out c)) return c;
-        c = Resources.Load<AudioClip>("Sfx/" + name);
+        c = name == "shield_down" ? ShieldDownClip() : Resources.Load<AudioClip>("Sfx/" + name);
         _clips[name] = c;
         return c;
     }
@@ -186,6 +186,31 @@ public class Audio : MonoBehaviour
             Count(name);
             return;
         }
+    }
+
+    /// The shield going down, synthesized: a tone that falls from 1,100 Hz to 180 Hz over 0.7 s with a crackle of
+    /// noise over the first third, a soft knee at the start and a decay to nothing.
+    static AudioClip ShieldDownClip()
+    {
+        const int rate = 22050;
+        const float dur = 0.7f;
+        int n = Mathf.RoundToInt(rate * dur);
+        var d = new float[n];
+        var rng = new System.Random(7);
+        float phase = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            float t = (float)i / n;
+            float f = Mathf.Lerp(1100f, 180f, t * t);
+            phase += f / rate * Mathf.PI * 2f;
+            float tone = Mathf.Sin(phase) * 0.6f + Mathf.Sin(phase * 2.01f) * 0.2f;
+            float crackle = t < 0.35f ? ((float)rng.NextDouble() * 2f - 1f) * (0.35f - t) * 1.4f : 0f;
+            float env = Mathf.Min(1f, i / (rate * 0.01f)) * (1f - t) * (1f - t);
+            d[i] = Mathf.Clamp((tone + crackle) * env * 0.8f, -1f, 1f);
+        }
+        var c = AudioClip.Create("shield_down", n, 1, rate, false);
+        c.SetData(d, 0);
+        return c;
     }
 
     /// A radio call: squelch open, the line a beat later, squelch closed when it ends. Cuts off any line already playing.
