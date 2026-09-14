@@ -14,7 +14,8 @@ public class Raiders
     public const float GIVE_UP = 14000f;
     public const float BOLT_SPEED = 2600f;  // a raider's bolt
     public const float PLAYER_BOLT_SPEED = 5000f;   // the player's bolt is faster: 0.8 s of flight covers 4,000 u, past any gun reach
-    public const float RADIUS = 14f;
+    public const float RADIUS = 14f;    // the hull, for the reticle, ranges and the pick
+    public const float HIT_R = 48f;     // the hit box a bolt has to pass through: generous, the raider is small and fast
     // a raider flies like a ship: it turns no faster than this, and speeds up and slows down no harder than this
     public const float TURN_RATE = 35f * Mathf.Deg2Rad;   // the player's ship turns at 30 degrees a second
     public const float ACCEL = 220f;
@@ -439,7 +440,7 @@ public class Raiders
                     // the segment flown this frame against the raider's disc
                     var ab = b.pos - prev;
                     float t = Mathf.Clamp01(Vector3.Dot(r.pos - prev, ab) / Mathf.Max(1e-6f, ab.sqrMagnitude));
-                    if ((prev + ab * t - r.pos).magnitude < RADIUS + 6f)
+                    if ((prev + ab * t - r.pos).magnitude < HIT_R)
                     {
                         Damage(r, b.dmg, r.pos);
                         b.life = 0f;
