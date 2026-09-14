@@ -986,10 +986,10 @@ public class Ship : MonoBehaviour
             lookYaw *= Mathf.Exp(-4f * dt);
             lookPitch *= Mathf.Exp(-4f * dt);
         }
-        if (flying && lockKind != "" && lockKind != "raider")
+        if (flying && lockKind != "")
         {
-            // Q lock: the ship turns itself to put the locked object on the nose ray (rocks and the cargo ship; a locked
-            // raider is tracked for the lead pip only, the gunnery is yours) (the laser's line, not the camera's);
+            // Q lock: the ship turns itself to put the locked object on the nose ray (a rock, the cargo ship or a raider,
+            // which the ship follows round while the mouse works the gun) (the laser's line, not the camera's);
             // the mouse is ignored until the lock is released (roll is still yours). Proportional: full rate beyond about
             // seven degrees off, easing in as the nose comes on.
             var L = transform.InverseTransformPoint(LockPos() - game.worldOffset) - new Vector3(0f, 0f, 20f);
