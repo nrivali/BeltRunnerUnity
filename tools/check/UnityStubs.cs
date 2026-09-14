@@ -477,6 +477,7 @@ namespace UnityEngine
 
     public static class Application
     {
+        public static string streamingAssetsPath => "";
         public static string persistentDataPath => System.IO.Path.GetTempPath();
         public static void Quit() { }
     }
@@ -515,6 +516,7 @@ namespace UnityEngine
     {
         public Texture2D(int w, int h, TextureFormat f, bool mips) { }
         public void SetPixel(int x, int y, Color c) { }
+        public Color GetPixel(int x, int y) => new Color();
         public void Apply() { }
     }
 
@@ -721,4 +723,14 @@ namespace UnityEngine
         public static void UpdateEnvironment() { }
     }
     public static partial class GraphicsExt { }
+}
+
+namespace GLTFast
+{
+    public class ImportSettings { }
+    public class GltfImport
+    {
+        public System.Threading.Tasks.Task<bool> Load(byte[] data, Uri uri = null, ImportSettings s = null) => System.Threading.Tasks.Task.FromResult(true);
+        public System.Threading.Tasks.Task<bool> InstantiateSceneAsync(UnityEngine.Transform parent, int sceneIndex = 0) => System.Threading.Tasks.Task.FromResult(true);
+    }
 }

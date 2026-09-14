@@ -50,7 +50,7 @@ public class Game : MonoBehaviour
         State.Init();
         var args = Environment.GetCommandLineArgs();
         foreach (var a in args) if (a == "-smoke" || a == "--smoke") _smoke = true;
-        if (_smoke) { State.Reset(); State.tut = 0; State.depot["laser"] = 1; State.depot["collectors"] = 1; }   // a fresh pilot every time, questline and all; the cargo ship upgrades, so the dish and a drone get exercised
+        if (_smoke) { State.Reset(); State.controlsShown = true; State.hudScale = 1f; State.tut = 0; State.depot["laser"] = 1; State.depot["collectors"] = 1; }   // a fresh pilot every time, questline and all; the cargo ship upgrades, so the dish and a drone get exercised
         var t0 = Time.realtimeSinceStartup;
         SetupCamera();
         lighting = new Lighting();
@@ -580,7 +580,7 @@ public class Game : MonoBehaviour
                         ship.vel = Vector3.zero;
                         ship.throttle = 0f;
                         ship.UpdateCamera(1f);
-                        belt.hp[nearest] = 45f;
+                        belt.hp[nearest] = 150f;   // long enough under the beam for the spot to heat up and scorch
                         _smokeHp = belt.hp[nearest];
                         ship.LockOnRock(nearest);   // what Q does with the mouse on the rock
                         Debug.Log("smoke: locked · kind=" + ship.lockKind + " rock=" + ship.lockRock + " dist=" + ship.lockDist.ToString("0") + " · " + ship.LockName());
@@ -594,17 +594,19 @@ public class Game : MonoBehaviour
                 {
                     Debug.Log("smoke: dish · " + carrier.DishStats() + " · drones " + drones.Stats() + " · stowed by drones " + State.droneUnits.ToString("0") + " · pickups " + _drops.Count);
                 }
+                if (_phaseFrame == 100) ship.spotHeat = 0.6f;   // the spot pre-heated, so the burn trail shows within the run (it takes 30 s on its own)
+                if (_phaseFrame == 400) { Shot("smoke_scorch"); Debug.Log("smoke: scorch · spot heat " + ship.spotHeat.ToString("0.00") + " · scorches " + belt.BurnCount + " · sparks " + sparks.Count); }
                 if (_phaseFrame == 60)
                 {
                     Shot("smoke_mine");
-                    Debug.Log("smoke: cutting " + (_smokeRock >= 0 ? belt.RockName(_smokeRock) : "nothing") + " · target=" + ship.target + " laser_on=" + ship.laserOn + " hp=" + (_smokeRock >= 0 ? belt.hp[_smokeRock].ToString("0") : "-") + " (was " + _smokeHp.ToString("0") + ") · lod0 rocks " + belt.Lod0Count + " (target lod0 " + (_smokeRock >= 0 && belt.IsLod0(_smokeRock)) + " r=" + (_smokeRock >= 0 ? belt.radius[_smokeRock].ToString("0") : "-") + ") · sparks " + sparks.Count + " · spot heat " + ship.spotHeat.ToString("0.00") + " · near rocks " + ship.nearRocks.Count + " · ship dish aimed " + ship.aimed + " yaw " + ship.aimYaw.ToString("0.00") + " pitch " + ship.aimPitch.ToString("0.00") + " rig error " + ship.DishRigError().ToString("0.0") + " deg");
+                    Debug.Log("smoke: cutting " + (_smokeRock >= 0 ? belt.RockName(_smokeRock) : "nothing") + " · target=" + ship.target + " laser_on=" + ship.laserOn + " hp=" + (_smokeRock >= 0 ? belt.hp[_smokeRock].ToString("0") : "-") + " (was " + _smokeHp.ToString("0") + ") · lod0 rocks " + belt.Lod0Count + " (target lod0 " + (_smokeRock >= 0 && belt.IsLod0(_smokeRock)) + " r=" + (_smokeRock >= 0 ? belt.radius[_smokeRock].ToString("0") : "-") + ") · sparks " + sparks.Count + " · spot heat " + ship.spotHeat.ToString("0.00") + " · scorches " + belt.BurnCount + " · near rocks " + ship.nearRocks.Count + " · ship dish aimed " + ship.aimed + " yaw " + ship.aimYaw.ToString("0.00") + " pitch " + ship.aimPitch.ToString("0.00") + " rig error " + ship.DishRigError().ToString("0.0") + " deg");
                 }
                 if (_smokeRock >= 0 && !belt.alive[_smokeRock] && !_shotBreak) { _shotBreak = true; Shot("smoke_break"); }   // the sparks and the scrap of the break
-                if (_phaseFrame > 400 && (_smokeRock < 0 || !belt.alive[_smokeRock] || _phaseFrame > 1500))
+                if (_phaseFrame > 400 && (_smokeRock < 0 || !belt.alive[_smokeRock] || _phaseFrame > 2400))
                 {
                     ship.autoFire = false;
                     Debug.Log("smoke: mined · rock_alive=" + (_smokeRock >= 0 && belt.alive[_smokeRock]) + " pickups_left=" + _drops.Count + " cargo=" + State.CargoTotal().ToString("0") + " fuel=" + State.fuel.ToString("0.0") + " fps=" + (1f / Mathf.Max(0.0001f, Time.smoothDeltaTime)).ToString("0"));
-                    Debug.Log("smoke: fx · sparks " + sparks.Count + " · scrap " + belt.ScrapCount + " · lod0 rocks " + belt.Lod0Count + " · near rocks " + ship.nearRocks.Count + " · spot heat " + ship.spotHeat.ToString("0.00"));
+                    Debug.Log("smoke: fx · sparks " + sparks.Count + " · scrap " + belt.ScrapCount + " · lod0 rocks " + belt.Lod0Count + " · near rocks " + ship.nearRocks.Count + " · spot heat " + ship.spotHeat.ToString("0.00") + " · scorches " + belt.BurnCount + " · fittings " + ship.VariantReport());
                     Next("closeup");
                 }
                 break;
@@ -706,6 +708,17 @@ public class Game : MonoBehaviour
                     Debug.Log("smoke: drag hold -> storage · " + ok + " · store " + s0.ToString("0") + " -> " + State.StoreTotal().ToString("0") + " · hold=" + State.CargoTotal().ToString("0"));
                 }
                 if (_phaseFrame == 115) hud.SmokeDrop(true, 10f);   // a small stack to throw away
+                if (_phaseFrame == 118)
+                {
+                    // the fittings follow the refit tiers: a level-2 laser shows the second barrel, then back
+                    int was = State.up["laser"];
+                    State.up["laser"] = 2;
+                    ship.ConfigureModel();
+                    Debug.Log("smoke: fittings at laser Lv3 · " + ship.VariantReport());
+                    State.up["laser"] = was;
+                    ship.ConfigureModel();
+                    Debug.Log("smoke: fittings at laser Lv1 · " + ship.VariantReport());
+                }
                 if (_phaseFrame == 120)
                 {
                     Shot("smoke_inventory");

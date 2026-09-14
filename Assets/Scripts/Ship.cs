@@ -121,6 +121,7 @@ public class Ship : MonoBehaviour
     // over 10 s; it glows, lights the rock and throws sparks
     public float spotHeat;
     int _spotKey = -1;
+    float _burnT;
     Vector3 _spotPos;   // true
     Transform _spotGlow;
     Material _spotMat;
@@ -186,6 +187,7 @@ public class Ship : MonoBehaviour
             }
             BuildDishFx();
             BuildPulseFx();
+            LoadVariants();
             Debug.Log("ship: model loaded, focus " + (focus != null ? "found" : "missing") + " · dish rig " + (_dishPitch != null ? "found" : "missing") + " · rim emitters " + _rimMats.Count);
             return;
         }
@@ -193,6 +195,99 @@ public class Ship : MonoBehaviour
     }
 
     readonly List<Light> _engineLights = new List<Light>();
+    // the fitting variants (laser barrel, cargo pod, engine nacelle, scanner dish, three tiers each): the tier-1 set
+    // comes with the model's main scene; the rest live in its second glTF scene, which the editor importer leaves out,
+    // so they are read from the GLB in StreamingAssets at run time and shown by refit level as the browser's assembler does
+    readonly Dictionary<string, GameObject> _variants = new Dictionary<string, GameObject>();
+    static readonly string[] VARIANT_PREFIXES = { "cargo_pod", "engine_nacelle", "scanner_dish", "wings", "laser_barrel" };
+    public string variantsState = "pending";
+
+    static string VariantKind(string name)
+    {
+        foreach (var p in VARIANT_PREFIXES) if (name.StartsWith(p + "_")) return p;
+        return null;
+    }
+
+    void CollectVariants(Transform t)
+    {
+        for (int i = 0; i < t.childCount; i++)
+        {
+            var c = t.GetChild(i);
+            if (VariantKind(c.name) != null) _variants[c.name] = c.gameObject;
+            CollectVariants(c);
+        }
+    }
+
+    /// The alternatives from the GLB's second scene, brought in at run time: laser barrels ride the dish's pitch group,
+    /// everything else sits on the hull; all hidden until ConfigureModel picks the tiers.
+    async void LoadVariants()
+    {
+        CollectVariants(model);
+        ConfigureModel();
+        try
+        {
+            string path = System.IO.Path.Combine(Application.streamingAssetsPath, "player_ship.glb");
+            if (!System.IO.File.Exists(path)) { variantsState = "no glb"; return; }
+            var bytes = System.IO.File.ReadAllBytes(path);
+            var gltf = new GLTFast.GltfImport();
+            bool ok = await gltf.Load(bytes);
+            if (!ok || this == null || model == null) { variantsState = "load failed"; return; }
+            var holder = new GameObject("Variants");
+            holder.transform.SetParent(model, false);
+            ok = await gltf.InstantiateSceneAsync(holder.transform, 1);
+            if (!ok || this == null || model == null) { variantsState = "scene 2 failed"; return; }
+            var found = new List<Transform>();
+            foreach (var mr in holder.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                var t = mr.transform;
+                if (VariantKind(t.name) == null) continue;
+                found.Add(t);
+            }
+            int added = 0;
+            foreach (var t in found)
+            {
+                if (_variants.ContainsKey(t.name)) continue;
+                var parent = VariantKind(t.name) == "laser_barrel" && _dishPitch != null ? _dishPitch : model;
+                t.SetParent(parent, true);   // the pose in the model's frame is kept
+                t.gameObject.SetActive(false);
+                _variants[t.name] = t.gameObject;
+                added++;
+            }
+            variantsState = "loaded " + added + " from scene 2";
+            ConfigureModel();
+        }
+        catch (System.Exception e)
+        {
+            variantsState = "error " + e.Message;
+            Debug.LogWarning("ship: variants " + e.Message);
+        }
+    }
+
+    /// playerVisualTier / configure: each fitting shows the tier its refit level has reached (1 to 3); the wings stay delta.
+    public void ConfigureModel()
+    {
+        if (_variants.Count == 0) return;
+        var tiers = new Dictionary<string, int>();
+        foreach (var pair in new[] { new[] { "laser", "laser_barrel" }, new[] { "cargo", "cargo_pod" }, new[] { "engine", "engine_nacelle" }, new[] { "scanner", "scanner_dish" } })
+        {
+            int levels = Data.UPGRADES[pair[0]].levels.Length;
+            tiers[pair[1]] = 1 + Mathf.RoundToInt(2f * State.up[pair[0]] / (levels - 1));
+        }
+        foreach (var kv in _variants)
+        {
+            string kind = VariantKind(kv.Key);
+            bool shown = kind == "wings" ? kv.Key == "wings_delta" : (tiers.ContainsKey(kind) && kv.Key == kind + "_" + tiers[kind]);
+            if (kv.Value.activeSelf != shown) kv.Value.SetActive(shown);
+        }
+    }
+
+    public string VariantReport()
+    {
+        var shown = new List<string>();
+        foreach (var kv in _variants) if (kv.Value.activeSelf) shown.Add(kv.Key);
+        shown.Sort();
+        return string.Join(", ", shown.ToArray()) + " · " + variantsState;
+    }
     // the engines' exhaust glows, the navigation lights (exhausts / navLights) and the radar pulse you can see
     readonly List<Transform> _exhausts = new List<Transform>();
     readonly List<GameObject> _navLights = new List<GameObject>();
@@ -1560,6 +1655,15 @@ public class Ship : MonoBehaviour
         {
             var nrm = (_spotPos - belt.RockPos(_spotKey)).normalized;
             game.sparks.Emit(_spotPos, nrm, h, dt);   // a shower of streaks off the surface, more and hotter as the spot heats
+            if (h > 0.3f)
+            {
+                _burnT += dt;
+                if (_burnT > 0.1f)
+                {
+                    _burnT = 0f;
+                    belt.Scorch(_spotKey, _spotPos, Mathf.Min(r * 0.5f, 6f + r * 0.04f + 10f * h));   // the burn trail, once the spot is hot
+                }
+            }
         }
     }
 

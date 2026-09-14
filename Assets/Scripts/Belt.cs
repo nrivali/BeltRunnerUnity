@@ -18,6 +18,7 @@ public class Belt
     public const float LOD0_RADII = 6f;    // a rock closer than this many of its radii draws LOD 0 (the browser's 100 px on screen)
     public const float LOD0_OUT = 8f;      // and drops back beyond this many (hysteresis)
     public const int SCRAP_MAX = 512;
+    public const int BURN_MAX = 64;   // scorches kept per rock, the oldest going first
     const float COLOSSAL_LOOSE = 0.146f;
     const float BARREN_SHARE = 2f / 3f;
     const float COLOSSAL_ORE_SHARE = 0.001f;
@@ -115,6 +116,17 @@ public class Belt
     readonly MaterialPropertyBlock _scrapMpb = new MaterialPropertyBlock();
     int _scrapKey;
     readonly List<int> _hot = new List<int>();
+    // the burn trail (addBurn): every spot the laser cooks leaves a scorch on the rock for good, a flat dark decal laid
+    // on the surface where the beam is; kept per rock relative to its centre (rocks never turn), drawn as instanced quads
+    class Burn { public Vector3 local; public Quaternion rot; public float size; }
+    readonly Dictionary<int, List<Burn>> _burns = new Dictionary<int, List<Burn>>();
+    readonly Dictionary<int, Burn> _burnLast = new Dictionary<int, Burn>();
+    readonly List<int> _burnGone = new List<int>();
+    Matrix4x4[] _burnMats = new Matrix4x4[1023];
+    Mesh _burnQuad;
+    Material _burnMat;
+    MaterialPropertyBlock _burnMpb = new MaterialPropertyBlock();
+    static Texture2D _burnTex;
     // the laser heat points (the ship's beam 0, the dish's 1): true world, amount, radius
     readonly Vector3[] _heatSrc = new Vector3[2];
     readonly float[] _heatAmt = new float[2];
@@ -265,6 +277,8 @@ public class Belt
         count = 0;
         _lod0.Clear();
         _hot.Clear();
+        _burns.Clear();
+        _burnLast.Clear();
         ClearScrap();
         _heatAmt[0] = _heatAmt[1] = 0f;
         fields.Clear();
@@ -555,6 +569,101 @@ public class Belt
         return Mathf.Max(h, Mathf.Pow(glow[i], 1.6f));
     }
 
+    /// The scorch texture (the browser's burn canvas): a dark core fading out, with a few lighter flecks.
+    static Texture2D BurnTexture()
+    {
+        if (_burnTex != null) return _burnTex;
+        _burnTex = new Texture2D(64, 64, TextureFormat.RGBA32, false);
+        var c0 = new Color(12f / 255f, 7f / 255f, 4f / 255f, 0.95f);
+        var c1 = new Color(28f / 255f, 14f / 255f, 8f / 255f, 0.75f);
+        var c2 = new Color(40f / 255f, 22f / 255f, 12f / 255f, 0.25f);
+        var c3 = new Color(40f / 255f, 22f / 255f, 12f / 255f, 0f);
+        for (int y = 0; y < 64; y++)
+        {
+            for (int x = 0; x < 64; x++)
+            {
+                float d = new Vector2(x - 31.5f, y - 31.5f).magnitude / 32f;
+                Color c;
+                if (d < 0.45f) c = Color.Lerp(c0, c1, d / 0.45f);
+                else if (d < 0.8f) c = Color.Lerp(c1, c2, (d - 0.45f) / 0.35f);
+                else c = Color.Lerp(c2, c3, Mathf.Clamp01((d - 0.8f) / 0.2f));
+                _burnTex.SetPixel(x, y, c);
+            }
+        }
+        var rng = new Rng(9);
+        for (int k = 0; k < 40; k++)
+        {
+            int x = 8 + (int)(rng.Value() * 48f), y = 8 + (int)(rng.Value() * 48f);
+            float a = rng.Value() * 0.35f;
+            for (int dx = 0; dx < 2; dx++) for (int dy = 0; dy < 2; dy++)
+            {
+                var px = _burnTex.GetPixel(x + dx, y + dy);
+                _burnTex.SetPixel(x + dx, y + dy, Color.Lerp(px, new Color(60f / 255f, 30f / 255f, 14f / 255f, Mathf.Max(px.a, a)), a));
+            }
+        }
+        _burnTex.wrapMode = TextureWrapMode.Clamp;
+        _burnTex.Apply();
+        return _burnTex;
+    }
+
+    /// addBurn: a scorch where the beam is, laid on the surface facing the rock's centre with a random turn; the same
+    /// spot is not restamped; a rock keeps up to BURN_MAX.
+    public void Scorch(int i, Vector3 worldHit, float size)
+    {
+        if (i < 0 || i >= count || !alive[i]) return;
+        var centre = RockPos(i);
+        var local = worldHit - centre;
+        if (local.sqrMagnitude < 1e-6f) return;
+        var n = local.normalized;
+        Burn last;
+        if (_burnLast.TryGetValue(i, out last) && (last.local - local).magnitude < size * 0.4f && Mathf.Abs(last.size - size) < size * 0.3f) return;
+        List<Burn> list;
+        if (!_burns.TryGetValue(i, out list)) { list = new List<Burn>(); _burns[i] = list; }
+        var ax = Mathf.Abs(n.x) < 0.9f ? Vector3.right : Vector3.up;
+        var t1 = Vector3.Cross(n, ax).normalized;
+        var t2 = Vector3.Cross(n, t1).normalized;
+        float rot = Random.value * Mathf.PI * 2f;
+        var e1 = (t1 * Mathf.Cos(rot) + t2 * Mathf.Sin(rot)).normalized;
+        var e2 = Vector3.Cross(n, e1).normalized;
+        var b = new Burn { local = local + n * 0.8f, rot = Quaternion.LookRotation(n, e2), size = size };
+        list.Add(b);
+        if (list.Count > BURN_MAX) list.RemoveAt(0);
+        _burnLast[i] = b;
+    }
+
+    public int BurnCount
+    {
+        get { int n = 0; foreach (var kv in _burns) n += kv.Value.Count; return n; }
+    }
+
+    void DrawBurns()
+    {
+        if (_burns.Count == 0) return;
+        if (_burnMat == null)
+        {
+            _burnQuad = MeshUtil.Quad(1f, 1f, 1f, 1f);
+            _burnQuad.bounds = new Bounds(Vector3.zero, Vector3.one * 2000000f);
+            _burnMat = new Material(Game.Sh("BeltRunner/Scorch"));
+            _burnMat.mainTexture = BurnTexture();
+            _burnMat.enableInstancing = true;
+        }
+        _burnGone.Clear();
+        int k = 0;
+        foreach (var kv in _burns)
+        {
+            int i = kv.Key;
+            if (!alive[i]) { _burnGone.Add(i); continue; }
+            var centre = RockPos(i) - _offset;
+            foreach (var b in kv.Value)
+            {
+                _burnMats[k++] = Matrix4x4.TRS(centre + b.local, b.rot, new Vector3(b.size * 2f, b.size * 1.6f, 1f));
+                if (k == 1023) { Graphics.DrawMeshInstanced(_burnQuad, 0, _burnMat, _burnMats, k, _burnMpb, ShadowCastingMode.Off, false, 0, null); k = 0; }
+            }
+        }
+        if (k > 0) Graphics.DrawMeshInstanced(_burnQuad, 0, _burnMat, _burnMats, k, _burnMpb, ShadowCastingMode.Off, false, 0, null);
+        foreach (int i in _burnGone) { _burns.Remove(i); _burnLast.Remove(i); }
+    }
+
     /// The laser heat points: where the ship's beam (0) and the dish's beam (1) are cooking a rock this frame.
     public void SetSpotHeat(int idx, Vector3 atTrue, float amount, float radius)
     {
@@ -735,6 +844,8 @@ public class Belt
     {
         alive[i] = false;
         _lod0.Remove(i);
+        _burns.Remove(i);
+        _burnLast.Remove(i);
         if (batchOf[i] >= 0)
         {
             _batches[batchOf[i]].mats[slotOf[i]] = Matrix4x4.zero;
@@ -1212,6 +1323,7 @@ public class Belt
             int subs = Mathf.Min(mesh.subMeshCount, mats.Length);
             for (int sub = 0; sub < subs; sub++) Graphics.DrawMeshInstanced(mesh, sub, mats[sub], e.mats, 1, e.mpb, ShadowCastingMode.On, true, 0, null);
         }
+        DrawBurns();
         // the scrap
         int ns = _scrapPos.Count;
         if (ns > 0)

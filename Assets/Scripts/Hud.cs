@@ -579,6 +579,7 @@ public class Hud : MonoBehaviour
         bool ok = State.Buy(key, out msg);
         Toast(msg, !ok);
         if (ok) Audio.Play("chime");
+        if (ok && ship != null) ship.ConfigureModel();   // the fitting on the hull changes with its tier
         _svcSig = "";
         RefreshServices();
     }

@@ -48,6 +48,20 @@ the ore, flies, saves, and quits, printing `smoke:` lines to the log and saving 
 (`%USERPROFILE%AppDataocallow
 rivalibelt runner`).
 
+## Milestone 16 — the burn trail and the fitting variants
+
+| Piece | Where | Status |
+|---|---|---|
+| The burn trail: once the beam's spot is hot, a scorch decal is stamped where the beam is every 0.1 s, laid on the surface facing the rock's centre with a random turn, the same spot never restamped, up to 64 a rock, gone when the rock breaks | `Assets/Scripts/Belt.cs` (`Scorch`, `DrawBurns`), `Assets/Resources/Shaders/Scorch.shader` | ported from addBurn as instanced quads kept relative to the rock's centre (rocks never turn), drawn with a depth offset over the stone |
+| The ship's fitting variants: three tiers of laser barrel, cargo pod, engine nacelle and scanner dish, shown by refit level (tier = 1 + round(2 · level / top level)); the tier-1 set comes with the model's main scene, the rest live in its second glTF scene, which the editor importer leaves out, so they are read from the GLB at run time with glTFast and hung on the hull (laser barrels on the dish's pitch group) | `Assets/Scripts/Ship.cs` (`LoadVariants`, `ConfigureModel`), `Assets/StreamingAssets/player_ship.glb` | ported from the assembler's configure(); a refit bought in the services panel swaps the fitting at once |
+| The beam's spot heat, the sun's single shadow box and LOD 0 bounds that follow the drift | `Ship.cs`, `Lighting.cs`, `Belt.cs` | already in from milestones 8 and 13 |
+
+The smoke run pre-heats the spot to show a scorch within the run (it takes 30 s of cutting on its own), then switches
+the laser to level 3 and back on the pad and prints which fittings show.
+
+Not ported: the wing choices and hull/accent paint (the browser's customisation, which the port has no menu for; the
+delta wings stay).
+
 ## Milestone 15 — the curved hull, the radar pulse, exhaust and navigation lights
 
 | Piece | Where | Status |
