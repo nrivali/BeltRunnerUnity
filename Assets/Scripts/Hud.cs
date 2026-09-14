@@ -1469,7 +1469,7 @@ public class Hud : MonoBehaviour
             else if (State.fuel <= 0.5f && ship.cut == null) segs.Add(Kbd("T") + " Out of fuel · recovery to the cargo ship (15% of credits)");
             if (ship.cut == null && ship.CanFly)
             {
-                if (ship.weapon == "gun") segs.Add(ship.gunFiring ? "Autocannon firing · bolts go where the crosshair is" : (ship.lockKind == "raider" ? Kbd("LMB") + " Fire · put the crosshair on the LEAD pip" : Kbd("LMB") + " Fire the autocannon"));
+                if (ship.weapon == "gun") segs.Add(ship.gunFiring ? "Autocannon firing · bolts go to the crosshair" : (ship.lockKind == "raider" ? Kbd("LMB") + " Fire · put the crosshair on the LEAD pip" : Kbd("LMB") + " Fire the autocannon at the crosshair"));
                 else if (ship.raiderTarget != null && !hasTarget) segs.Add(Kbd("Wheel") + " Autocannon for the raider");
             }
             if (hasTarget && ship.cut == null && ship.weapon == "laser")
@@ -1526,9 +1526,10 @@ public class Hud : MonoBehaviour
         // the gunnery crosshair: where a bolt goes, at gun range; and the lead pip: where to put it for the locked raider
         if (showFlight && !docked && ship.cut == null && ship.CanFly)
         {
-            Vector2 cp;
-            bool cBehind = Project(ship.LaserOrigin() + ship.Forward * ship.GunReach - game.worldOffset, out cp);
-            _crosshairRt.gameObject.SetActive(!cBehind);
+            // the crosshair rides the mouse: that is where the gun points
+            var mp = Input.mousePosition;
+            var cp = new Vector2(mp.x, mp.y) / _canvas.scaleFactor;
+            _crosshairRt.gameObject.SetActive(OnScreen(cp) && ship.weapon == "gun");
             _crosshairRt.anchoredPosition = cp;
             _crosshair.Set(ship.gunFiring);
             var lr = ship.lockKind == "raider" && ship.lockRaider != null && !ship.lockRaider.dead ? ship.lockRaider : ship.raiderTarget;

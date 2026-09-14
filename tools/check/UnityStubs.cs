@@ -125,6 +125,12 @@ namespace UnityEngine
         public override int GetHashCode() => r.GetHashCode() ^ g.GetHashCode() ^ b.GetHashCode() ^ a.GetHashCode();
     }
 
+    public struct Ray
+    {
+        public Vector3 origin, direction;
+        public Vector3 GetPoint(float d) => origin + direction * d;
+    }
+
     public struct Bounds
     {
         public Bounds(Vector3 c, Vector3 s) { center = c; size = s; }
@@ -321,6 +327,7 @@ namespace UnityEngine
         public float fieldOfView { get; set; }
         public bool allowHDR { get; set; }
         public Vector3 WorldToScreenPoint(Vector3 p) => p;
+        public Ray ScreenPointToRay(Vector3 p) => new Ray();
     }
 
     public class AudioListener : Behaviour

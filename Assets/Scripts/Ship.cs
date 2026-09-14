@@ -102,6 +102,7 @@ public class Ship : MonoBehaviour
     // the autocannon (combat): the raider under the nose (or the locked one within the cone), the shot timer
     public Raiders.Raider raiderTarget;
     public bool gunFiring;
+    public Vector3 aimDir = Vector3.forward;   // where the gun points: down the mouse ray, within the forward half
     public string weapon = "laser";   // the scroll wheel swaps: "laser" cuts rock, "gun" is the autocannon
     float _gunCd, _gunWarnT;
     public HoverInfo hover;                     // what the mouse is over (refreshed at 10 Hz, and afresh on Q)
@@ -577,9 +578,11 @@ public class Ship : MonoBehaviour
     void TickDish(float dt)
     {
         if (_dishYaw == null || _dishPitch == null) return;
-        bool hasAim = (target >= 0 && target < belt.count && !docked) || (raiderTarget != null && !docked);
+        bool gunAim = weapon == "gun" && !docked;
+        bool hasAim = gunAim || (target >= 0 && target < belt.count && !docked) || (raiderTarget != null && !docked);
         float wantYaw = 0f, wantPitch = 0.05f;
-        if (hasAim) DishAngles((target >= 0 ? belt.RockPos(target) : raiderTarget.pos) - game.worldOffset, out wantYaw, out wantPitch);
+        if (gunAim) DishAngles(LaserOrigin() + aimDir * 400f - game.worldOffset, out wantYaw, out wantPitch);
+        else if (hasAim) DishAngles((target >= 0 ? belt.RockPos(target) : raiderTarget.pos) - game.worldOffset, out wantYaw, out wantPitch);
         bool inArc = Mathf.Abs(wantYaw) <= Mathf.PI * 0.5f;
         wantYaw = Mathf.Clamp(wantYaw, -Mathf.PI * 0.5f, Mathf.PI * 0.5f);
         wantPitch = Mathf.Clamp(wantPitch, -0.7f, 1.3f);
@@ -1688,6 +1691,17 @@ public class Ship : MonoBehaviour
         _gunCd -= dt;
         _gunWarnT -= dt;
         var gun = State.Stat("gun");
+        // the gun aims where the mouse is: the point on the mouse ray at gun range from the dish, held to the forward half
+        aimDir = fwd;
+        if (mouseSteer && cam != null)
+        {
+            var ray = cam.ScreenPointToRay(Input.mousePosition);
+            var originScene = origin - game.worldOffset;
+            float camD = (originScene - ray.origin).magnitude;
+            var pt = ray.GetPoint(camD + GunReach);
+            var dir = (pt - originScene).normalized;
+            if (Vector3.Dot(dir, fwd) > 0f) aimDir = dir;
+        }
         if (game.raiders != null && (target < 0 || weapon == "gun"))
         {
             float gunReach = gun.reach > 0f ? gun.reach : 1800f;
@@ -1697,7 +1711,7 @@ public class Ship : MonoBehaviour
                 var to = lockRaider.pos - origin;
                 if (to.magnitude <= gunReach && Vector3.Dot(to.normalized, fwd) > Mathf.Cos(90f * Mathf.Deg2Rad)) raiderTarget = lockRaider;   // the dish turret covers the whole forward half
             }
-            if (raiderTarget == null) raiderTarget = game.raiders.NearestInCone(origin, fwd, gunReach, Mathf.Cos(4f * Mathf.Deg2Rad));
+            if (raiderTarget == null) raiderTarget = game.raiders.NearestInCone(origin, aimDir, gunReach, Mathf.Cos(4f * Mathf.Deg2Rad));
         }
         if (firing && weapon == "gun")
         {
@@ -1706,7 +1720,7 @@ public class Ship : MonoBehaviour
             if (_gunCd <= 0f)
             {
                 _gunCd = 1f / gun.rate;
-                game.raiders.Fire(origin, fwd, gun.mult, true);   // straight down the nose: leading the target is the pilot's job
+                game.raiders.Fire(origin, aimDir, gun.mult, true);   // at the crosshair: leading the target is the pilot's job
                 Audio.Play("zap", -4f);
             }
             TickSpot(dt, false, _spotPos);
