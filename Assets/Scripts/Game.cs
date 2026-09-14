@@ -569,6 +569,7 @@ public class Game : MonoBehaviour
         hud.UpdateHud(dt, ship, belt, carrier, zone, started);
         hud.menu.Tick(dt);
         tutorial.Update(dt);
+        if (_combat) State.fuel = State.Stat("tank").cap;   // the test: fuel never runs out
         if (_combat && ++_combatFrame == 240) { Shot("combat_test"); Debug.Log("combat test: " + raiders.Stats() + " · hull " + State.hull.ToString("0") + " · lock " + ship.lockKind + " · target " + (ship.raiderTarget != null)); }
         if (_smoke) SmokeStep();
     }

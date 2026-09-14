@@ -26,6 +26,7 @@ public class Raiders
         public Transform node;
         public Material exhaust;
         public float hp, maxHp, dmg, speed, bounty, a, fireCd;
+        public float shield, maxShield, sinceHit = 99f;   // the shield soaks damage first and recharges after ten quiet seconds
         public string state = "idle";
         public bool dead;
         public bool frozen;   // the combat test: holds its place (still turns to face the ship and fires)
@@ -148,10 +149,11 @@ public class Raiders
         eye.GetComponent<MeshRenderer>().sharedMaterial = _trim;
         var ex = Ship.SoftMaterial(new Color(1f, 0.18f, 0.39f, 0.6f));
         Ship.GlowQuad(go.transform, new Vector3(0f, 0f, -16f), 9f, ex, "Exhaust");
-        float hp = Mathf.Round(60f * (0.6f + danger * 0.6f));
+        float hp = Mathf.Round(50f * Mathf.Max(1f, 0.5f + danger));       // 50 at Kessler's danger, more in a harder zone
+        float shield = Mathf.Round(50f * Mathf.Max(1f, 0.5f + danger));
         raiders.Add(new Raider
         {
-            pos = pos, home = home, wp = home, node = go.transform, exhaust = ex, hp = hp, maxHp = hp, dmg = Mathf.Round(3f + 4f * danger),
+            pos = pos, home = home, wp = home, node = go.transform, exhaust = ex, hp = hp, maxHp = hp, shield = shield, maxShield = shield, dmg = Mathf.Round(3f + 4f * danger),
             heading = Random.onUnitSphere, spd = 120f,
             a = Random.value * 6f, fireCd = Random.Range(1f, 2f), speed = 820f + danger * 90f, bounty = Mathf.Round(120f * danger + 80f), frozen = frozen,
         });
@@ -192,7 +194,10 @@ public class Raiders
     public void Damage(Raider r, float dmg, Vector3 at)
     {
         if (r.dead) return;
-        r.hp -= dmg;
+        r.sinceHit = 0f;
+        float toShield = Mathf.Min(r.shield, dmg);
+        r.shield -= toShield;
+        r.hp -= dmg - toShield;
         if (game.sparks != null) game.sparks.Burst(at, 12, 180f, Data.Hex("#ff8a3a"), 1f);
         if (r.hp <= 0f) Kill(r, true);
     }
@@ -298,6 +303,8 @@ public class Raiders
         {
             var r = raiders[i];
             float d = (r.pos - sp).magnitude;
+            r.sinceHit += dt;
+            if (r.sinceHit >= 10f && r.shield < r.maxShield) r.shield = Mathf.Min(r.maxShield, r.shield + 10f * dt);
             if (r.state == "idle" && canAttack && d < ENGAGE)
             {
                 r.state = "attack";
@@ -365,9 +372,9 @@ public class Raiders
                 r.fireCd -= dt;
                 // the guns are fixed forward: a raider only fires when its nose is on the ship (within 20 degrees)
                 bool facing = Vector3.Dot(r.node.forward, (sp - r.pos).normalized) > Mathf.Cos(20f * Mathf.Deg2Rad);
-                if (r.fireCd <= 0f && d < 900f && facing)
+                if (r.fireCd <= 0f && d < 5000f && facing)   // 2,500 m on the readout
                 {
-                    r.fireCd = 1.2f / Mathf.Max(0.6f, danger * 0.8f);
+                    r.fireCd = 0.5f;
                     float spread = 0.09f / Mathf.Max(0.7f, danger);   // raiders in quiet zones are poor shots
                     var dir = (sp + ship.vel * (d / BOLT_SPEED) - r.pos).normalized + new Vector3(Random.Range(-spread, spread), Random.Range(-spread, spread), Random.Range(-spread, spread));
                     Fire(r.pos, dir.normalized, r.dmg, false);

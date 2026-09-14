@@ -1384,7 +1384,7 @@ public class Hud : MonoBehaviour
             float rd = Mathf.Max(0f, (panelRaider.pos - ship.LaserOrigin()).magnitude - Raiders.RADIUS);
             _tEyebrow.text = locked && ship.lockKind == "raider" ? "LOCKED TARGET" : "TARGET";
             _tName.text = "Pirate raider";
-            _tRows.text = Kv("SIZE", "Ship") + "   " + Kv("RANGE", Data.Fm(rd) + " m");
+            _tRows.text = Kv("SIZE", "Ship") + "   " + Kv("RANGE", Data.Fm(rd) + " m") + "   " + Kv("SHIELD", Mathf.CeilToInt(Mathf.Max(0f, panelRaider.shield)) + " / " + Mathf.RoundToInt(panelRaider.maxShield));
             _tHpRow.gameObject.SetActive(true);
             _tHp.Set(panelRaider.hp / Mathf.Max(1f, panelRaider.maxHp), Ui.RED);
             _tHpT.text = Mathf.CeilToInt(Mathf.Max(0f, panelRaider.hp)) + " / " + Mathf.RoundToInt(panelRaider.maxHp);
