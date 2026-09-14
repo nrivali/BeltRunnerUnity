@@ -15,6 +15,10 @@ public class Raiders
     public const float BOLT_SPEED = 2200f;
     public const float PLAYER_BOLT_SPEED = 2600f;
     public const float RADIUS = 14f;
+    // a raider flies like a ship: it turns no faster than this, and speeds up and slows down no harder than this
+    public const float TURN_RATE = 35f * Mathf.Deg2Rad;   // the player's ship turns at 30 degrees a second
+    public const float ACCEL = 220f;
+    public const float DECEL = 320f;
 
     public class Raider
     {
@@ -32,6 +36,8 @@ public class Raiders
         public float dodgeT, dodgeCd;
         public Vector3 dodgeDir;
         public Vector3 longTo;   // the far point of a long run
+        public Vector3 heading = Vector3.forward;   // the way the nose points; the raider only ever moves along it
+        public float spd;                           // along the heading
     }
 
     public class Bolt
@@ -146,6 +152,7 @@ public class Raiders
         raiders.Add(new Raider
         {
             pos = pos, home = home, wp = home, node = go.transform, exhaust = ex, hp = hp, maxHp = hp, dmg = Mathf.Round(3f + 4f * danger),
+            heading = Random.onUnitSphere, spd = 120f,
             a = Random.value * 6f, fireCd = Random.Range(1f, 2f), speed = 820f + danger * 90f, bounty = Mathf.Round(120f * danger + 80f), frozen = frozen,
         });
         return raiders[raiders.Count - 1];
@@ -262,8 +269,8 @@ public class Raiders
                 float ang = Random.Range(0f, Mathf.PI * 2f);
                 var up = Vector3.Cross(b.dir, perp).normalized;
                 r.dodgeDir = (perp * Mathf.Cos(ang) + up * Mathf.Sin(ang)).normalized;
-                r.dodgeT = 0.5f;
-                r.dodgeCd = 1.4f;
+                r.dodgeT = 0.8f;
+                r.dodgeCd = 1.6f;
             }
         }
     }
@@ -352,7 +359,7 @@ public class Raiders
                     desired = sp - toShip * 1600f + side * r.orbitDir * 700f + Vector3.up * Mathf.Sin(r.weave * 0.5f) * 200f;
                     if (r.moveT <= 0f || d > 1900f) { r.move = "run"; r.moveT = 0f; }
                 }
-                // the jink
+                // the jink: a hard turn aside, as hard as the ship can turn
                 r.dodgeCd -= dt;
                 if (r.dodgeT > 0f) { r.dodgeT -= dt; desired = r.pos + r.dodgeDir * 900f; }
                 r.fireCd -= dt;
@@ -378,14 +385,24 @@ public class Raiders
             if (r.frozen)
             {
                 r.vel = Vector3.zero;
-                if (r.state == "attack" && d > 1f) r.node.rotation = Quaternion.Slerp(r.node.rotation, Ship.LevelHeading((sp - r.pos) / d), 1f - Mathf.Exp(-3f * dt));
+                r.spd = 0f;
+                if (r.state == "attack" && d > 1f) r.heading = RotateTowards(r.heading, (sp - r.pos) / d, TURN_RATE * dt);
+                r.node.rotation = Ship.LevelHeading(r.heading);
             }
             else
             {
-                float agility = r.dodgeT > 0f ? 6f : 2.2f;   // a jink is a snap, the rest a lean
-                r.vel = Vector3.Lerp(r.vel, want * (r.state == "attack" ? r.speed : 300f), 1f - Mathf.Exp(-agility * dt));
+                // the flight model: the nose turns toward where it wants to go no faster than a ship could, the throttle
+                // works against thrust and braking limits, and the raider only ever moves along its nose
+                r.heading = RotateTowards(r.heading, want, TURN_RATE * dt);
+                float wantSpd = r.state == "attack" ? r.speed : 300f;
+                if (r.state == "attack" && r.move == "strafe") wantSpd = Mathf.Min(wantSpd, r.orbitR * TURN_RATE * 0.9f);   // slow enough to hold the circle
+                if (r.state != "attack" || r.move == "long") wantSpd = Mathf.Min(wantSpd, Mathf.Max(60f, dist / 3f));   // ease up on the point
+                float off2 = Vector3.Dot(r.heading, want);
+                if (off2 < 0.3f) wantSpd = Mathf.Min(wantSpd, 260f);   // pointing the wrong way: throttle back through the turn
+                r.spd = r.spd < wantSpd ? Mathf.Min(wantSpd, r.spd + ACCEL * dt) : Mathf.Max(wantSpd, r.spd - DECEL * dt);
+                r.vel = r.heading * r.spd;
                 r.pos += r.vel * dt;
-                if (r.vel.sqrMagnitude > 1f) r.node.rotation = Quaternion.Slerp(r.node.rotation, Ship.LevelHeading(r.vel.normalized), 1f - Mathf.Exp(-6f * dt));
+                r.node.rotation = Ship.LevelHeading(r.heading);
             }
             r.node.position = r.pos - off;
             r.exhaust.SetColor("_Color", new Color(1f, 0.18f, 0.39f, r.state == "attack" ? 0.6f + Random.value * 0.3f : 0.35f));
@@ -432,6 +449,19 @@ public class Raiders
                 bolts.RemoveAt(i);
             }
         }
+    }
+
+    /// Turn a unit vector toward another by at most `maxRad`.
+    static Vector3 RotateTowards(Vector3 from, Vector3 to, float maxRad)
+    {
+        if (to.sqrMagnitude < 1e-6f) return from;
+        to.Normalize();
+        float c = Mathf.Clamp(Vector3.Dot(from, to), -1f, 1f);
+        float ang = Mathf.Acos(c);
+        if (ang <= maxRad) return to;
+        var axis = Vector3.Cross(from, to);
+        if (axis.sqrMagnitude < 1e-8f) axis = Vector3.Cross(from, Mathf.Abs(from.y) < 0.9f ? Vector3.up : Vector3.right);
+        return (Quaternion.AngleAxis(maxRad * Mathf.Rad2Deg, axis.normalized) * from).normalized;
     }
 
     public string Stats()
