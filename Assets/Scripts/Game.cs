@@ -16,6 +16,7 @@ public class Game : MonoBehaviour
     public CargoShip carrier;
     public Colony colony;
     public Hud hud;
+    public Tutorial tutorial;
     public Camera cam;
     public Light sun;
     public bool started, paused;
@@ -38,7 +39,7 @@ public class Game : MonoBehaviour
         State.Init();
         var args = Environment.GetCommandLineArgs();
         foreach (var a in args) if (a == "-smoke" || a == "--smoke") _smoke = true;
-        if (_smoke) State.Reset();   // the run starts from a fresh pilot every time
+        if (_smoke) { State.Reset(); State.tut = 0; }   // the run starts from a fresh pilot every time, questline and all
         var t0 = Time.realtimeSinceStartup;
         SetupCamera();
         SetupLighting();
@@ -55,10 +56,13 @@ public class Game : MonoBehaviour
         ship.carrier = carrier;
         ship.cam = cam;
         ship.Build();
+        Audio.Create();
         var hudGo = new GameObject("HUD");
         hud = hudGo.AddComponent<Hud>();
         hud.ship = ship;
         hud.Build();
+        tutorial = new Tutorial { game = this, ship = ship, hud = hud };
+        hud.tutorial = tutorial;
         hud.onStart = StartGame;
         hud.onNewGame = NewGame;
         hud.onQuit = Quit;
@@ -323,6 +327,7 @@ public class Game : MonoBehaviour
         float total = belt.Kill(i);
         float loose = splits ? total * 0.25f : total;
         if (_smoke) Debug.Log("smoke: break · " + rname + " total=" + total.ToString("0") + " loose=" + loose.ToString("0") + " splits=" + splits);
+        Audio.Play("rock_break", c > 0 ? 0f : -4f);
         if (oreI >= 0 && loose > 0f)
         {
             int k = Mathf.Clamp(Mathf.RoundToInt(loose / 40f), 1, 8);
@@ -394,6 +399,7 @@ public class Game : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F5)) { State.Save(); hud.Toast("Saved", false); }
         if (Input.GetKeyDown(KeyCode.C)) hud.ToggleControls();
         if (Input.GetKeyDown(KeyCode.F) && ship.docked) hud.ToggleServices();
+        if (Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.I)) hud.ToggleInventory();
         if (Input.GetKeyDown(KeyCode.N) && ship.warp == null) hud.ToggleMap();
         State.time += dt;
         State.TickMarket(dt);
@@ -403,6 +409,8 @@ public class Game : MonoBehaviour
         ship.Tick(dt);
         belt.Tick(dt, ship.TruePos);
         if (colony != null) colony.Tick(dt);
+        Audio.I.Engine(ship.throttle, ship.afterburning, ship.braking, ship.docked || ship.InCinematic);
+        Audio.I.Laser(ship.firing && !ship.docked && !ship.InCinematic, ship.laserOn);
         for (int i = _drops.Count - 1; i >= 0; i--)
         {
             var p = _drops[i];
@@ -440,6 +448,7 @@ public class Game : MonoBehaviour
             State.Save();
         }
         hud.UpdateHud(dt, ship, belt, zone);
+        tutorial.Update(dt);
         if (_smoke) SmokeStep();
     }
 
@@ -461,10 +470,32 @@ public class Game : MonoBehaviour
         _phaseFrame = 0;
     }
 
+    int _tutLast = -1;
+    int _tutFrames;
+
+    /// The run drives the questline too: it reports every step it reaches and presses Next on the ones that wait for it.
+    void SmokeTutorial()
+    {
+        if (!tutorial.Active) return;
+        int i = tutorial.StepIndex;
+        if (i != _tutLast)
+        {
+            Debug.Log("smoke: tutorial step " + (i + 1) + " " + Tutorial.STEPS[i].id + " · last voice " + (Audio.I != null ? Audio.I.lastVoice : "-") + " playing " + (Audio.I != null && Audio.I.VoicePlaying));
+            _tutLast = i;
+            _tutFrames = 0;
+        }
+        _tutFrames++;
+        var s = Tutorial.STEPS[i];
+        if (!s.Auto && _tutFrames == 120) tutorial.Advance();
+        if (s.id == "inv" && _tutFrames == 60) hud.ToggleInventory();
+        if (s.id == "inv" && _tutFrames == 61) hud.ToggleInventory();
+    }
+
     void SmokeStep()
     {
         _frame++;
         _phaseFrame++;
+        SmokeTutorial();
         switch (_phase)
         {
             case "start":
@@ -570,6 +601,9 @@ public class Game : MonoBehaviour
                 {
                     var local = carrier.ToLocalTrue(ship.TruePos);
                     Debug.Log("smoke: departed again · local=" + local.ToString("0") + " speed=" + ship.Speed.ToString("0") + " · exit_pending=" + ship.exitPending);
+                    var plays = new List<string>();
+                    foreach (var kv in Audio.I.plays) plays.Add(kv.Key + "x" + kv.Value);
+                    Debug.Log("smoke: audio plays · " + string.Join(" ", plays.ToArray()) + " · loops " + Audio.I.LoopState());
                     // straight back in, then the jump to the Hub with the storage full of ore to sell
                     int entry = carrier.NearestSide(ship.TruePos);
                     var startL = CargoShip.OpeningLocal(entry) + new Vector3(300f, 120f, entry * 3000f);

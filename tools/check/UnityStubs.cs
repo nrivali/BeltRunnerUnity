@@ -150,6 +150,8 @@ namespace UnityEngine
         public static float deltaTime => 1f / 60f;
         public static float smoothDeltaTime => 1f / 60f;
         public static float realtimeSinceStartup => (float)(DateTime.Now - _t0).TotalSeconds;
+        public static float time => realtimeSinceStartup;
+        public static int frameCount => 0;
         static readonly DateTime _t0 = DateTime.Now;
     }
 
@@ -278,7 +280,10 @@ namespace UnityEngine
         public bool allowHDR { get; set; }
     }
 
-    public class AudioListener : Behaviour { }
+    public class AudioListener : Behaviour
+    {
+        public static float volume { get; set; }
+    }
 
     public class Light : Behaviour
     {
@@ -524,4 +529,27 @@ namespace UnityEngine
             public Events.UnityEvent onClick => new Events.UnityEvent();
         }
     }
+}
+
+namespace UnityEngine
+{
+    public class AudioClip : Object { }
+    public enum AudioReverbPreset { Off, Generic, Hangar, Room }
+    public class AudioSource : Behaviour
+    {
+        public AudioClip clip { get; set; }
+        public bool loop { get; set; }
+        public bool playOnAwake { get; set; }
+        public float volume { get; set; }
+        public float pitch { get; set; }
+        public float spatialBlend { get; set; }
+        public bool isPlaying => false;
+        public void Play() { }
+        public void PlayDelayed(float s) { }
+        public void Stop() { }
+    }
+    public class AudioHighPassFilter : Behaviour { public float cutoffFrequency { get; set; } }
+    public class AudioLowPassFilter : Behaviour { public float cutoffFrequency { get; set; } }
+    public class AudioDistortionFilter : Behaviour { public float distortionLevel { get; set; } }
+    public class AudioReverbFilter : Behaviour { public AudioReverbPreset reverbPreset { get; set; } public float dryLevel { get; set; } public float room { get; set; } }
 }

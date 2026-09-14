@@ -62,7 +62,7 @@ public class Pickup : MonoBehaviour
         if (d < GRAB_RANGE)
         {
             float took = State.AddCargo(ore, units);
-            if (took > 0f) return true;
+            if (took > 0f) { Audio.Play("pickup"); return true; }
             vel = -toShip.normalized * 60f;   // hold full: the lump bounces off and waits
         }
         else if (d < PULL_RANGE)

@@ -48,6 +48,16 @@ the ore, flies, saves, and quits, printing `smoke:` lines to the log and saving 
 (`%USERPROFILE%AppDataocallow
 rivalibelt runner`).
 
+## Milestone 5 — the tutorial and the voice lines
+
+| Piece | Where | Status |
+|---|---|---|
+| The Flight Ops questline: fourteen steps (launch, the stick, the HUD, the radar, a copper rock under the nose, cutting it, the hold, heading home, the pad, stowing, refits, the Hub, departing, done); steps with a wait watch for the deed, the rest take Next (Enter); Replay and Skip; progress saved as `tut` | `Assets/Scripts/Tutorial.cs`, `Assets/Scripts/Hud.cs` (`BuildTutorial`, `ShowTutorial`) | ported from TUT; the browser's highlight rings are not drawn yet |
+| The voice: every step spoken by its recording (`Resources/Sfx/tut_*`), approach control's five radio calls, the hangar deck's four intercom announcements, colony control, the jump's warp-ready call; radio lines open with a squelch burst and close with one, intercom lines get the PA chime and a tannoy chain (high-pass, low-pass, overdrive, hangar reverb) | `Assets/Scripts/Audio.cs` | ported from SFX via the Godot port; the 53 ElevenLabs recordings copied in |
+| Sound effects: dock, stow, cash, chime, pickup, rock break, hit, radar ping, warp charge and jump, laser on/off/bite; the loops (engine idle, thrust with pitch, boost, retros, laser beam and cut, space hum) faded toward per-frame targets | `Assets/Scripts/Audio.cs` (`Engine`, `Laser`, `Sfx`) | ported |
+| The inventory (Tab or I): the hold's stacks and the storage | `Assets/Scripts/Hud.cs` (`ToggleInventory`) | plain list; the drag-and-drop grid comes with the HUD milestone |
+| The smoke run drives the questline, pressing Next where it waits, and prints every step and the play counts | `Assets/Scripts/Game.cs` (`SmokeTutorial`) | |
+
 ## Milestone 4 — Astra's models
 
 | Piece | Where | Status |

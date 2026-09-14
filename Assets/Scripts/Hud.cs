@@ -17,6 +17,92 @@ public class Hud : MonoBehaviour
 
     public Action onStart, onNewGame, onQuit;
     public Ship ship;
+    public Tutorial tutorial;
+
+    // ---- the Flight Ops card (top left) and the inventory (Tab)
+    GameObject _tutBox, _inv;
+    Text _tutStep, _tutTitle, _tutText, _tutWait, _invText;
+    Button _tutNext;
+    bool _tutHidden;
+    public bool InvOpen { get { return _inv != null && _inv.activeSelf; } }
+
+    void BuildTutorial()
+    {
+        var card = Panel("Tutorial", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -14f), new Vector2(430f, 176f));
+        card.GetComponent<Image>().color = new Color(0.05f, 0.06f, 0.11f, 0.94f);
+        _tutBox = card.gameObject;
+        _tutStep = Label(card, "Step", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(16f, -12f), new Vector2(260f, 16f), 11, TextAnchor.MiddleLeft, AMBER);
+        var replay = SmallButton(card, "REPLAY", new Vector2(270f, -8f), 70f, () => { if (tutorial != null) tutorial.Speak(); });
+        replay.GetComponent<RectTransform>().sizeDelta = new Vector2(70f, 22f);
+        var skip = SmallButton(card, "SKIP", new Vector2(346f, -8f), 68f, () => { if (tutorial != null) tutorial.Skip(); });
+        skip.GetComponent<RectTransform>().sizeDelta = new Vector2(68f, 22f);
+        _tutTitle = Label(card, "Title", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(16f, -32f), new Vector2(400f, 24f), 17, TextAnchor.MiddleLeft, TEXT);
+        _tutText = Label(card, "Text", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(16f, -58f), new Vector2(400f, 76f), 12, TextAnchor.UpperLeft, TEXT);
+        _tutWait = Label(card, "Wait", new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(16f, 10f), new Vector2(260f, 18f), 11, TextAnchor.MiddleLeft, AMBER);
+        _tutNext = SmallButton(card, "NEXT  (Enter)", new Vector2(16f, 8f), 130f, () => { if (tutorial != null) tutorial.Advance(); }, true);
+        _tutBox.SetActive(false);
+        // the inventory: the hold's stacks, and the storage while docked
+        var inv = Panel("Inventory", new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(14f, 0f), new Vector2(300f, 220f));
+        inv.pivot = new Vector2(0f, 0.5f);
+        inv.GetComponent<Image>().color = new Color(0.05f, 0.06f, 0.11f, 0.94f);
+        _inv = inv.gameObject;
+        Label(inv, "Cap", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -12f), new Vector2(270f, 16f), 11, TextAnchor.MiddleLeft, MUTED).text = "INVENTORY · Tab closes";
+        _invText = Label(inv, "Text", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(14f, -32f), new Vector2(270f, 180f), 12, TextAnchor.UpperLeft, TEXT);
+        _inv.SetActive(false);
+    }
+
+    /// Show a step (null hides the card).
+    public void ShowTutorial(Tutorial.Step s, int number)
+    {
+        if (s == null)
+        {
+            _tutBox.SetActive(false);
+            return;
+        }
+        _tutBox.SetActive(!_tutHidden);
+        _tutStep.text = "FLIGHT OPS · " + number + " / " + Tutorial.STEPS.Length;
+        _tutTitle.text = s.title;
+        _tutText.text = s.text;
+        _tutNext.gameObject.SetActive(!s.Auto);
+        _tutNext.GetComponentInChildren<Text>().text = s.final ? "FINISH  (Enter)" : "NEXT  (Enter)";
+        _tutWait.text = s.Auto ? "waiting · " + s.wait : "";
+    }
+
+    public void TutorialHidden(bool h)
+    {
+        _tutHidden = h;
+        if (tutorial != null && tutorial.Active) _tutBox.SetActive(!h);
+    }
+
+    public void ToggleInventory()
+    {
+        _inv.SetActive(!_inv.activeSelf);
+        if (_inv.activeSelf) RefreshInventory();
+    }
+
+    void RefreshInventory()
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("HOLD  " + State.UsedSlots() + " / " + State.CargoSlots() + " slots\n");
+        bool any = false;
+        foreach (var k in Data.ORE_KEYS)
+        {
+            if (State.cargo[k] < 0.5f) continue;
+            any = true;
+            sb.Append("  " + Data.ORES[Data.OreIndex(k)].name.PadRight(12) + Mathf.RoundToInt(State.cargo[k]).ToString().PadLeft(4) + " u\n");
+        }
+        if (!any) sb.Append("  empty\n");
+        sb.Append("\nCARGO SHIP STORAGE  " + State.StoreUsed() + " / " + Data.STORE_SLOTS + " slots" + (ship != null && ship.docked ? "" : " · dock to transfer") + "\n");
+        any = false;
+        foreach (var k in Data.ORE_KEYS)
+        {
+            if (State.store[k] < 0.5f) continue;
+            any = true;
+            sb.Append("  " + Data.ORES[Data.OreIndex(k)].name.PadRight(12) + Mathf.RoundToInt(State.store[k]).ToString().PadLeft(4) + " u\n");
+        }
+        if (!any) sb.Append("  empty\n");
+        _invText.text = sb.ToString();
+    }
 
     Font _font;
     Canvas _canvas;
@@ -93,6 +179,7 @@ public class Hud : MonoBehaviour
         _version.text = "v" + Data.VERSION;
         BuildServices();
         BuildMap();
+        BuildTutorial();
         // the fade for a jump, over everything but the menu
         var fg = new GameObject("Fade", typeof(RectTransform));
         var fr = fg.GetComponent<RectTransform>();
@@ -540,6 +627,7 @@ public class Hud : MonoBehaviour
         }
         LayoutToasts();
         _world.transform.parent.gameObject.SetActive(!ServicesVisible);
+        if (InvOpen && Time.frameCount % 15 == 0) RefreshInventory();
         var fc = _fade.color;
         fc.a = ship.WarpFade();
         _fade.color = fc;

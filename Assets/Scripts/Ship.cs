@@ -18,6 +18,7 @@ public class Ship : MonoBehaviour
     public int target = -1;
     public bool laserOn, firing;
     public float radarCd;
+    public bool radarPulsed;   // for the tutorial: R has been pressed since the step began
     public bool mouseSteer = true;   // off in the smoke run, where no one is holding the mouse
     public bool autoFire;            // the smoke run holds the trigger
     public int scanCount = -1;
@@ -34,7 +35,8 @@ public class Ship : MonoBehaviour
     public bool exitPending;    // just left the hangar: the mouth cannot capture the ship until it is clear of the corridor
     public bool flownOut;
     public float hangarT;
-    bool _fuelDryWarned, _partsWarned;
+    bool _fuelDryWarned, _partsWarned, _warpVoiced;
+    float _announceAt = -1f, _colonyAt = -1f;   // the deck announcement and the colony call, a beat after docking
 
     /// The approach or departure under approach control: a path in the carrier's frame flown over `dur` seconds.
     public class Cut
@@ -203,6 +205,8 @@ public class Ship : MonoBehaviour
 
     public void Tick(float dt)
     {
+        if (_announceAt > 0f && Time.time >= _announceAt) { _announceAt = -1f; if (docked && !hold) Audio.Announce("hangar_" + Random.Range(1, 5)); }
+        if (_colonyAt > 0f && Time.time >= _colonyAt) { _colonyAt = -1f; if (docked && hold) Audio.Say("colony_control"); }
         if (warp != null)
         {
             if (Input.GetKeyDown(KeyCode.Space)) warp.skip = true;
@@ -370,6 +374,7 @@ public class Ship : MonoBehaviour
         hitCd = 0.5f;
         float dmg = Mathf.Max(0f, speed - 140f) * 0.09f;
         shake = Mathf.Min(1f, 0.25f + speed / 400f);
+        Audio.Play("hit");
         if (dmg > 0.5f)
         {
             State.hull = Mathf.Max(0f, State.hull - dmg);
@@ -437,6 +442,7 @@ public class Ship : MonoBehaviour
         laserOn = false;
         firing = false;
         _laser.enabled = false;
+        Audio.Say(new[] { "approach_control", "approach_1", "approach_2", "approach_3", "approach_4" }[Random.Range(0, 5)]);   // one of five radio calls
         game.Toast("Approach control has the ship · " + CargoShip.BayName(far) + " · Space skips", false);
     }
 
@@ -553,6 +559,10 @@ public class Ship : MonoBehaviour
         exitPending = false;
         hangarT = 0f;
         cut = null;
+        Audio.Play("dock");
+        // the deck welcomes you back over the intercom, one of four announcements, once the clamps have clunked (not on a
+        // session's first dock, and not during the tutorial, whose own line for this step would talk over it)
+        if (flownOut && State.tut < 0) _announceAt = Time.time + 0.8f;
         game.Toast("Docked in " + CargoShip.BayName(side) + " · stow cargo from the services panel", false);
         game.OnDocked(true);
         State.Save();
@@ -650,6 +660,8 @@ public class Ship : MonoBehaviour
         depWait = true;
         hangarT = 0f;
         cut = null;
+        Audio.Play("dock");
+        _colonyAt = Time.time + 0.9f;
         game.Toast("Holding station off Meridian Colony · the market is open", false);
         game.OnDocked(true);
         State.Save();
@@ -684,6 +696,8 @@ public class Ship : MonoBehaviour
         if (z.id == game.zone.id) return;
         warp = new Warp { z = z, t = 0f, loaded = false, skip = false, fromHold = hold };
         game.OnDocked(false);
+        Audio.Play("chime");
+        Audio.Play("warp_charge");
         game.Toast("Jump · " + z.name + " · " + Data.ZoneLy(game.zone, z) + " ly · Space skips", false);
     }
 
@@ -706,9 +720,12 @@ public class Ship : MonoBehaviour
     {
         var W = warp;
         W.t += dt;
+        if (!W.skip && !_warpVoiced && W.t >= 0.4f) { _warpVoiced = true; Audio.Say("warp_ready"); }
         if (!W.loaded && (W.skip || W.t >= WARP_LOAD_AT))
         {
             W.loaded = true;
+            _warpVoiced = false;
+            Audio.Play("warp_jump");
             docked = false;
             hold = false;
             cut = null;
@@ -731,6 +748,7 @@ public class Ship : MonoBehaviour
             game.Toast("Nothing to sell", true);
             return;
         }
+        Audio.Play("cash");
         game.Toast("Sold " + Mathf.RoundToInt(units) + " · +" + Data.Fmt(cr) + " cr", false);
         game.OnDocked(true);
     }
@@ -764,6 +782,7 @@ public class Ship : MonoBehaviour
             game.Toast(had > 0.5f ? "Cargo ship storage is full" : "Nothing in the hold to stow", true);
             return;
         }
+        Audio.Play("stow");
         game.Toast("Stowed " + Mathf.RoundToInt(moved) + " aboard the cargo ship" + (State.CargoTotal() > 0.5f ? " · storage full, the rest stays in the hold" : ""), false);
         State.Save();
         game.OnDocked(true);   // the panel re-reads the hold
@@ -777,6 +796,7 @@ public class Ship : MonoBehaviour
             game.Toast(State.StoreTotal() > 0.5f ? "No room in the hold" : "Storage is empty", true);
             return;
         }
+        Audio.Play("stow");
         game.Toast("Took " + Mathf.RoundToInt(moved) + " back aboard", false);
         State.Save();
         game.OnDocked(true);
@@ -865,6 +885,8 @@ public class Ship : MonoBehaviour
     {
         if (radarCd > 0f) return;
         radarCd = Data.PULSE_CD;
+        radarPulsed = true;
+        Audio.Play("radar_ping");
         float range = State.Stat("scanner").range;
         scanCount = belt.Scan(TruePos, range, -1, range / Data.PULSE_TIME, out scanNearest, out scanDist);
         if (scanCount == 0) game.Toast("Radar: no ore within " + Data.Fm(range) + " m", true);
@@ -880,6 +902,7 @@ public class Ship : MonoBehaviour
             return;
         }
         overcharge = !overcharge;
+        Audio.Play("chime");
         game.Toast(overcharge ? "Laser overcharge armed · ×" + m + " damage · draws " + (Data.OVER_BURN * m).ToString("0.0") + " fuel/s while cutting" : "Laser overcharge off", false);
     }
 
