@@ -15,7 +15,7 @@ The numbers as the code has them today. World units (u) are what the code uses; 
 | Hit box | Ship radius (SHIP_R) × 0.8 | 48 u for bolts (hull is 14 u for the reticle and ranges) |
 | Top speed | 250 u/s (125 m/s), ×2 to ×5 on the afterburner refit | 865 u/s, capped on a strafe to hold the circle |
 | Thrust | 164 u/s² | 220 u/s² accel, 320 u/s² braking |
-| Turn rate | 30°/s yaw and pitch | 35°/s |
+| Turn rate | 30°/s yaw and pitch | 30°/s |
 | Damage per second landed | 48 | 48 |
 | Time to strip shield + hull (100) | ~2.1 s of hits | ~2.1 s of hits |
 | Bounty | | 140 cr, plus 35% chance of 8–28 u of outer-belt ore |
@@ -60,7 +60,7 @@ Shield is fixed at 50 for every fit (no refit yet).
   circle holds; then 15% a long run to a point 3,000–6,000 u away (1,500–3,000 m), else 80% another strafe / 20% a short
   break (1.2–2.5 s). Jink when a player bolt is coming their way (miss under 124 u, within 2,500 u): 70% of the time,
   0.8 s hard turn, then 1.6 s cooldown.
-- Flight model: heading turns at most 35°/s, accel 220, braking 320, movement only along the nose.
+- Flight model: heading turns at most 30°/s, accel 220, braking 320, movement only along the nose.
 
 ## Combat test (`combat-test.bat`, the `-combat` flag)
 

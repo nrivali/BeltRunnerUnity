@@ -17,7 +17,7 @@ public class Raiders
     public const float RADIUS = 14f;    // the hull, for the reticle, ranges and the pick
     public const float HIT_R = 48f;     // the hit box a bolt has to pass through: generous, the raider is small and fast
     // a raider flies like a ship: it turns no faster than this, and speeds up and slows down no harder than this
-    public const float TURN_RATE = 35f * Mathf.Deg2Rad;   // the player's ship turns at 30 degrees a second
+    public const float TURN_RATE = 30f * Mathf.Deg2Rad;   // the same as the player's ship
     public const float ACCEL = 220f;
     public const float DECEL = 320f;
 
