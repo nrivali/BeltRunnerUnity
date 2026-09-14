@@ -17,7 +17,9 @@ public static class State
     public static Dictionary<string, float> cargo = new Dictionary<string, float>();
     public static Dictionary<string, float> store = new Dictionary<string, float>();
     public static float fuel = 100f;
-    public static float hull = 100f;
+    public static float hull = 50f;
+    public static float shield = Data.SHIELD_MAX;
+    public static float sinceHit = 99f;   // seconds since the last hit, for the shield's recharge
     public static float shipFuel = 1200f;   // the cargo ship's fuel supply, which the ship's tank fills from while docked
     public static float parts = 120f;       // repair parts aboard the cargo ship, one per hull point mended while docked
     public static Dictionary<string, int> up = new Dictionary<string, int>();
@@ -62,6 +64,22 @@ public static class State
     public static Data.Level Stat(string key)
     {
         return Data.UPGRADES[key].levels[up[key]];
+    }
+
+    /// Damage to the ship: the shield soaks it first, the hull takes the rest; the shield's recharge timer restarts.
+    public static void Damage(float dmg)
+    {
+        sinceHit = 0f;
+        float toShield = Mathf.Min(shield, dmg);
+        shield -= toShield;
+        hull = Mathf.Max(0f, hull - (dmg - toShield));
+    }
+
+    /// The shield recharges once ten seconds have passed without a hit.
+    public static void TickShield(float dt)
+    {
+        sinceHit += dt;
+        if (sinceHit >= Data.SHIELD_WAIT && shield < Data.SHIELD_MAX) shield = Mathf.Min(Data.SHIELD_MAX, shield + Data.SHIELD_RATE * dt);
     }
 
     // ---- the hold: slots of STACK units, one ore per slot
@@ -356,7 +374,7 @@ public static class State
     [Serializable]
     public class SaveData
     {
-        public float credits, fuel, hull, mined, earned, time, shipFuel = 1200f, parts = 120f;
+        public float credits, fuel, hull, mined, earned, time, shipFuel = 1200f, parts = 120f, shield = Data.SHIELD_MAX;
         public Bag cargo, store, market;
         public Ups up;
         public Dep depot;
@@ -382,7 +400,7 @@ public static class State
         if (sandbox) return;
         var s = new SaveData
         {
-            credits = credits, fuel = fuel, hull = hull, mined = mined, earned = earned, time = time, shipFuel = shipFuel, parts = parts,
+            credits = credits, fuel = fuel, hull = hull, shield = shield, mined = mined, earned = earned, time = time, shipFuel = shipFuel, parts = parts,
             cargo = ToBag(cargo), store = ToBag(store), market = ToBag(market),
             up = new Ups { laser = up["laser"], cargo = up["cargo"], engine = up["engine"], tank = up["tank"], scanner = up["scanner"], range = up["range"], hull = up["hull"], thrusters = up["thrusters"], overcharge = up["overcharge"], gun = up["gun"] },
             depot = new Dep { laser = depot["laser"], collectors = depot["collectors"] }, droneUnits = droneUnits,
@@ -409,6 +427,7 @@ public static class State
         credits = s.credits;
         fuel = s.fuel;
         hull = s.hull;
+        shield = Mathf.Clamp(s.shield, 0f, Data.SHIELD_MAX);
         shipFuel = Mathf.Min(Data.CARGO_FUEL_CAP, s.shipFuel);
         parts = Mathf.Min(Data.PARTS_CAP, s.parts);
         mined = s.mined;
@@ -422,6 +441,7 @@ public static class State
         foreach (var k in Data.ORE_KEYS) marketNext[k] = market[k];
         if (s.up != null)
         {
+            // an older save's hull was 100 at the first plating; it is 50 now
             up["laser"] = s.up.laser; up["cargo"] = s.up.cargo; up["engine"] = s.up.engine; up["tank"] = s.up.tank; up["scanner"] = s.up.scanner;
             up["range"] = s.up.range; up["hull"] = s.up.hull; up["thrusters"] = s.up.thrusters; up["overcharge"] = s.up.overcharge; up["gun"] = s.up.gun;
             foreach (var k in Data.UPGRADE_KEYS) up[k] = Mathf.Clamp(up[k], 0, Data.UPGRADES[k].levels.Length - 1);
@@ -432,6 +452,7 @@ public static class State
             depot["collectors"] = Mathf.Clamp(s.depot.collectors, 0, Data.DEPOT_UPGRADES["collectors"].costs.Length);
         }
         droneUnits = s.droneUnits;
+        hull = Mathf.Min(hull, Stat("hull").hp);
         if (s.settings != null) { soundOn = s.settings.sound; volume = s.settings.volume; musicOn = s.settings.music; musicVolume = s.settings.music_volume; hudScale = s.settings.hud > 0f ? s.settings.hud : 1f; controlsShown = s.settings.controls; }
         hasSave = true;
         return true;
@@ -442,7 +463,9 @@ public static class State
     {
         credits = 60f;
         fuel = 100f;
-        hull = 100f;
+        hull = Stat("hull").hp;
+        shield = Data.SHIELD_MAX;
+        sinceHit = 99f;
         shipFuel = 1200f;
         parts = 120f;
         foreach (var k in Data.ORE_KEYS) { cargo[k] = 0f; store[k] = 0f; market[k] = 1f; marketNext[k] = 1f; }

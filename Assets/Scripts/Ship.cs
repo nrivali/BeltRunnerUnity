@@ -669,6 +669,7 @@ public class Ship : MonoBehaviour
     {
         if (torch != null) torch.enabled = torchOn && !docked && warp == null;
         TickPulse(dt);
+        State.TickShield(dt);
         TickEngineFx();
         // passing through a mouth's force field flashes it, under approach control or on your own
         if (carrier != null && !carrier.hold && warp == null)
@@ -1143,7 +1144,7 @@ public class Ship : MonoBehaviour
     public void Hurt(float dmg, Vector3 atTrue, string label)
     {
         if (disabled || docked || recovery != null) return;
-        State.hull = Mathf.Max(0f, State.hull - dmg);
+        State.Damage(dmg);
         shake = Mathf.Min(1f, 0.25f + dmg / 50f);
         Audio.Play("hit");
         if (game.sparks != null) game.sparks.Burst(atTrue, 40 + Mathf.RoundToInt(dmg) * 2, 220f, Data.Hex("#ff7a4a"), 1.2f);
@@ -1161,8 +1162,8 @@ public class Ship : MonoBehaviour
         if (game.sparks != null) game.sparks.Burst(atTrue, 60 + Mathf.RoundToInt(dmg) * 2, 260f, Data.Hex("#ffb060"), 1.2f);
         if (dmg > 0.5f)
         {
-            State.hull = Mathf.Max(0f, State.hull - dmg);
-            game.Toast("Collision · hull -" + Mathf.RoundToInt(dmg), true);
+            State.Damage(dmg);
+            game.Toast("Collision · -" + Mathf.RoundToInt(dmg), true);
         }
     }
 
@@ -1192,7 +1193,7 @@ public class Ship : MonoBehaviour
             vel += n * (-vn * 1.4f);
             if (-vn > 120f)
             {
-                State.hull = Mathf.Max(0f, State.hull - (-vn - 120f) * 0.08f);   // a hard knock against the hull costs plating
+                State.Damage((-vn - 120f) * 0.08f);   // a hard knock against the hull costs plating
                 shake = Mathf.Min(1f, 0.3f + -vn / 400f);
             }
         }

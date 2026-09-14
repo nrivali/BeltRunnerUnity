@@ -17,6 +17,9 @@ public static class Data
     public const float SHIP_R = 16f * SHIP_SCALE;
     public const float PULSE_CD = 5f;
     public const float PULSE_TIME = 2.6f;
+    public const float SHIELD_MAX = 50f;      // the ship's shield: soaks damage first, recharges after SHIELD_WAIT quiet seconds
+    public const float SHIELD_WAIT = 10f;
+    public const float SHIELD_RATE = 10f;     // points a second
     public const string VERSION = "0.9.120-unity";
     /// The cargo ship: its orbit round the planet (inside the ring belt), fuel supply and repair-parts store, and 50-slot storage.
     public const float DEPOT_ORBIT = 925000f;
@@ -94,7 +97,7 @@ public static class Data
         { "tank", new Upgrade { name = "Fuel tank", levels = new[] { L(cap: 100), L(cap: 160), L(cap: 250), L(cap: 400), L(cap: 600) }, costs = new float[] { 150, 600, 2000, 6000 } } },
         { "scanner", new Upgrade { name = "Scanner", levels = new[] { L(range: 28000), L(range: 46000), L(range: 74000), L(range: 135000) }, costs = new float[] { 400, 1800, 6000 } } },
         { "range", new Upgrade { name = "Laser range", levels = new[] { L(reach: 2500), L(reach: 3500), L(reach: 5000), L(reach: 7000) }, costs = new float[] { 2500, 9000, 25000 } } },
-        { "hull", new Upgrade { name = "Hull plating", levels = new[] { L(hp: 100), L(hp: 160), L(hp: 250), L(hp: 400), L(hp: 600) }, costs = new float[] { 250, 900, 3000, 9000 } } },
+        { "hull", new Upgrade { name = "Hull plating", levels = new[] { L(hp: 50), L(hp: 80), L(hp: 125), L(hp: 200), L(hp: 300) }, costs = new float[] { 250, 900, 3000, 9000 } } },
         { "thrusters", new Upgrade { name = "Afterburner", levels = new[] { L(mult: 1), L(mult: 2), L(mult: 3), L(mult: 4), L(mult: 5) }, costs = new float[] { 800, 3000, 9000, 24000 } } },
         { "overcharge", new Upgrade { name = "Laser overcharge", levels = new[] { L(mult: 1f), L(mult: 1.5f), L(mult: 2f), L(mult: 2.5f), L(mult: 3f) }, costs = new float[] { 600, 2200, 7000, 18000 } } },
         // the autocannon (combat), fitted from the start: rate = shots a second, reach = range in world units, mult = damage a shot

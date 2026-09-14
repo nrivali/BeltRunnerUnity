@@ -36,7 +36,7 @@ public class Hud : MonoBehaviour
     RectTransform _status, _readouts, _target, _controls, _prompt, _notice, _toastBox, _version, _hoverLbl;
     Text _hoverTxt;
     Ui.Pane _statusPane;
-    Ui.Gauge _gHull, _gFuel, _gThr, _gCargo;
+    Ui.Gauge _gHull, _gShield, _gFuel, _gThr, _gCargo;
     Text _speedBig, _row1, _row2, _tEyebrow, _tName, _tRows, _tHpT, _tWarn, _promptText, _caption;
     Ui.SegBar _tHp;
     RectTransform _tHpRow;
@@ -174,9 +174,10 @@ public class Hud : MonoBehaviour
     // ---- bottom centre: the ship (.hud-tl)
     void BuildStatus()
     {
-        _status = Pane("Status", Ui.BC, new Vector2(0f, 18f), new Vector2(804f, 67f), out _statusPane);
+        _status = Pane("Status", Ui.BC, new Vector2(0f, 18f), new Vector2(972f, 67f), out _statusPane);
         float x = 18f, top = -12f;
         _gHull = Ui.Gauge.Make(_status, "Hull", Ui.GREEN, x, top - (43f - 29f), 150f); x += 168f;
+        _gShield = Ui.Gauge.Make(_status, "Shield", Data.Hex("#8fe8ff"), x, top - (43f - 29f), 150f); x += 168f;
         _gFuel = Ui.Gauge.Make(_status, "Fuel", Ui.CYAN, x, top - (43f - 29f), 150f); x += 168f;
         var se = Ui.Eyebrow(_status, "Speed", Ui.HUD_DIM);
         se.alignment = TextAnchor.UpperCenter;
@@ -1347,6 +1348,9 @@ public class Hud : MonoBehaviour
         float tank = State.Stat("tank").cap;
         float ff = State.fuel / tank;
         _gFuel.Show(ff, Mathf.FloorToInt(State.fuel) + " / " + Mathf.RoundToInt(tank), ff < 0.2f ? Ui.RED : Ui.CYAN);
+        float sf = State.shield / Data.SHIELD_MAX;
+        bool charging = State.sinceHit >= Data.SHIELD_WAIT && State.shield < Data.SHIELD_MAX;
+        _gShield.Show(sf, Mathf.CeilToInt(State.shield) + " / " + Mathf.RoundToInt(Data.SHIELD_MAX) + (charging ? " ↑" : ""), sf < 0.25f ? Ui.AMBER : Data.Hex("#8fe8ff"));
         float tv = ship.braking ? 1f : ship.throttle;
         _gThr.Show(tv, ship.braking ? "RETRO" : Mathf.RoundToInt(ship.throttle * 100f) + "%", ship.braking ? Ui.CYAN : (ship.afterburning ? Ui.AMBER2 : Ui.AMBER));
         int us = State.UsedSlots();
