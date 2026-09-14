@@ -31,6 +31,7 @@ public class Raiders
         // the jink: a burst sideways when a bolt is coming, with a cooldown so it is not perfect
         public float dodgeT, dodgeCd;
         public Vector3 dodgeDir;
+        public Vector3 longTo;   // the far point of a long run
     }
 
     public class Bolt
@@ -318,7 +319,32 @@ public class Raiders
                     r.a += r.orbitDir * (r.speed * 0.6f / r.orbitR) * dt;
                     var orbit = new Vector3(Mathf.Cos(r.a) * r.orbitR, Mathf.Sin(r.a * 0.7f) * r.orbitR * 0.35f, Mathf.Sin(r.a) * r.orbitR);
                     desired = sp + orbit;
-                    if (r.moveT <= 0f) { r.move = Random.value < 0.35f ? "strafe" : "break"; r.moveT = r.move == "break" ? Random.Range(1.5f, 3.5f) : Random.Range(2.5f, 6f); r.orbitR = Random.Range(300f, 700f); if (Random.value < 0.5f) r.orbitDir = -r.orbitDir; }
+                    if (r.moveT <= 0f)
+                    {
+                        float roll = Random.value;
+                        if (roll < 0.25f)
+                        {
+                            // a long run: out to a point 2,000 to 5,000 m from the ship, then back in from wherever that leaves it
+                            r.move = "long";
+                            var away = -toShip + side * Random.Range(-0.8f, 0.8f) + Vector3.up * Random.Range(-0.3f, 0.3f);
+                            float reach = Random.Range(4000f, 10000f);
+                            r.longTo = sp + away.normalized * reach;
+                            r.moveT = reach / r.speed * 1.6f;
+                        }
+                        else
+                        {
+                            r.move = roll < 0.55f ? "strafe" : "break";
+                            r.moveT = r.move == "break" ? Random.Range(1.5f, 3.5f) : Random.Range(2.5f, 6f);
+                            r.orbitR = Random.Range(300f, 700f);
+                            if (Random.value < 0.5f) r.orbitDir = -r.orbitDir;
+                        }
+                    }
+                }
+                else if (r.move == "long")
+                {
+                    // the long run, weaving a little; over when the point is reached or the time is up
+                    desired = r.longTo + side * Mathf.Sin(r.weave) * 150f;
+                    if ((r.longTo - r.pos).magnitude < 300f || r.moveT <= 0f) { r.move = "run"; r.moveT = 0f; }
                 }
                 else
                 {
