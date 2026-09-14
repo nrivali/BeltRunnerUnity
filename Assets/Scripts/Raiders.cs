@@ -4,7 +4,7 @@ using UnityEngine;
 /// Combat: pirate raiders holding station off the rich pockets, brought back from the browser's scrapped hazards code
 /// (makePirate / updateHazards) with its numbers. A hold of one to three raiders wanders round each rich pocket; when
 /// the ship comes within 6,500 u (flying, and outside the cargo ship's gun cover) they attack, closing to 900 u and
-/// orbiting, firing bolts that lead the ship. They give up beyond 11,000 u or when the ship is disabled or docked, and
+/// orbiting, firing bolts that lead the ship whenever their nose is on it (the guns are fixed forward). They give up beyond 11,000 u or when the ship is disabled or docked, and
 /// they die under the cargo ship's guns inside SAFE_R. The player's autocannon (a refit) fires bolts from the dish
 /// focus; a kill pays a bounty and sometimes drops salvage. Positions are true world coordinates.
 public class Raiders
@@ -259,7 +259,9 @@ public class Raiders
                 var orbit = new Vector3(Mathf.Cos(r.a) * 260f, Mathf.Sin(r.a * 0.7f) * 120f, Mathf.Sin(r.a) * 260f);
                 desired = d > 900f ? sp : sp + orbit;
                 r.fireCd -= dt;
-                if (r.fireCd <= 0f && d < 900f)
+                // the guns are fixed forward: a raider only fires when its nose is on the ship (within 20 degrees)
+                bool facing = Vector3.Dot(r.node.forward, (sp - r.pos).normalized) > Mathf.Cos(20f * Mathf.Deg2Rad);
+                if (r.fireCd <= 0f && d < 900f && facing)
                 {
                     r.fireCd = 1.2f / Mathf.Max(0.6f, danger * 0.8f);
                     float spread = 0.09f / Mathf.Max(0.7f, danger);   // raiders in quiet zones are poor shots
