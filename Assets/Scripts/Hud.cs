@@ -318,7 +318,7 @@ public class Hud : MonoBehaviour
                 var bt = b.GetComponentInChildren<Text>();
                 bt.color = State.credits >= cost ? AMBER : MUTED;
             }
-            y -= 40f;
+            y -= 34f;
         }
         // the cargo ship's own upgrades below the refits
         y -= 6f;
@@ -342,7 +342,7 @@ public class Hud : MonoBehaviour
                 b.interactable = State.credits >= cost;
                 b.GetComponentInChildren<Text>().color = State.credits >= cost ? AMBER : MUTED;
             }
-            y -= 40f;
+            y -= 34f;
         }
         var hint = Label(_svcRefits, "DHint", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, y), new Vector2(360f, 30f), 10, TextAnchor.UpperLeft, MUTED);
         hint.text = "The dish leaves the ore it frees adrift for you to pick up. Collector drones gather it and stow it in the cargo ship storage" + (State.droneUnits > 0.5f ? " · " + Data.Fmt(State.droneUnits) + " stowed so far" : "") + ".";

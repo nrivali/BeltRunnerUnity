@@ -28,6 +28,7 @@ public class Game : MonoBehaviour
     }
     public Camera cam;
     public Light sun;
+    public Lighting lighting;
     public bool started, paused;
 
     Transform _pickups;
@@ -51,7 +52,9 @@ public class Game : MonoBehaviour
         if (_smoke) { State.Reset(); State.tut = 0; State.depot["laser"] = 1; State.depot["collectors"] = 1; }   // a fresh pilot every time, questline and all; the cargo ship upgrades, so the dish and a drone get exercised
         var t0 = Time.realtimeSinceStartup;
         SetupCamera();
-        SetupLighting();
+        lighting = new Lighting();
+        lighting.Setup(cam);
+        sun = lighting.sun;
         belt = new Belt();
         _pickups = new GameObject("Pickups").transform;
         var cgo = new GameObject("CargoShip");
@@ -110,29 +113,6 @@ public class Game : MonoBehaviour
         cam.allowHDR = true;
     }
 
-    void SetupLighting()
-    {
-        // a template scene's own directional light would double the sun
-        foreach (var l in FindObjectsByType<Light>()) l.enabled = false;
-        var go = new GameObject("Sun");
-        sun = go.AddComponent<Light>();
-        sun.type = LightType.Directional;
-        sun.color = Data.Hex("#fff3e3");
-        sun.intensity = 1.35f;
-        sun.shadows = LightShadows.Soft;
-        sun.shadowStrength = 0.92f;
-        sun.shadowBias = 0.08f;
-        sun.shadowNormalBias = 0.6f;
-        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.045f, 0.05f, 0.07f);
-        RenderSettings.fog = false;
-        // shadows as the browser casts them: one box a few kilometres round the ship, never the whole belt
-        QualitySettings.shadowDistance = 3300f;
-        QualitySettings.shadowCascades = 1;
-        QualitySettings.shadows = ShadowQuality.All;
-        QualitySettings.shadowResolution = ShadowResolution.VeryHigh;
-    }
-
     void LoadZone(Data.Zone z)
     {
         zone = z;
@@ -153,7 +133,7 @@ public class Game : MonoBehaviour
             colony.Build();
         }
         cam.backgroundColor = z.bg;
-        sun.transform.rotation = Quaternion.LookRotation(-z.sunDir.normalized, Vector3.up);
+        lighting.SetZone(z);
         float r = z.planetR * Data.PLANET_SCALE;
         _planetTrue = z.planetPos;
         if (_planet != null) Destroy(_planet);
@@ -428,6 +408,7 @@ public class Game : MonoBehaviour
         ship.Tick(dt);
         belt.Tick(dt, ship.TruePos);
         if (colony != null) colony.Tick(dt);
+        lighting.Update(ship.TruePos, carrier.truePos);
         if (ship.warp == null)
         {
             carrier.TickDish(dt, belt);

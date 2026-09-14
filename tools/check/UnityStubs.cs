@@ -64,6 +64,7 @@ namespace UnityEngine
         public override bool Equals(object o) => o is Vector4 v && v == this;
         public override int GetHashCode() => x.GetHashCode() ^ w.GetHashCode();
         public static implicit operator Vector4(Color c) => new Vector4(c.r, c.g, c.b, c.a);
+        public static implicit operator Vector4(Vector3 v) => new Vector4(v.x, v.y, v.z, 0f);
     }
 
     public struct Quaternion
@@ -296,6 +297,8 @@ namespace UnityEngine
         public float shadowBias { get; set; }
         public float shadowNormalBias { get; set; }
         public float range { get; set; }
+        public float spotAngle { get; set; }
+        public float innerSpotAngle { get; set; }
     }
 
     public static class RenderSettings
@@ -303,6 +306,9 @@ namespace UnityEngine
         public static Rendering.AmbientMode ambientMode { get; set; }
         public static Color ambientLight { get; set; }
         public static bool fog { get; set; }
+        public static Material skybox { get; set; }
+        public static Rendering.DefaultReflectionMode defaultReflectionMode { get; set; }
+        public static int defaultReflectionResolution { get; set; }
     }
 
     public static class QualitySettings
@@ -330,6 +336,7 @@ namespace UnityEngine
         public bool HasProperty(string n) => false;
         public Texture GetTexture(string n) => null;
         public void SetTexture(string n, Texture t) { }
+        public void SetVector(string n, Vector4 v) { }
         public Color GetColor(string n) => new Color();
         public float GetFloat(string n) => 0f;
         public void SetFloat(string n, float v) { }
@@ -417,6 +424,8 @@ namespace UnityEngine
     public static class Graphics
     {
         public static int calls;
+        public static void Blit(Texture src, RenderTexture dst) { }
+        public static void Blit(Texture src, RenderTexture dst, Material m, int pass) { }
         public static void RenderMeshInstanced<T>(RenderParams rp, Mesh mesh, int sub, T[] data, int count, int start) where T : unmanaged { calls++; }
         public static void DrawMeshInstanced(Mesh mesh, int sub, Material mat, Matrix4x4[] mats, int count, MaterialPropertyBlock mpb, Rendering.ShadowCastingMode sc, bool rs, int layer, Camera cam) { calls++; }
     }
@@ -477,6 +486,7 @@ namespace UnityEngine
         public enum AmbientMode { Skybox, Trilight, Flat, Custom }
         public enum ShadowCastingMode { Off, On, TwoSided, ShadowsOnly }
         public enum IndexFormat { UInt16, UInt32 }
+        public enum DefaultReflectionMode { Skybox, Custom }
     }
 
     namespace Events
@@ -553,4 +563,22 @@ namespace UnityEngine
     public class AudioLowPassFilter : Behaviour { public float cutoffFrequency { get; set; } }
     public class AudioDistortionFilter : Behaviour { public float distortionLevel { get; set; } }
     public class AudioReverbFilter : Behaviour { public AudioReverbPreset reverbPreset { get; set; } public float dryLevel { get; set; } public float room { get; set; } }
+}
+
+namespace UnityEngine
+{
+    public class RenderTexture : Texture
+    {
+        public int width => 0;
+        public int height => 0;
+        public RenderTextureFormat format => RenderTextureFormat.Default;
+        public static RenderTexture GetTemporary(int w, int h, int depth, RenderTextureFormat f) => null;
+        public static void ReleaseTemporary(RenderTexture t) { }
+    }
+    public enum RenderTextureFormat { Default, ARGBHalf }
+    public static class DynamicGI
+    {
+        public static void UpdateEnvironment() { }
+    }
+    public static partial class GraphicsExt { }
 }

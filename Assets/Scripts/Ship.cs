@@ -87,11 +87,14 @@ public class Ship : MonoBehaviour
     }
 
     public Transform model;
-    public Transform focus;   // the mining dish's beam origin on the model
+    public Transform focus;   // the mining dish beam origin on the model
+    public Light torch;
+    public bool torchOn = true;   // F in flight; not saved, as in the browser
 
     public void Build()
     {
         BuildLaser();
+        BuildTorch();
         // Astra's player ship: nose along +Z as imported (glTFast mirrors X, which leaves the nose where Unity wants it),
         // scaled by SHIP_SCALE; its named nodes carry the engines, the nav lights and the dish rig
         var prefab = Resources.Load<GameObject>("Models/player_ship");
@@ -135,6 +138,31 @@ public class Ship : MonoBehaviour
             if (r != null) return r;
         }
         return null;
+    }
+
+    /// The flashlight: the HTML torch (SpotLight 0xfff1d6, 14000 cd, reach 7000, half-angle pi/8, decay 1), on by default,
+    /// just below the nose and aimed a touch down. Unity spot falloff is not 1/d, so the range and intensity are chosen
+    /// to light a rock at a few hundred units about as the browser does.
+    void BuildTorch()
+    {
+        var go = new GameObject("Torch");
+        go.transform.SetParent(transform, false);
+        go.transform.localPosition = new Vector3(0f, -1.5f, 21f) * Data.SHIP_SCALE;
+        go.transform.localRotation = Quaternion.LookRotation(new Vector3(0f, -4.5f, 2000f).normalized, Vector3.up);
+        torch = go.AddComponent<Light>();
+        torch.type = LightType.Spot;
+        torch.color = Data.Hex("#fff1d6");
+        torch.intensity = 6f;
+        torch.range = 2600f;
+        torch.spotAngle = 45f;
+        torch.innerSpotAngle = 26f;
+        torch.shadows = LightShadows.None;
+    }
+
+    public void ToggleTorch()
+    {
+        torchOn = !torchOn;
+        game.Toast(torchOn ? "Flashlight on" : "Flashlight off", false);
     }
 
     void BuildLaser()
@@ -205,6 +233,7 @@ public class Ship : MonoBehaviour
 
     public void Tick(float dt)
     {
+        if (torch != null) torch.enabled = torchOn && !docked && warp == null;
         if (_announceAt > 0f && Time.time >= _announceAt) { _announceAt = -1f; if (docked && !hold) Audio.Announce("hangar_" + Random.Range(1, 5)); }
         if (_colonyAt > 0f && Time.time >= _colonyAt) { _colonyAt = -1f; if (docked && hold) Audio.Say("colony_control"); }
         if (warp != null)
@@ -240,6 +269,7 @@ public class Ship : MonoBehaviour
         radarCd = Mathf.Max(0f, radarCd - dt);
         if (Input.GetKeyDown(KeyCode.R)) Radar();
         if (Input.GetKeyDown(KeyCode.G)) ToggleOvercharge();
+        if (Input.GetKeyDown(KeyCode.F)) ToggleTorch();
         if (Input.GetKeyDown(KeyCode.E)) StartApproach();
     }
 

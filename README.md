@@ -48,6 +48,15 @@ the ore, flies, saves, and quits, printing `smoke:` lines to the log and saving 
 (`%USERPROFILE%AppDataocallow
 rivalibelt runner`).
 
+## Milestone 8 — lighting and the sky
+
+| Piece | Where | Status |
+|---|---|---|
+| The sky: a nebula of two noise fields with a dust band round the ecliptic, hashed stars, and the sun as a hard HDR disc with an optical glare, as a skybox shader; the reflection map is baked from it with a gentler disc so the metal ore veins do not mirror a white blob | `Assets/Resources/Shaders/Sky.shader`, `Assets/Scripts/Lighting.cs` | ported from the Godot port sky shader |
+| The finish: ACES tone mapping at the zone exposure and a glow from everything above the HDR threshold (the sun, the emissive strips, the engines, the beam), as an image effect on the camera | `Assets/Resources/Shaders/Post.shader`, `Lighting.Post` | the Godot environment glow and tonemap, done by hand (no post-processing package) |
+| The sun per zone (colour, strength, disc size, exposure from Astra profiles), the faint ambient, sky reflections on the hulls, one soft shadow box round the ship growing near the carrier | `Assets/Scripts/Lighting.cs` | ported |
+| The flashlight: a spot light under the nose, on by default, F toggles it in flight | `Assets/Scripts/Ship.cs` (`BuildTorch`) | ported; Unity spot falloff is not the browser 1/d, so the range and strength are chosen by eye |
+
 ## Milestone 6 — the cargo ship dish and the collector drones
 
 | Piece | Where | Status |
@@ -123,5 +132,5 @@ Not yet: the cargo ship upgrades (dish, drones); the force fields; the curved hu
 | Save: JSON under `Application.persistentDataPath` with the browser save's field names; F5 quick-saves, autosave every 30 s | `Assets/Scripts/GameState.cs` | ported |
 | Lighting: a directional sun from the zone's sun direction, one soft shadow box a few kilometres round the ship (as the browser casts), a dark flat ambient | `Assets/Scripts/Game.cs` (`SetupLighting`) | approximated; Astra's lighting module is not ported yet |
 
-Not yet ported (see the Godot port's README for the full list of what the browser has): the hyperspace tunnel; colony traffic; the rock LOD 0 library up close; sky, nebula, stars and sun disc; the
+Not yet ported (see the Godot port's README for the full list of what the browser has): the hyperspace tunnel; colony traffic; the rock LOD 0 library up close; the
 tutorial and voice; the dish, drones, tow and lock; sparks, scrap, scorches; music and sound.
