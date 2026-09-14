@@ -527,7 +527,8 @@ public class Game : MonoBehaviour
             raiders.Tick(dt);
         }
         Audio.I.Engine(ship.throttle, ship.afterburning, ship.braking, ship.docked || ship.InCinematic);
-        Audio.I.ShieldLoop(State.shield <= 0f && !ship.docked && !ship.InCinematic && ship.CanFly);
+        bool inFlight = !ship.docked && !ship.InCinematic && ship.CanFly;
+        Audio.I.ShieldLoop(State.shield <= 0f && inFlight, State.sinceHit >= Data.SHIELD_WAIT && State.shield < Data.SHIELD_MAX && inFlight);
         Audio.I.Laser(ship.firing && !ship.docked && !ship.InCinematic, ship.laserOn);
         for (int i = _drops.Count - 1; i >= 0; i--)
         {

@@ -17,7 +17,7 @@ public class Audio : MonoBehaviour
         { "radio_on", -6f }, { "radio_off", -7f }, { "pa_chime", -6f }, { "dock", -3f }, { "chime", -6f }, { "cash", -4f }, { "stow", -4f }, { "pickup", -7f },
         { "rock_break", -3f }, { "hit", -3f }, { "shield_down", -2f }, { "shield_up", -3f }, { "laser_on", -6f }, { "laser_off", -8f }, { "laser_bite", -7f }, { "radar_ping", -6f }, { "warp_charge", -4f }, { "warp_jump", -2f },
     };
-    static readonly string[] LOOP_NAMES = { "engine_idle", "engine_thrust", "engine_boost", "retro", "laser_beam", "laser_cut", "space_hum", "shield_out" };
+    static readonly string[] LOOP_NAMES = { "engine_idle", "engine_thrust", "engine_boost", "retro", "laser_beam", "laser_cut", "space_hum", "shield_out", "shield_charge" };
 
     public static Audio I;
 
@@ -138,8 +138,13 @@ public class Audio : MonoBehaviour
         if (_loops.TryGetValue(name, out l)) { l.target = g; l.tau = tau; }
     }
 
-    /// The shield-down bed: an unsteady crackle and a warning pulse while the shield is at zero.
-    public void ShieldLoop(bool down) { LoopTarget("shield_out", down ? 0.22f : 0f, down ? 0.15f : 0.4f); }
+    /// The shield beds: the shield-down loop while it sits at zero, the recharge loop while it climbs (a hit restarts the
+    /// ten-second wait, so the loop stops at once).
+    public void ShieldLoop(bool down, bool charging)
+    {
+        LoopTarget("shield_out", down ? 0.22f : 0f, down ? 0.15f : 0.4f);
+        LoopTarget("shield_charge", charging ? 0.25f : 0f, charging ? 0.12f : 0.04f);   // cut fast: a hit ends it
+    }
 
     /// The engine mix for this frame (the HTML's SFX.engine): throttle 0..1, afterburner on, retros firing, or parked/idle.
     public void Engine(float throttle, bool boost, bool braking, bool idle)

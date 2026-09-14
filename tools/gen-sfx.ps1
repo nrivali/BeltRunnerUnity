@@ -12,7 +12,7 @@ $out=Join-Path $root 'Assets\Resources\Sfx'
 $clips=@(
   # the shield: the moment it is stripped, the time it is down, the moment it comes back
   @{name='shield_down'; dur=1.4; text='sci-fi spaceship energy shield collapsing, a sharp electric crack then a falling power-down whine with a fizzing tail, no music'},
-  # shield_out.mp3 is the user's own clip (DepletedShields.mp3, 2026-09-14), not generated here
+  # shield_out.mp3 (DepletedShields.mp3) and shield_charge.mp3 (ShieldRecharge.mp3) are the user's own clips, 2026-09-14, not generated here
   @{name='shield_up';   dur=1.6; text='sci-fi spaceship energy shield recharging and snapping back on, a rising electric charge swell ending in a clean bright lock-in chime, no music'}
 )
 foreach ($c in $clips) {
