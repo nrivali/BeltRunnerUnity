@@ -19,7 +19,7 @@ public static class Data
     public const float PULSE_TIME = 2.6f;
     public const float SHIELD_MAX = 50f;      // the ship's shield: soaks damage first, recharges after SHIELD_WAIT quiet seconds
     public const float SHIELD_WAIT = 10f;
-    public const float SHIELD_RATE = 10f;     // points a second
+    public const float SHIELD_RATE = SHIELD_MAX / 3f;   // points a second: empty to full in three seconds
     public const string VERSION = "0.9.120-unity";
     /// The cargo ship: its orbit round the planet (inside the ring belt), fuel supply and repair-parts store, and 50-slot storage.
     public const float DEPOT_ORBIT = 925000f;
