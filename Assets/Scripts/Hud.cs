@@ -1539,8 +1539,8 @@ public class Hud : MonoBehaviour
             {
                 var lead = ship.LeadPoint(lr);
                 Vector2 lp;
-                bool lBehind = Project(lead - game.worldOffset, out lp);
-                if (!lBehind && OnScreen(lp)) _leadPip.Place(lp - new Vector2(0f, 30f), false, 0f, "LEAD"); else _leadPip.Hide();
+                bool lBehind = Project(ship.AimPointFor(lead), out lp);   // where to put the crosshair, not where the lead point is
+                if (!lBehind && OnScreen(lp)) _leadPip.Place(lp - new Vector2(0f, 38f), false, 0f, "LEAD"); else _leadPip.Hide();
             }
             else _leadPip.Hide();
         }

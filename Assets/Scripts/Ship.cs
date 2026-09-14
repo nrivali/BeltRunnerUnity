@@ -1175,6 +1175,21 @@ public class Ship : MonoBehaviour
         return r.pos + v * t;
     }
 
+    /// The scene point to put the crosshair on so a bolt fired now flies through `trueTarget`: the aim mapping inverted.
+    /// The bolt leaves the dish for the point on the mouse ray at gun range beyond the dish, so the dish sits off the
+    /// camera and a target nearer than gun range is not simply where it appears on screen (the parallax).
+    public Vector3 AimPointFor(Vector3 trueTarget)
+    {
+        var o = LaserOrigin() - game.worldOffset;
+        var dir = (trueTarget - LaserOrigin()).normalized;
+        if (cam == null) return trueTarget - game.worldOffset;
+        var w = o - cam.transform.position;
+        float R = w.magnitude + GunReach;
+        float wd = Vector3.Dot(w, dir);
+        float disc = wd * wd - w.sqrMagnitude + R * R;
+        return o + dir * (-wd + Mathf.Sqrt(Mathf.Max(0f, disc)));
+    }
+
     /// Damage that is not a collision (a raider's bolt): no speed threshold; the flash, the shake, sparks and the sound.
     public void Hurt(float dmg, Vector3 atTrue, string label)
     {
