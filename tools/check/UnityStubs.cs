@@ -162,6 +162,7 @@ namespace UnityEngine
         public static float Clamp(float v, float a, float b) => v < a ? a : (v > b ? b : v);
         public static int Clamp(int v, int a, int b) => v < a ? a : (v > b ? b : v);
         public static float Clamp01(float v) => Clamp(v, 0f, 1f);
+        public static float MoveTowards(float a, float b, float d) => Mathf.Abs(b - a) <= d ? b : a + Mathf.Sign(b - a) * d;
         public static float Round(float x) => (float)Math.Round(x);
         public static float Floor(float x) => (float)Math.Floor(x);
         public static float Ceil(float x) => (float)Math.Ceiling(x);

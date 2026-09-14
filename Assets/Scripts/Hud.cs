@@ -26,7 +26,8 @@ public class Hud : MonoBehaviour
     Camera _cam;
 
     // the flight HUD
-    Ui.Vignette _vignette, _dmg;
+    Ui.Vignette _vignette, _dmg, _shieldOut;
+    float _shieldOutA;   // the shield-down warning: 0..1, eased
     Ui.Blips _blips;
     Ui.Reticle _reticle;
     RectTransform _reticleRt;
@@ -117,6 +118,11 @@ public class Hud : MonoBehaviour
         _dmg.tint = Ui.RED;
         _dmg.inner = 0.45f;
         _dmg.strength = 0f;
+        // the shield-down warning: a faint red-orange edge that breathes while the shield is at zero
+        _shieldOut = FullGraphic<Ui.Vignette>("ShieldOut");
+        _shieldOut.tint = Data.Hex("#ff5a3c");
+        _shieldOut.inner = 0.5f;
+        _shieldOut.strength = 0f;
         _blips = FullGraphic<Ui.Blips>("Blips");
         _reticleRt = Ui.Rect("Reticle", _root, Ui.BL, Ui.MID, Vector2.zero, new Vector2(64f, 64f));
         _reticle = _reticleRt.gameObject.AddComponent<Ui.Reticle>();
@@ -1644,6 +1650,11 @@ public class Hud : MonoBehaviour
             _dmgT = Mathf.Max(0f, _dmgT - dt);
             _dmg.Set(0.55f * _dmgT / 0.6f);
         }
+        // the shield-down warning: subtle, but it breathes, so the eye catches it
+        bool shieldOut = State.shield <= 0f && !docked && ship.cut == null && ship.warp == null && ship.CanFly;
+        _shieldOutA = Mathf.MoveTowards(_shieldOutA, shieldOut ? 1f : 0f, dt / (shieldOut ? 0.4f : 0.8f));
+        float breathe = 0.5f + 0.5f * Mathf.Sin(Time.time * Mathf.PI * 2f / 1.4f);
+        _shieldOut.Set(_shieldOutA * (0.09f + 0.09f * breathe));
         // side panels follow the window
         _services.sizeDelta = new Vector2(Mathf.Min(580f, _canvasSize.x * 0.52f), 0f);
         _inv.sizeDelta = new Vector2(Mathf.Min(520f, _canvasSize.x * 0.48f), 0f);
