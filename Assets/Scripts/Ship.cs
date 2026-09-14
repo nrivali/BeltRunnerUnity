@@ -751,7 +751,8 @@ public class Ship : MonoBehaviour
         var camTrue = cam.transform.position + game.worldOffset;
         HoverInfo best = null;
         float bd = float.PositiveInfinity;
-        foreach (int i in belt.RocksNear(camTrue, 120000f))
+        bool combat = InCombat;   // under attack only raiders can be picked and locked
+        if (!combat) foreach (int i in belt.RocksNear(camTrue, 120000f))
         {
             var p = belt.RockPos(i);
             float cd = (camTrue - p).magnitude;
@@ -780,7 +781,7 @@ public class Ship : MonoBehaviour
                 best = new HoverInfo { kind = "raider", raider = r, dist = Mathf.Max(0f, (origin - r.pos).magnitude - Raiders.RADIUS), name = "Raider" };
             }
         }
-        if (carrier != null && !carrier.hold)
+        if (carrier != null && !carrier.hold && !combat)
         {
             var p = carrier.truePos;
             float cd = (camTrue - p).magnitude;
@@ -820,7 +821,7 @@ public class Ship : MonoBehaviour
             ReleaseLock();
             game.Toast("Lock released", false);
         }
-        else game.Toast("Nothing under the mouse to lock on", true);
+        else game.Toast(InCombat ? "Under attack · only raiders can be locked" : "Nothing under the mouse to lock on", true);
     }
 
     /// The smoke run's Q: a lock on a given rock.
@@ -841,6 +842,9 @@ public class Ship : MonoBehaviour
         lockDist = Mathf.Max(0f, (r.pos - LaserOrigin()).magnitude - Raiders.RADIUS);
         game.Toast("Locked on Raider", false);
     }
+
+    /// Under attack: raiders are attacking right now. Only they can be locked; a rock or cargo ship lock is dropped.
+    public bool InCombat { get { return game.raiders != null && game.raiders.threat > 0; } }
 
     public void ReleaseLock()
     {
@@ -865,6 +869,7 @@ public class Ship : MonoBehaviour
     void TickLock()
     {
         if (lockKind == "") return;
+        if (lockKind != "raider" && InCombat) { ReleaseLock(); game.Toast("Under attack · lock dropped · only raiders can be locked", true); return; }
         bool gone = (lockKind == "rock" && (lockRock >= belt.count || !belt.alive[lockRock])) || (lockKind == "raider" && (lockRaider == null || lockRaider.dead));
         float r = lockKind == "rock" && !gone ? belt.radius[lockRock] : (lockKind == "raider" ? Raiders.RADIUS : CargoShip.HALF.x);
         lockDist = gone ? 0f : Mathf.Max(0f, (LockPos() - LaserOrigin()).magnitude - r);
