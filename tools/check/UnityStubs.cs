@@ -195,6 +195,7 @@ namespace UnityEngine
     public static class Input
     {
         public static Vector3 mousePosition => Vector3.zero;
+        public static Vector2 mouseScrollDelta => Vector2.zero;
         public static bool GetKey(KeyCode k) => false;
         public static bool GetKeyDown(KeyCode k) => false;
         public static bool GetMouseButton(int b) => false;

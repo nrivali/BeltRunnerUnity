@@ -241,7 +241,8 @@ public class Hud : MonoBehaviour
         new object[] { new[] { "Shift" }, "Afterburner while throttled up (needs the refit · ×2 to ×5 speed · burns fuel fast)" },
         new object[] { new[] { "G" }, "Laser overcharge on · off (needs the refit · up to ×3 damage · the beam draws fuel while it cuts)" },
         new object[] { new[] { "↑", "↓" }, "Pitch" },
-        new object[] { new[] { "LMB" }, "Hold to fire the mining laser (Space or L too). It cuts only what the crosshair is on: aim the nose at a rock · with a raider under the nose it fires the autocannon instead (fitted from the start; refits sharpen it)" },
+        new object[] { new[] { "LMB" }, "Hold to fire the selected weapon (Space or L too). The laser cuts only what the crosshair is on: aim the nose at a rock" },
+        new object[] { new[] { "Wheel" }, "Swap between the mining laser and the autocannon" },
         new object[] { new[] { "R" }, "Radar pulse" },
         new object[] { new[] { "Q" }, "Lock the crosshair on whatever the mouse is over · hover another target and press Q to switch · otherwise press Q to release" },
         new object[] { new[] { "F" }, "Flashlight on · off in flight · cargo ship services when docked" },
@@ -1368,7 +1369,8 @@ public class Hud : MonoBehaviour
         string rangeTxt = locked ? Data.Fm(ship.lockDist) + " / " + Data.Fm(reach) + " m" : Data.Fm(reach) + " m";   // the lock's distance against the beam's reach
         int threat = game != null && game.raiders != null ? game.raiders.threat : 0;
         string threatTxt = threat > 0 ? Ui.Col(threat + " raider" + (threat > 1 ? "s" : ""), Ui.RED) : Ui.Col("none", Ui.GLOW_TEXT);
-        _row2.text = Kv("LASER", laser) + "   " + Kv("RANGE", rangeTxt) + "   " + Kv("RADAR", radar) + "   THREAT " + threatTxt;
+        string weaponTxt = ship.weapon == "gun" ? "Autocannon" : "Laser";
+        _row2.text = Kv("WEAPON", weaponTxt) + "   " + Kv("LASER", laser) + "   " + Kv("RANGE", rangeTxt) + "   " + Kv("RADAR", radar) + "   THREAT " + threatTxt;
         float rw = Mathf.Max(Ui.Measure(_row1), Ui.Measure(_row2)) + 28f;
         if (Mathf.Abs(_readouts.sizeDelta.x - rw) > 0.5f) _readouts.sizeDelta = new Vector2(rw, 58f);
         // the target: the panel follows the lock when there is one, else the crosshair target
@@ -1453,8 +1455,12 @@ public class Hud : MonoBehaviour
             }
             else if (carrier != null && toCarrier < Data.DOCK_RANGE && !hold) segs.Add(Kbd("E") + " Auto-dock with the cargo ship · or fly in through either hangar mouth");
             else if (State.fuel <= 0.5f && ship.cut == null) segs.Add(Kbd("T") + " Out of fuel · recovery to the cargo ship (15% of credits)");
-            if (ship.raiderTarget != null && ship.cut == null && !hasTarget) segs.Add(State.Stat("gun").reach > 0f ? (ship.gunFiring ? "Autocannon on the raider" : Kbd("LMB") + " Fire at raider") : "Autocannon");
-            if (hasTarget && ship.cut == null)
+            if (ship.cut == null && ship.CanFly)
+            {
+                if (ship.weapon == "gun") segs.Add(ship.gunFiring ? (ship.raiderTarget != null ? "Autocannon on the raider" : "Autocannon firing") : (ship.raiderTarget != null ? Kbd("LMB") + " Fire at raider" : Kbd("LMB") + " Fire the autocannon"));
+                else if (ship.raiderTarget != null && !hasTarget) segs.Add(Kbd("Wheel") + " Autocannon for the raider");
+            }
+            if (hasTarget && ship.cut == null && ship.weapon == "laser")
             {
                 int i = ship.target;
                 if (!ship.firing) segs.Add(Kbd("LMB") + " Hold to mine");

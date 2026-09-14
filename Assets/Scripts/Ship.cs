@@ -102,6 +102,7 @@ public class Ship : MonoBehaviour
     // the autocannon (combat): the raider under the nose (or the locked one within the cone), the shot timer
     public Raiders.Raider raiderTarget;
     public bool gunFiring;
+    public string weapon = "laser";   // the scroll wheel swaps: "laser" cuts rock, "gun" is the autocannon
     float _gunCd, _gunWarnT;
     public HoverInfo hover;                     // what the mouse is over (refreshed at 10 Hz, and afresh on Q)
     int _hoverFrame;
@@ -1640,13 +1641,21 @@ public class Ship : MonoBehaviour
         target = belt.RayHit(origin, fwd, reach);
         laserOn = false;
         _laser.enabled = false;
-        // the autocannon: the raider under the nose (or the locked one, within a few degrees) when no rock is in the way
+        // the scroll wheel swaps the weapon
+        float wheel = Input.mouseScrollDelta.y;
+        if (wheel != 0f && CanFly && !docked && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible)
+        {
+            weapon = weapon == "laser" ? "gun" : "laser";
+            game.Toast(weapon == "gun" ? "Autocannon selected · the wheel goes back to the laser" : "Mining laser selected", false);
+        }
+        // the autocannon: the raider under the nose (or the locked one, across the forward half); with the cannon selected a
+        // rock in the way does not stop the shot
         raiderTarget = null;
         gunFiring = false;
         _gunCd -= dt;
         _gunWarnT -= dt;
         var gun = State.Stat("gun");
-        if (game.raiders != null && target < 0)
+        if (game.raiders != null && (target < 0 || weapon == "gun"))
         {
             float gunReach = gun.reach > 0f ? gun.reach : 1800f;
             // the locked raider first: the cannon rides the dish turret, so it tracks a lock across the forward arc
@@ -1657,24 +1666,29 @@ public class Ship : MonoBehaviour
             }
             if (raiderTarget == null) raiderTarget = game.raiders.NearestInCone(origin, fwd, gunReach, Mathf.Cos(4f * Mathf.Deg2Rad));
         }
-        if (firing && raiderTarget != null)
+        if (firing && weapon == "gun")
         {
-            if (gun.reach <= 0f)
+            // the cannon selected: bolts at the raider in the sights (led), or straight down the nose
+            gunFiring = true;
+            if (_gunCd <= 0f)
             {
-                if (_gunWarnT <= 0f) { _gunWarnT = 3f; game.Toast("No autocannon fitted · it is a refit in the cargo ship services", true); }
-            }
-            else
-            {
-                gunFiring = true;
-                if (_gunCd <= 0f)
+                _gunCd = 1f / gun.rate;
+                Vector3 aim = fwd;
+                if (raiderTarget != null)
                 {
-                    _gunCd = 1f / gun.rate;
                     float d = (raiderTarget.pos - origin).magnitude;
-                    var aim = raiderTarget.pos + raiderTarget.vel * (d / Raiders.PLAYER_BOLT_SPEED) - origin;   // lead the shot
-                    game.raiders.Fire(origin, aim, gun.mult, true);
-                    Audio.Play("zap", -4f);
+                    aim = raiderTarget.pos + raiderTarget.vel * (d / Raiders.PLAYER_BOLT_SPEED) - origin;   // lead the shot
                 }
+                game.raiders.Fire(origin, aim, gun.mult, true);
+                Audio.Play("zap", -4f);
             }
+            TickSpot(dt, false, _spotPos);
+            return;
+        }
+        if (firing && weapon == "laser" && raiderTarget != null && target < 0)
+        {
+            // the laser selected with a raider in the sights: a reminder, and no beam
+            if (_gunWarnT <= 0f) { _gunWarnT = 4f; game.Toast("Raider in the sights · the scroll wheel selects the autocannon", true); }
             TickSpot(dt, false, _spotPos);
             return;
         }
