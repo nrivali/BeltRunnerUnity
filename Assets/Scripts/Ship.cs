@@ -1030,7 +1030,7 @@ public class Ship : MonoBehaviour
             if (Input.GetKey(KeyCode.X)) throttle = 0f;
         }
         // the drift brake: hold Space and the engine cuts (the throttle setting is kept for the release), the retros bleed
-        // speed at half thrust, and the ship carries on along its momentum while the nose is swung wherever you like
+        // speed at full engine thrust, and the ship carries on along its momentum while the nose is swung wherever you like
         drifting = flying && Input.GetKey(KeyCode.Space);
         float abMult = State.Stat("thrusters").mult;
         afterburning = flying && throttle > 0f && !drifting && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && abMult > 1f && State.fuel > 0f;
@@ -1052,7 +1052,7 @@ public class Ship : MonoBehaviour
                 float sp = vel.magnitude;
                 if (sp > 1f)
                 {
-                    float f = Mathf.Min(sp, eng.thrust * (drifting ? 0.5f : 0.4f) * dt);
+                    float f = Mathf.Min(sp, eng.thrust * (drifting ? 1f : 0.4f) * dt);
                     vel -= vel / sp * f;
                     State.fuel = Mathf.Max(0f, State.fuel - Data.FUEL_BURN * 0.35f * dt);
                     braking = true;
