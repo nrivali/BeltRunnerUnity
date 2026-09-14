@@ -6,13 +6,26 @@ game and is the second reference. See `AGENTS.md` for the rules.
 
 ## Running it
 
-1. Install Unity Hub and a Unity 6 editor (the project is set to 6000.6.0f1, the version winget installs; any Unity 6 will do).
-2. Add this folder as a project in the Hub and open it. The first open imports the two packages in
-   `Packages/manifest.json` (UGUI and the built-in modules) and generates `ProjectSettings` and `Library`.
-3. Press Play in any scene, including the empty default one. Everything is built from code at start-up
-   (`Game.Boot`): there is no scene content, no prefab and no editor-only asset.
+1. Install Unity Hub and a Unity 6 editor (`winget install Unity.UnityHub` and `winget install Unity.Unity.6000`; the
+   project is set to 6000.6.0f1, the version winget installs, and any Unity 6 will do). Sign in to the Hub once for
+   the free Personal licence.
+2. Add this folder as a project in the Hub and open it. The first open imports the packages in `Packages/manifest.json`
+   (UGUI and the built-in modules) and fills in `Library`.
+3. Press Play in `Assets/Scenes/Main.unity` (an empty scene) or any other. Everything is built from code at start-up
+   (`Game.Boot`): there is no scene content and no prefab. The only assets are the rock shader and its material,
+   which exist so a build keeps the shader and its GPU-instancing variants.
 
 Built-in render pipeline, legacy Input Manager, UGUI. Nothing to configure.
+
+### Building and the smoke run from the command line
+
+```bash
+"/c/Program Files/Unity 6000.6.0f1/Editor/Unity.exe" -batchmode -nographics -quit -projectPath "" -executeMethod Build.Player -logFile Logs/build.log
+./Builds/Windows/BeltRunner.exe -smoke -screen-width 1280 -screen-height 720 -logFile Logs/smoke.log
+```
+
+`Build.Player` (in `Assets/Editor/Build.cs`) makes the empty scene if it is missing, adds the shaders the code asks for
+to Always Included Shaders, keeps instancing variants, and builds `Builds/Windows/BeltRunner.exe`.
 
 ### Without an editor
 
@@ -29,9 +42,11 @@ They prove syntax, types and the pure logic, not the rendering or the feel. The 
 
 ### The smoke run
 
-Launch a player build (or the editor) with `-smoke` on the command line: it starts without the menu, cuts the nearest
-copper rock, flies, saves, and quits, printing `smoke:` lines to the log and saving `smoke_launch.png`,
-`smoke_mine.png` and `smoke_flight.png` under `Application.persistentDataPath`.
+With `-smoke` on the command line the player starts without the menu, cuts the nearest copper rock through, waits for
+the ore, flies, saves, and quits, printing `smoke:` lines to the log and saving `smoke_launch.png`, `smoke_mine.png`,
+`smoke_broken.png` and `smoke_flight.png` under `Application.persistentDataPath`
+(`%USERPROFILE%AppDataocallow
+rivalibelt runner`).
 
 ## Milestone 1 — one belt, flight, the laser, ore, HUD, save
 

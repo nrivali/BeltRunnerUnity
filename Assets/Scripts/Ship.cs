@@ -38,14 +38,14 @@ public class Ship : MonoBehaviour
     {
         // a placeholder hull until the model comes across: a stretched body, two wings, an engine block
         var s = Data.SHIP_SCALE;
-        var hull = new Material(Shader.Find("Standard"));
+        var hull = new Material(Game.Sh("Standard"));
         hull.color = new Color(0.78f, 0.8f, 0.84f);
         hull.SetFloat("_Metallic", 0.6f);
         hull.SetFloat("_Glossiness", 0.55f);
         Part(PrimitiveType.Capsule, new Vector3(0f, 0f, 2f) * s, new Vector3(6f, 4f, 30f) * s, Quaternion.Euler(90f, 0f, 0f), hull);
         Part(PrimitiveType.Cube, new Vector3(0f, -0.5f, -4f) * s, new Vector3(34f, 0.8f, 9f) * s, Quaternion.identity, hull);
         Part(PrimitiveType.Cube, new Vector3(0f, 2.5f, -9f) * s, new Vector3(3f, 6f, 5f) * s, Quaternion.identity, hull);
-        var glow = new Material(Shader.Find("Standard"));
+        var glow = new Material(Game.Sh("Standard"));
         glow.color = new Color(0.37f, 0.83f, 0.94f);
         glow.EnableKeyword("_EMISSION");
         glow.SetColor("_EmissionColor", new Color(0.37f, 0.83f, 0.94f) * 3f);
@@ -59,7 +59,7 @@ public class Ship : MonoBehaviour
         _laser.positionCount = 2;
         _laser.startWidth = 2.2f;
         _laser.endWidth = 1.2f;
-        var lm = new Material(Shader.Find("Sprites/Default"));
+        var lm = new Material(Game.Sh("Sprites/Default"));
         lm.color = new Color(1f, 0.62f, 0.2f, 0.95f);
         _laser.material = lm;
         _laser.startColor = new Color(1f, 0.7f, 0.25f);

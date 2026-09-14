@@ -190,8 +190,8 @@ namespace UnityEngine
     {
         public string name { get; set; }
         public static void Destroy(Object o) { }
-        public static T FindFirstObjectByType<T>() where T : Object => null;
-        public static T[] FindObjectsByType<T>(FindObjectsSortMode mode) where T : Object => new T[0];
+        public static T FindAnyObjectByType<T>() where T : Object => null;
+        public static T[] FindObjectsByType<T>() where T : Object => new T[0];
         public static implicit operator bool(Object o) => o != null;
         public static bool operator ==(Object a, Object b) => ReferenceEquals(a, b);
         public static bool operator !=(Object a, Object b) => !ReferenceEquals(a, b);
@@ -296,6 +296,7 @@ namespace UnityEngine
 
     public class Shader : Object
     {
+        public bool isSupported => true;
         public static Shader Find(string name) => new Shader { name = name };
         public static void SetGlobalFloat(string name, float v) { }
     }
@@ -303,6 +304,8 @@ namespace UnityEngine
     public class Material : Object
     {
         public Material(Shader s) { }
+        public Material(Material m) { }
+        public Shader shader { get; set; }
         public Color color { get; set; }
         public bool enableInstancing { get; set; }
         public void SetFloat(string n, float v) { }
@@ -313,6 +316,7 @@ namespace UnityEngine
     public class MaterialPropertyBlock
     {
         public void SetVectorArray(string n, Vector4[] v) { }
+        public void SetVector(string n, Vector4 v) { }
         public void SetFloat(string n, float v) { }
     }
 
@@ -346,6 +350,7 @@ namespace UnityEngine
 
     public class Renderer : Component
     {
+        public void SetPropertyBlock(MaterialPropertyBlock b) { }
         public Material sharedMaterial { get; set; }
         public Material material { get; set; }
         public Rendering.ShadowCastingMode shadowCastingMode { get; set; }
@@ -375,10 +380,17 @@ namespace UnityEngine
         public int layer;
     }
 
+    public static class SystemInfo
+    {
+        public static string graphicsDeviceType => "stub";
+        public static bool supportsInstancing => true;
+    }
+
     public static class Graphics
     {
         public static int calls;
         public static void RenderMeshInstanced<T>(RenderParams rp, Mesh mesh, int sub, T[] data, int count, int start) where T : unmanaged { calls++; }
+        public static void DrawMeshInstanced(Mesh mesh, int sub, Material mat, Matrix4x4[] mats, int count, MaterialPropertyBlock mpb, Rendering.ShadowCastingMode sc, bool rs, int layer, Camera cam) { calls++; }
     }
 
     public static class Debug
@@ -418,6 +430,7 @@ namespace UnityEngine
     public static class Resources
     {
         public static T GetBuiltinResource<T>(string path) where T : Object => null;
+        public static T Load<T>(string path) where T : Object => null;
     }
 
     public static class ScreenCapture

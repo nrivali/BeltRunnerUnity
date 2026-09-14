@@ -14,3 +14,8 @@ Rules for anyone (person or agent) working here:
   `Application.persistentDataPath`.
 - `tools/check` compiles every script against a stub of the Unity API with the .NET SDK, for when no editor is to hand;
   it proves syntax and types, not behaviour. Run the editor before claiming anything works.
+- Anything the code needs at run time that Unity only ships when an asset references it (a shader, an instancing
+  variant, a font) gets an asset under `Assets/Resources` or a line in `Build.cs`. The first player build drew no rocks
+  because the build stripped the rock shader, then its instancing variants; both are now pinned there.
+- Build and smoke-test from the command line before claiming a change works (see README); the editor is at
+  `C:\Program Files\Unity 6000.6.0f1\Editor\Unity.exe`.

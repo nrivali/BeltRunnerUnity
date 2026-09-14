@@ -27,7 +27,7 @@ public class Game : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Boot()
     {
-        if (FindFirstObjectByType<Game>() != null) return;
+        if (FindAnyObjectByType<Game>() != null) return;
         new GameObject("Game").AddComponent<Game>();
     }
 
@@ -90,7 +90,7 @@ public class Game : MonoBehaviour
     void SetupLighting()
     {
         // a template scene's own directional light would double the sun
-        foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None)) l.enabled = false;
+        foreach (var l in FindObjectsByType<Light>()) l.enabled = false;
         var go = new GameObject("Sun");
         sun = go.AddComponent<Light>();
         sun.type = LightType.Directional;
@@ -128,7 +128,7 @@ public class Game : MonoBehaviour
         _planet.name = "Planet " + z.planetName;
         Destroy(_planet.GetComponent<Collider>());
         _planet.transform.localScale = Vector3.one * r * 2f;
-        var pm = new Material(Shader.Find("Standard"));
+        var pm = new Material(Game.Sh("Standard"));
         pm.color = z.tint;
         pm.SetFloat("_Glossiness", z.central ? 0.05f : 0.45f);
         _planet.GetComponent<MeshRenderer>().sharedMaterial = pm;
@@ -200,6 +200,16 @@ public class Game : MonoBehaviour
     public void Toast(string msg, bool bad)
     {
         hud.Toast(msg, bad);
+    }
+
+    /// A shader by name, falling back down a list a build always carries, so a missing one never stops the game.
+    public static Shader Sh(string name)
+    {
+        var s = Shader.Find(name);
+        if (s == null) s = Shader.Find("Legacy Shaders/Diffuse");
+        if (s == null) s = Shader.Find("Sprites/Default");
+        if (s == null) Debug.LogWarning("shader " + name + " missing and no fallback found");
+        return s;
     }
 
     // ---- ore
@@ -369,23 +379,30 @@ public class Game : MonoBehaviour
                 ship.autoFire = true;
             }
         }
+        if (_frame == 10)
+        {
+            Debug.Log("smoke: draw · " + belt.DrawReport());
+        }
         if (_frame == 60 && _smokeRock >= 0)
         {
             Shot("smoke_mine");
             Debug.Log("smoke: cutting " + belt.RockName(_smokeRock) + " · target=" + ship.target + " laser_on=" + ship.laserOn + " hp=" + belt.hp[_smokeRock].ToString("0") + " (was " + _smokeHp.ToString("0") + ")");
         }
-        if (_frame == 400)
+        if (_frame >= 400 && _smokePhase == 0 && (_smokeRock < 0 || !belt.alive[_smokeRock] || _frame > 1500))
         {
+            _smokePhase = 1;
+            _smokeFrame = _frame;
             ship.autoFire = false;
             Debug.Log("smoke: mined · rock_alive=" + (_smokeRock >= 0 && belt.alive[_smokeRock]) + " pickups_left=" + _drops.Count + " cargo=" + State.CargoTotal().ToString("0") + " fuel=" + State.fuel.ToString("0.0") + " fps=" + (1f / Mathf.Max(0.0001f, Time.smoothDeltaTime)).ToString("0"));
+            Shot("smoke_broken");
             ship.throttle = 1f;
         }
-        if (_frame == 520)
+        if (_smokePhase == 1 && _frame == _smokeFrame + 300)
         {
             Shot("smoke_flight");
-            Debug.Log("smoke: flight · speed=" + ship.Speed.ToString("0") + " throttle=" + ship.throttle.ToString("0.00") + " offset=" + worldOffset.ToString("0"));
+            Debug.Log("smoke: flight · speed=" + ship.Speed.ToString("0") + " throttle=" + ship.throttle.ToString("0.00") + " cargo=" + State.CargoTotal().ToString("0") + " offset=" + worldOffset.ToString("0"));
         }
-        if (_frame == 540)
+        if (_smokePhase == 1 && _frame == _smokeFrame + 320)
         {
             State.Save();
             Debug.Log("smoke: saved to " + State.SavePath + " · screenshots in " + Application.persistentDataPath);
@@ -393,8 +410,12 @@ public class Game : MonoBehaviour
         }
     }
 
+    int _smokePhase;
+    int _smokeFrame;
+
     void Shot(string name)
     {
         ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.persistentDataPath, name + ".png"));
     }
+
 }

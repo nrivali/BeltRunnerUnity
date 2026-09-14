@@ -32,7 +32,7 @@ public class Pickup : MonoBehaviour
         mf.sharedMesh = _mesh;
         var mr = go.AddComponent<MeshRenderer>();
         var c = Data.ORES[Data.OreIndex(oreKey)].color;
-        var mat = new Material(Shader.Find("Standard"));
+        var mat = new Material(Game.Sh("Standard"));
         mat.color = c;
         mat.EnableKeyword("_EMISSION");
         mat.SetColor("_EmissionColor", c * 2f);

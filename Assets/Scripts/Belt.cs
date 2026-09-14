@@ -62,16 +62,11 @@ public class Belt
     public List<Data.BeltDef> belts = new List<Data.BeltDef>();
 
     // ---- chunks and instance batches
-    public struct Inst
-    {
-        public Matrix4x4 objectToWorld;
-    }
-
     class Batch
     {
         public int key;
         public int chunk;
-        public Inst[] inst = new Inst[BATCH_MAX];
+        public Matrix4x4[] mats = new Matrix4x4[BATCH_MAX];
         public Vector4[] colors = new Vector4[BATCH_MAX];
         public Vector4[] rails = new Vector4[BATCH_MAX];
         public int count;
@@ -106,13 +101,23 @@ public class Belt
 
     public Belt()
     {
-        var sh = Shader.Find("BeltRunner/Rock");
-        if (sh == null)
+        // the material asset (made by the build script) keeps the shader's instancing variants in a build; a fresh
+        // material stands in when it is missing, which is fine in the editor
+        var asset = Resources.Load<Material>("Materials/Rock");
+        if (asset != null)
         {
-            Debug.LogWarning("rocks: BeltRunner/Rock shader missing, the Standard shader stands in (no drift, no heat)");
-            sh = Shader.Find("Standard");
+            _mat = new Material(asset);
         }
-        _mat = new Material(sh);
+        else
+        {
+            var sh = Shader.Find("BeltRunner/Rock");
+            if (sh == null)
+            {
+                Debug.LogWarning("rocks: BeltRunner/Rock shader missing, the Standard shader stands in (no drift, no heat)");
+                sh = Game.Sh("Standard");
+            }
+            _mat = new Material(sh);
+        }
         _mat.enableInstancing = true;
         _meshes = new Mesh[RockMeshes.SHAPES.Length * 2, 2];
         for (int s = 0; s < RockMeshes.SHAPES.Length; s++)
@@ -121,6 +126,10 @@ public class Belt
             {
                 _meshes[s * 2 + v, 0] = RockMeshes.Build(RockMeshes.SHAPES[s], 1, s * 2 + v + 1);
                 _meshes[s * 2 + v, 1] = RockMeshes.Build(RockMeshes.SHAPES[s], 0, s * 2 + v + 1);
+                // the rail drift happens in the vertex shader, so a rock can sit up to a chunk away from its matrix;
+                // bounds wide enough (in mesh units, scaled by the smallest radius) keep the renderer from culling it
+                _meshes[s * 2 + v, 0].bounds = new Bounds(Vector3.zero, Vector3.one * 60000f);
+                _meshes[s * 2 + v, 1].bounds = new Bounds(Vector3.zero, Vector3.one * 60000f);
             }
         }
     }
@@ -387,7 +396,7 @@ public class Belt
     {
         var b = _batches[batchOf[i]];
         int s = slotOf[i];
-        b.inst[s].objectToWorld = alive[i] ? Matrix4x4.TRS(pos[i] - _offset, rot[i], scl[i]) : Matrix4x4.zero;
+        b.mats[s] = alive[i] ? Matrix4x4.TRS(pos[i] - _offset, rot[i], scl[i]) : Matrix4x4.zero;
         if (b.colors[s] == Vector4.zero) b.colors[s] = RockColor(i);
         b.rails[s] = new Vector4(ang[i], orbit[i], free[i] ? 0f : 1f, BodyHeat(i));
         b.dirty = true;
@@ -403,10 +412,10 @@ public class Belt
     void WriteTranslation(int i)
     {
         var b = _batches[batchOf[i]];
-        var m = b.inst[slotOf[i]].objectToWorld;
+        var m = b.mats[slotOf[i]];
         var p = pos[i] - _offset;
         m.m03 = p.x; m.m13 = p.y; m.m23 = p.z;
-        b.inst[slotOf[i]].objectToWorld = m;
+        b.mats[slotOf[i]] = m;
     }
 
     float BodyHeat(int i)
@@ -566,7 +575,7 @@ public class Belt
         alive[i] = false;
         if (batchOf[i] >= 0)
         {
-            _batches[batchOf[i]].inst[slotOf[i]].objectToWorld = Matrix4x4.zero;
+            _batches[batchOf[i]].mats[slotOf[i]] = Matrix4x4.zero;
         }
         _freeIds.Remove(i);
         float loose = amount[i];
@@ -728,14 +737,27 @@ public class Belt
 
     public int ChunkCount { get { return _chunks.Count; } }
 
-    /// Submit every visible batch for this frame.
-    public void Draw()
+    public Material RockMaterial { get { return _mat; } }
+    public Mesh MeshFor(int key, int lod) { return _meshes[key, lod]; }
+
+    /// What the renderer thinks of the rock material and the instancing path, for the smoke log.
+    public string DrawReport()
     {
-        var ext = Vector3.one * (CHUNK * 1.1f + Mathf.Min(ORBIT_SPEED * _elapsed, CHUNK));
+        int batches = 0, insts = 0;
         foreach (var ch in _chunks)
         {
             if (!ch.visible) continue;
-            var bounds = new Bounds(ch.centre - _offset, ext * 2f);
+            foreach (var bi in ch.batches) { batches++; insts += _batches[bi].count; }
+        }
+        return "shader " + _mat.shader.name + " supported=" + _mat.shader.isSupported + " instancing=" + _mat.enableInstancing + " · device " + SystemInfo.graphicsDeviceType + " supportsInstancing=" + SystemInfo.supportsInstancing + " · visible batches " + batches + " with " + insts + " instances";
+    }
+
+    /// Submit every visible batch for this frame.
+    public void Draw()
+    {
+        foreach (var ch in _chunks)
+        {
+            if (!ch.visible) continue;
             foreach (var bi in ch.batches)
             {
                 var b = _batches[bi];
@@ -746,13 +768,7 @@ public class Belt
                     b.mpb.SetVectorArray("_Rail", b.rails);
                     b.dirty = false;
                 }
-                var rp = new RenderParams(_mat);
-                rp.worldBounds = bounds;
-                rp.matProps = b.mpb;
-                rp.shadowCastingMode = ShadowCastingMode.On;
-                rp.receiveShadows = true;
-                rp.layer = 0;
-                Graphics.RenderMeshInstanced(rp, _meshes[b.key, ch.lod], 0, b.inst, b.count, 0);
+                Graphics.DrawMeshInstanced(_meshes[b.key, ch.lod], 0, _mat, b.mats, b.count, b.mpb, ShadowCastingMode.On, true, 0, null);
             }
         }
     }
