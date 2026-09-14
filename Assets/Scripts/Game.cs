@@ -366,6 +366,7 @@ public class Game : MonoBehaviour
         _holdIdx = (_holdIdx + 1) % homes.Count;
         var home = homes[_holdIdx];
         if (ship.docked) ship.LeaveHangar();
+        raiders.frozen = true;   // for now the raiders hold still in the test, turning to face the ship
         var scene = home - worldOffset;
         var dir = (scene - ship.transform.position).normalized;
         ship.transform.position = scene - dir * 1500f;

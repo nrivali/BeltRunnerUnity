@@ -40,6 +40,7 @@ public class Raiders
     public int threat;              // raiders attacking right now
     public int kills, shotsFired, hitsTaken;   // for the smoke run
     public float danger;
+    public bool frozen;   // the combat test: raiders hold their place (they still turn to face the ship and fire)
     Transform _root;
     Material _hull, _trim, _boltRed, _boltCyan;
     Mesh _boltMesh;
@@ -278,10 +279,18 @@ public class Raiders
             var want = desired - r.pos;
             float dist = want.magnitude;
             if (dist > 1f) want /= dist;
-            r.vel = Vector3.Lerp(r.vel, want * (r.state == "attack" ? r.speed : 300f), 1f - Mathf.Exp(-2.2f * dt));
-            r.pos += r.vel * dt;
+            if (frozen)
+            {
+                r.vel = Vector3.zero;
+                if (r.state == "attack" && d > 1f) r.node.rotation = Quaternion.Slerp(r.node.rotation, Ship.LevelHeading((sp - r.pos) / d), 1f - Mathf.Exp(-3f * dt));
+            }
+            else
+            {
+                r.vel = Vector3.Lerp(r.vel, want * (r.state == "attack" ? r.speed : 300f), 1f - Mathf.Exp(-2.2f * dt));
+                r.pos += r.vel * dt;
+                if (r.vel.sqrMagnitude > 1f) r.node.rotation = Quaternion.Slerp(r.node.rotation, Ship.LevelHeading(r.vel.normalized), 1f - Mathf.Exp(-6f * dt));
+            }
             r.node.position = r.pos - off;
-            if (r.vel.sqrMagnitude > 1f) r.node.rotation = Quaternion.Slerp(r.node.rotation, Ship.LevelHeading(r.vel.normalized), 1f - Mathf.Exp(-6f * dt));
             r.exhaust.SetColor("_Color", new Color(1f, 0.18f, 0.39f, r.state == "attack" ? 0.6f + Random.value * 0.3f : 0.35f));
             if (carrier != null && !carrier.hold && (r.pos - carrier.truePos).magnitude < SAFE_R)
             {
