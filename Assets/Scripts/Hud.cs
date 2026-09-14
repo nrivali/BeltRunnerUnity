@@ -1533,6 +1533,7 @@ public class Hud : MonoBehaviour
             _crosshairRt.gameObject.SetActive(OnScreen(cp) && ship.weapon == "gun");
             _crosshairRt.anchoredPosition = cp;
             _crosshair.Set(ship.gunFiring);
+            _crosshair.SetHit(game.raiders != null ? game.raiders.hitFlash : 0f, game.raiders != null && game.raiders.hitKill);
             var lr = ship.lockKind == "raider" && ship.lockRaider != null && !ship.lockRaider.dead ? ship.lockRaider : ship.raiderTarget;
             if (lr != null)
             {

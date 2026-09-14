@@ -607,7 +607,15 @@ public static class Ui
     public class Crosshair : MaskableGraphic
     {
         public bool hot;
+        public float hit;    // the hit marker: an X over the ring, this strong (0 hides it)
+        public bool kill;    // red for the hit that killed
         public void Set(bool h) { if (h != hot) { hot = h; SetVerticesDirty(); } }
+        public void SetHit(float f, bool k)
+        {
+            f = Mathf.Clamp01(f);
+            if (Mathf.Abs(f - hit) < 0.02f && k == kill && !(f == 0f && hit != 0f)) return;
+            hit = f; kill = k; SetVerticesDirty();
+        }
 
         protected override void OnPopulateMesh(VertexHelper vh)
         {
@@ -622,6 +630,17 @@ public static class Ui
             }
             foreach (var d in new[] { Vector2.up, -Vector2.up, new Vector2(1f, 0f), new Vector2(-1f, 0f) }) Line(vh, d * (r + 3f), d * (r + 9f), 1.5f, c);
             Rectangle(vh, new Rect(-1.5f, -1.5f, 3f, 3f), c);
+            if (hit > 0f)
+            {
+                // the hit marker: four diagonal strokes just outside the ring, swelling as they fade
+                var hc = A(kill ? RED : Color.white, hit);
+                float g = r + 4f + (1f - hit) * 6f, len = 9f;
+                foreach (var d in new[] { new Vector2(1f, 1f), new Vector2(-1f, 1f), new Vector2(1f, -1f), new Vector2(-1f, -1f) })
+                {
+                    var n = d.normalized;
+                    Line(vh, n * g, n * (g + len), 2f, hc);
+                }
+            }
         }
     }
 

@@ -56,6 +56,10 @@ public class Raiders
     public readonly List<Bolt> bolts = new List<Bolt>();
     public int threat;              // raiders attacking right now
     public int kills, shotsFired, hitsTaken;   // for the smoke run
+    public int hitsLanded;
+    public float hitFlash;    // the hit marker: 1 the frame a player bolt lands, fading over HIT_FLASH seconds
+    public bool hitKill;      // ... and whether that hit was the kill
+    public const float HIT_FLASH = 0.28f;
     public float danger;
     public bool frozen;   // the combat test: raiders made while this is set hold their place
     public bool respawn;  // the combat test: a raider killed comes back where it stood, three seconds on
@@ -424,6 +428,7 @@ public class Raiders
             }
         }
         if (threat == 0) _warned = false;
+        if (hitFlash > 0f) hitFlash = Mathf.Max(0f, hitFlash - dt / HIT_FLASH);
         // the bolts: a raider's hits the ship, the player's hit raiders
         for (int i = bolts.Count - 1; i >= 0; i--)
         {
@@ -443,6 +448,10 @@ public class Raiders
                     if ((prev + ab * t - r.pos).magnitude < HIT_R)
                     {
                         Damage(r, b.dmg, r.pos);
+                        hitsLanded++;
+                        hitFlash = 1f;
+                        hitKill = r.dead;
+                        Audio.Play("laser_bite", r.dead ? 0f : -4f);
                         b.life = 0f;
                         break;
                     }
@@ -479,6 +488,6 @@ public class Raiders
     {
         int attacking = 0;
         foreach (var r in raiders) if (r.state == "attack") attacking++;
-        return raiders.Count + " raiders, " + attacking + " attacking, " + bolts.Count + " bolts, kills " + kills + ", shots " + shotsFired + ", hits taken " + hitsTaken;
+        return raiders.Count + " raiders, " + attacking + " attacking, " + bolts.Count + " bolts, kills " + kills + ", shots " + shotsFired + ", landed " + hitsLanded + ", hits taken " + hitsTaken;
     }
 }
