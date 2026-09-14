@@ -58,6 +58,7 @@ public class Raiders
     public float danger;
     public bool frozen;   // the combat test: raiders made while this is set hold their place
     public bool respawn;  // the combat test: a raider killed comes back where it stood, three seconds on
+    public bool holdFire; // testing (F10): raiders fly and chase but never fire
     class Pending { public Vector3 pos, home; public float t; public bool frozen; }
     readonly List<Pending> _pending = new List<Pending>();
     Transform _root;
@@ -374,7 +375,7 @@ public class Raiders
                 r.fireCd -= dt;
                 // the guns are fixed forward: a raider only fires when its nose is on the ship (within 20 degrees)
                 bool facing = Vector3.Dot(r.node.forward, (sp - r.pos).normalized) > Mathf.Cos(25f * Mathf.Deg2Rad);
-                if (r.fireCd <= 0f && d < r.gunReach && facing)   // the player's own gun: its range, its rate, its damage
+                if (r.fireCd <= 0f && d < r.gunReach && facing && !holdFire)   // the player's own gun: its range, its rate, its damage
                 {
                     r.fireCd = 1f / r.gunRate;
                     float spread = 0.05f;

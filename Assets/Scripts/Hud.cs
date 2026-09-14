@@ -261,7 +261,8 @@ public class Hud : MonoBehaviour
         new object[] { new[] { "N" }, "Nav map · warp (docked in the cargo ship)" },
         new object[] { new[] { "C" }, "Hide · show this list" },
         new object[] { new[] { "F5" }, "Quick-save" },
-        new object[] { new[] { "F9" }, "Test · jump to the next raider hold with the autocannon fitted" },
+        new object[] { new[] { "F9" }, "Test · jump to the next raider hold" },
+        new object[] { new[] { "F10" }, "Test · raiders hold their fire · again to let them fire" },
         new object[] { new[] { "Space" }, "Skip a docking, departure or warp cutscene" },
         new object[] { new[] { "Esc" }, "Pause · the menu with settings and controls" },
     };

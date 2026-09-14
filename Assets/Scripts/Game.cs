@@ -501,6 +501,7 @@ public class Game : MonoBehaviour
         }
         if (Input.GetKeyDown(KeyCode.F5)) { State.Save(); hud.Toast(State.sandbox ? "Sandbox · nothing is saved" : "Saved", false); }
         if (Input.GetKeyDown(KeyCode.F9)) JumpToHold();
+        if (Input.GetKeyDown(KeyCode.F10) && raiders != null) { raiders.holdFire = !raiders.holdFire; hud.Toast(raiders.holdFire ? "Test · raiders hold their fire" : "Test · raiders fire again", false); }
         if (Input.GetKeyDown(KeyCode.C)) hud.ToggleControls();
         if (Input.GetKeyDown(KeyCode.F) && ship.docked) hud.ToggleServices();
         if (Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.I)) hud.ToggleInventory();

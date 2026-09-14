@@ -47,6 +47,7 @@ public class Menu
         new object[] { new[] { "C" }, "Hide or show the flight controls list in the bottom-left corner. Remembered between sessions." },
         new object[] { new[] { "F5" }, "Quick-save." },
         new object[] { new[] { "F9" }, "Testing: jump to the next raider hold, 1,500 u off it and facing it. Launching the game with -combat starts there in a sandbox that never touches the save." },
+        new object[] { new[] { "F10" }, "Testing: the raiders hold their fire (they still fly and chase); press again and they fire." },
         new object[] { new[] { "Space" }, "During a docking, departure, arrival or warp cutscene, skip to the end of it." },
         new object[] { new[] { "Esc" }, "Pause · opens this menu with Settings and Controls" },
     };
