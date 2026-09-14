@@ -71,6 +71,7 @@ public class Game : MonoBehaviour
         ship.cam = cam;
         ship.Build();
         Audio.Create();
+        Music.Create();
         var hudGo = new GameObject("HUD");
         hud = hudGo.AddComponent<Hud>();
         hud.ship = ship;
@@ -86,6 +87,9 @@ public class Game : MonoBehaviour
         hud.menu.onTutorialRestart = () => { tutorial.Restart(); hud.Toast("Tutorial restarted", false); };
         hud.menu.onSetting = ApplySetting;
         hud.menu.onQuit = Quit;
+        // the comm-channel toasts for the soundtrack
+        Music.I.onGroove = n => { if (started) hud.Toast("♪ " + n + " · groove on the comm channel", false); };
+        Music.I.onTrack = n => { if (started) hud.Toast("♪ Now drifting: " + n, false); };
         LoadZone(Data.ZoneById(_smoke ? "kessler" : State.zoneId));
         SpawnInZone();
         ship.UpdateCamera(1f);
@@ -298,7 +302,10 @@ public class Game : MonoBehaviour
         if (key == "sound") State.soundOn = v > 0.5f;
         else if (key == "volume") State.volume = Mathf.Clamp01(v);
         else if (key == "hud") { State.hudScale = Mathf.Clamp(v, 0.7f, 1.6f); hud.SetScale(State.hudScale); }
+        else if (key == "music") State.musicOn = v > 0.5f;
+        else if (key == "music_volume") State.musicVolume = Mathf.Clamp01(v);
         if (Audio.I != null) Audio.I.ApplySettings();
+        if (Music.I != null) Music.I.ApplySettings();
         State.Save();
     }
 
@@ -796,6 +803,7 @@ public class Game : MonoBehaviour
                     float before = State.credits;
                     ship.Sell(Data.ORE_KEYS, true, true);
                     ship.RefuelCargoShip();
+                    Debug.Log("smoke: music · " + (Music.I != null ? Music.I.Report() : "none") + " · fps " + (1f / Mathf.Max(0.0001f, Time.smoothDeltaTime)).ToString("0"));
                     Debug.Log("smoke: at the Hub · holding=" + ship.hold + " credits " + before.ToString("0") + " -> " + State.credits.ToString("0") + " · store=" + State.StoreTotal().ToString("0") + " · shipFuel=" + State.shipFuel.ToString("0") + " · carrier at " + carrier.truePos.ToString("0") + " · rocks=" + belt.count);
                     Next("hub");
                 }

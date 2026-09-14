@@ -48,6 +48,17 @@ the ore, flies, saves, and quits, printing `smoke:` lines to the log and saving 
 (`%USERPROFILE%AppDataocallow
 rivalibelt runner`).
 
+## Milestone 17 — the soundtrack
+
+| Piece | Where | Status |
+|---|---|---|
+| The procedural music engine: eight tracks (Drift, Halcyon, Aurum, Frost, Sable, Cinder, Meridian, Umbra), each a pad colour of five chord voices through a slowly breathing lowpass, a sub, a tempo-locked echo, ambient layers (sparkle, wind, a wandering melody, a pulse, a choir swell) and a groove (kick, snare or clap, rim, hats, shaker, bass, arp, chord stabs, a lead). Ambient for two or three minutes, the groove for a minute or so, then on to the next track | `Assets/Scripts/Music.cs` | ported from MUSIC_PROC by way of the Godot port: every recipe, pattern, envelope and gain copied; rendered sample by sample at 22,050 Hz on its own thread into a ring buffer that `OnAudioFilterRead` drains at the mixer's rate (the pads resampled from loops rendered once per recipe, the noise hits rendered once per recipe) |
+| The comm-channel toasts: "♪ Now drifting: …" when a track starts, "… · groove on the comm channel" when the groove comes in | `Assets/Scripts/Game.cs` | ported |
+| Settings: Music on/off and a Music volume, separate from the sound-effects volume (the music source ignores the listener volume), saved with the game as `music` and `music_volume` | `Assets/Scripts/Menu.cs`, `Assets/Scripts/GameState.cs` | ported from the browser's sliders |
+
+The smoke run prints the engine's state at the Hub: the track, the mode, the step, the voice peak, the output peak,
+the time rendered, the render cost against real time and the mixer underruns (none).
+
 ## Milestone 16 — the burn trail and the fitting variants
 
 | Piece | Where | Status |
@@ -145,14 +156,14 @@ Open Font Licence) and the custom controls, each a small `MaskableGraphic` that 
 | Drag and drop: a hold stack dragged onto the storage grid is stowed, a storage stack dragged onto the hold grid comes back aboard, a hold stack let go anywhere else is jettisoned (it drifts off behind the ship and cannot be scooped up for a minute); a double-click moves a stack across too; the slots that would take the stack light up amber | `Hud.cs` (`Slot`, `BeginDrag`, `EndDrag`, `Jettison`), `GameState.cs` (`StowStack`, `TakeStack`, `Jettison`) | ported from wireInventoryDrag / stowStack / takeStack / jettisonSlot with UGUI's drag handlers |
 | Nav computer: the chart drawn as the browser's SVG (grid, dashed lanes with distances, zone nodes, click to pick), the picked zone's details and the warp button | `Ui.cs` (`Chart`), `Hud.cs` (`BuildMap`, `RefreshMap`) | rebuilt |
 | Tutorial card with the pulsing amber rings round the HUD pieces each step talks about | `Hud.cs` (`BuildTutorial`, `ShowTutorial`), `Ui.cs` (`Rings`), `Tutorial.cs` (`ring`, `ring2`) | ported |
-| Start menu at launch, pause menu on Escape: Continue / Resume, New game (click twice to wipe), Controls, Settings (sound, volume, HUD size, tutorial restart, wipe save), Quit | `Menu.cs`, `Game.cs` (`WipeSave`, `ApplySetting`) | rebuilt to #intro; settings saved with the game (`hud`, `controls`); no music rows yet, the music engine is not ported |
+| Start menu at launch, pause menu on Escape: Continue / Resume, New game (click twice to wipe), Controls, Settings (sound, volume, music, music volume, HUD size, tutorial restart, wipe save), Quit | `Menu.cs`, `Game.cs` (`WipeSave`, `ApplySetting`) | rebuilt to #intro; settings saved with the game (`hud`, `controls`; the music rows came with milestone 17) |
 
 The smoke run now also captures the inventory and the three menu pages, and drives the drag and drop the way the
 pointer would (storage to hold, hold to storage, a stack let go outside the grids). Escape closes the pause menu first,
 then the nav map, then the inventory, and only then pauses.
 
-Still to come from the browser HUD: the music settings (the hover readout, the Q lock and the recovery status came
-with milestone 12).
+Everything the browser HUD shows is in now (the hover readout, the Q lock and the recovery status came with
+milestone 12, the music settings with milestone 17).
 
 ## Milestone 8 — lighting and the sky
 

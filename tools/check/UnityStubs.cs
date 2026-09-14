@@ -223,6 +223,7 @@ namespace UnityEngine
     {
         public string name { get; set; }
         public static void Destroy(Object o) { }
+        public static void DontDestroyOnLoad(Object o) { }
         public static T Instantiate<T>(T o) where T : Object => o;
         public static T Instantiate<T>(T o, Transform parent) where T : Object => o;
         public static T FindAnyObjectByType<T>() where T : Object => null;
@@ -686,11 +687,17 @@ namespace UnityEngine
 
 namespace UnityEngine
 {
-    public class AudioClip : Object { }
+    public class AudioClip : Object
+    {
+        public static AudioClip Create(string name, int samples, int channels, int rate, bool stream) => new AudioClip();
+        public void SetData(float[] d, int offset) { }
+    }
+    public static class AudioSettings { public static int outputSampleRate => 48000; }
     public enum AudioReverbPreset { Off, Generic, Hangar, Room }
     public class AudioSource : Behaviour
     {
         public AudioClip clip { get; set; }
+        public bool ignoreListenerVolume { get; set; }
         public bool loop { get; set; }
         public bool playOnAwake { get; set; }
         public float volume { get; set; }
