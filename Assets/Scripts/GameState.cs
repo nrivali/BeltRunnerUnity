@@ -81,7 +81,9 @@ public static class State
     public static void TickShield(float dt)
     {
         sinceHit += dt;
+        bool wasOut = shield <= 0f;
         if (sinceHit >= Data.SHIELD_WAIT && shield < Data.SHIELD_MAX) shield = Mathf.Min(Data.SHIELD_MAX, shield + Data.SHIELD_RATE * dt);
+        if (wasOut && shield > 0f) Audio.Play("shield_up");   // the recharge starting from nothing: the shield coming back
     }
 
     // ---- the hold: slots of STACK units, one ore per slot

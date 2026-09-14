@@ -15,9 +15,9 @@ public class Audio : MonoBehaviour
     static readonly Dictionary<string, float> GAIN_DB = new Dictionary<string, float>
     {
         { "radio_on", -6f }, { "radio_off", -7f }, { "pa_chime", -6f }, { "dock", -3f }, { "chime", -6f }, { "cash", -4f }, { "stow", -4f }, { "pickup", -7f },
-        { "rock_break", -3f }, { "hit", -3f }, { "shield_down", -2f }, { "laser_on", -6f }, { "laser_off", -8f }, { "laser_bite", -7f }, { "radar_ping", -6f }, { "warp_charge", -4f }, { "warp_jump", -2f },
+        { "rock_break", -3f }, { "hit", -3f }, { "shield_down", -2f }, { "shield_up", -3f }, { "laser_on", -6f }, { "laser_off", -8f }, { "laser_bite", -7f }, { "radar_ping", -6f }, { "warp_charge", -4f }, { "warp_jump", -2f },
     };
-    static readonly string[] LOOP_NAMES = { "engine_idle", "engine_thrust", "engine_boost", "retro", "laser_beam", "laser_cut", "space_hum" };
+    static readonly string[] LOOP_NAMES = { "engine_idle", "engine_thrust", "engine_boost", "retro", "laser_beam", "laser_cut", "space_hum", "shield_out" };
 
     public static Audio I;
 
@@ -99,7 +99,8 @@ public class Audio : MonoBehaviour
     {
         AudioClip c;
         if (_clips.TryGetValue(name, out c)) return c;
-        c = name == "shield_down" ? ShieldDownClip() : Resources.Load<AudioClip>("Sfx/" + name);
+        c = Resources.Load<AudioClip>("Sfx/" + name);
+        if (c == null && name == "shield_down") c = ShieldDownClip();   // the recorded clip is the one that plays; the synthesized one is the fallback
         _clips[name] = c;
         return c;
     }
@@ -136,6 +137,9 @@ public class Audio : MonoBehaviour
         Loop l;
         if (_loops.TryGetValue(name, out l)) { l.target = g; l.tau = tau; }
     }
+
+    /// The shield-down bed: an unsteady crackle and a warning pulse while the shield is at zero.
+    public void ShieldLoop(bool down) { LoopTarget("shield_out", down ? 0.22f : 0f, down ? 0.15f : 0.4f); }
 
     /// The engine mix for this frame (the HTML's SFX.engine): throttle 0..1, afterburner on, retros firing, or parked/idle.
     public void Engine(float throttle, bool boost, bool braking, bool idle)
