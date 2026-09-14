@@ -51,6 +51,22 @@ public class Game : MonoBehaviour
         State.Init();
         var args = Environment.GetCommandLineArgs();
         foreach (var a in args) if (a == "-smoke" || a == "--smoke") _smoke = true;
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (args[i] == "-combat" || args[i] == "--combat") _combat = true;
+            if ((args[i] == "-gun" || args[i] == "--gun") && i + 1 < args.Length) int.TryParse(args[i + 1], out _combatGun);
+        }
+        if (_combat)
+        {
+            // a sandbox loadout for testing fights: the autocannon fitted, credits to refit, hull and tank full, no tutorial;
+            // nothing this session does reaches the save file
+            State.sandbox = true;
+            State.tut = -1;
+            State.up["gun"] = Mathf.Clamp(Mathf.Max(State.up["gun"], _combatGun), 0, Data.UPGRADES["gun"].costs.Length);
+            State.credits = Mathf.Max(State.credits, 5000f);
+            State.hull = State.Stat("hull").hp;
+            State.fuel = State.Stat("tank").cap;
+        }
         if (_smoke) { State.Reset(); State.controlsShown = true; State.hudScale = 1f; State.tut = 0; State.depot["laser"] = 1; State.depot["collectors"] = 1; }   // a fresh pilot every time, questline and all; the cargo ship upgrades, so the dish and a drone get exercised
         var t0 = Time.realtimeSinceStartup;
         SetupCamera();
@@ -100,6 +116,12 @@ public class Game : MonoBehaviour
         {
             ship.mouseSteer = false;
             StartGame();
+        }
+        else if (_combat)
+        {
+            StartGame();
+            JumpToHold();
+            hud.Toast("Combat test · sandbox, nothing is saved · F9 jumps to the next raider hold", false);
         }
         else
         {
@@ -327,6 +349,39 @@ public class Game : MonoBehaviour
         hud.Toast(msg, bad);
     }
 
+    // ---- the combat test (-combat, and F9 at any time): the ship set down 1,500 u off a raider hold, facing it, with
+    // the autocannon fitted, so a fight starts within a second or two; F9 goes on to the next hold
+    bool _combat;
+    int _combatGun = 1;
+    int _holdIdx = -1;
+    int _combatFrame;
+
+    public void JumpToHold()
+    {
+        if (ship.InCinematic || ship.recovery != null) { hud.Toast("Not during a cutscene", true); return; }
+        if (raiders == null || raiders.raiders.Count == 0) { hud.Toast("No raider holds in this zone", true); return; }
+        // the holds: one entry per distinct home
+        var homes = new List<Vector3>();
+        foreach (var r in raiders.raiders) { bool seen = false; foreach (var h in homes) if ((h - r.home).sqrMagnitude < 1f) { seen = true; break; } if (!seen) homes.Add(r.home); }
+        _holdIdx = (_holdIdx + 1) % homes.Count;
+        var home = homes[_holdIdx];
+        if (ship.docked) ship.LeaveHangar();
+        if (State.up["gun"] <= 0) State.up["gun"] = 1;
+        var scene = home - worldOffset;
+        var dir = (scene - ship.transform.position).normalized;
+        ship.transform.position = scene - dir * 1500f;
+        ship.transform.rotation = Ship.LevelHeading(dir);
+        ship.vel = Vector3.zero;
+        ship.throttle = 0f;
+        ship.exitPending = false;
+        ship.ReleaseLock();
+        ship.UpdateCamera(1f);
+        int n = 0;
+        foreach (var r in raiders.raiders) if ((r.home - home).sqrMagnitude < 1f) n++;
+        Debug.Log("combat test: hold " + (_holdIdx + 1) + " of " + homes.Count + " · " + n + " raiders · gun Lv" + State.up["gun"] + " · at " + home.ToString("0"));
+        hud.Toast("Test · raider hold " + (_holdIdx + 1) + " of " + homes.Count + " · " + n + " raider" + (n > 1 ? "s" : "") + " · autocannon Lv" + State.up["gun"], false);
+    }
+
     /// A shader by name, falling back down a list a build always carries, so a missing one never stops the game.
     public static Shader Sh(string name)
     {
@@ -443,7 +498,8 @@ public class Game : MonoBehaviour
             if (_smoke) SmokeStep();
             return;
         }
-        if (Input.GetKeyDown(KeyCode.F5)) { State.Save(); hud.Toast("Saved", false); }
+        if (Input.GetKeyDown(KeyCode.F5)) { State.Save(); hud.Toast(State.sandbox ? "Sandbox · nothing is saved" : "Saved", false); }
+        if (Input.GetKeyDown(KeyCode.F9)) JumpToHold();
         if (Input.GetKeyDown(KeyCode.C)) hud.ToggleControls();
         if (Input.GetKeyDown(KeyCode.F) && ship.docked) hud.ToggleServices();
         if (Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.I)) hud.ToggleInventory();
@@ -507,6 +563,7 @@ public class Game : MonoBehaviour
         hud.UpdateHud(dt, ship, belt, carrier, zone, started);
         hud.menu.Tick(dt);
         tutorial.Update(dt);
+        if (_combat && ++_combatFrame == 240) { Shot("combat_test"); Debug.Log("combat test: " + raiders.Stats() + " · hull " + State.hull.ToString("0") + " · lock " + ship.lockKind + " · target " + (ship.raiderTarget != null)); }
         if (_smoke) SmokeStep();
     }
 

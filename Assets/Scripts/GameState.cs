@@ -38,6 +38,7 @@ public static class State
     public static float musicVolume = 1f;
     public static bool controlsShown = true;   // C hides the flight controls list; remembered in the save
     public static bool hasSave = false;
+    public static bool sandbox = false;   // a test session (-combat): the save file is never written
 
     static bool _init;
 
@@ -378,6 +379,7 @@ public static class State
 
     public static void Save()
     {
+        if (sandbox) return;
         var s = new SaveData
         {
             credits = credits, fuel = fuel, hull = hull, mined = mined, earned = earned, time = time, shipFuel = shipFuel, parts = parts,

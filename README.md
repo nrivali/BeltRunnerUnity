@@ -17,6 +17,15 @@ game and is the second reference. See `AGENTS.md` for the rules.
 
 Built-in render pipeline, legacy Input Manager, UGUI, and the Unity glTFast package for the GLB models (the first open fetches it from the Unity registry). Nothing to configure.
 
+### The combat test
+
+    Builds\Windows\BeltRunner.exe -combat
+
+boots straight into a fight: the menu is skipped, the ship is set down 1,500 u off a raider hold facing it with the
+autocannon fitted (`-gun 3` for another level), 5,000 cr to refit with, hull and tank full, the tutorial off. It is
+a sandbox: nothing the session does reaches the save file. `combat-test.bat` at the root runs it. In any session F9
+jumps to the next raider hold (fitting the cannon if it is missing), so a fight can be re-run without flying back.
+
 ### Building and the smoke run from the command line
 
 ```bash

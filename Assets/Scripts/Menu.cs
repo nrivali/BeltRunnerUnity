@@ -46,6 +46,7 @@ public class Menu
         new object[] { new[] { "Tab", "I" }, "Inventory: the hold's stacks, and the cargo ship's storage while docked." },
         new object[] { new[] { "C" }, "Hide or show the flight controls list in the bottom-left corner. Remembered between sessions." },
         new object[] { new[] { "F5" }, "Quick-save." },
+        new object[] { new[] { "F9" }, "Testing: jump to the next raider hold, 1,500 u off it and facing it, with the autocannon fitted. Launching the game with -combat starts there in a sandbox that never touches the save." },
         new object[] { new[] { "Space" }, "During a docking, departure, arrival or warp cutscene, skip to the end of it." },
         new object[] { new[] { "Esc" }, "Pause · opens this menu with Settings and Controls" },
     };

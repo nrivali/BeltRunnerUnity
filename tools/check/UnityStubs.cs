@@ -190,7 +190,7 @@ namespace UnityEngine
         public static int height => 720;
     }
 
-    public enum KeyCode { A, B, C, D, E, F, G, H, I, L, N, Q, R, S, T, W, X, Space, Escape, Return, Tab, F5, UpArrow, DownArrow, LeftShift, RightShift }
+    public enum KeyCode { A, B, C, D, E, F, G, H, I, L, N, Q, R, S, T, W, X, Space, Escape, Return, Tab, F5, F9, UpArrow, DownArrow, LeftShift, RightShift }
 
     public static class Input
     {
