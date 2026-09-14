@@ -1,0 +1,400 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+
+/// The game: builds the whole world from code when the player starts (no scene content needed), runs the frame
+/// loop, the floating origin, saving, the menu, and the unattended `-smoke` run.
+public class Game : MonoBehaviour
+{
+    public const float SHIFT_AT = 20000f;
+    public const ulong SEED = 7;
+
+    public Vector3 worldOffset;
+    public Data.Zone zone = Data.ZONE_KESSLER;
+    public Belt belt;
+    public Ship ship;
+    public Hud hud;
+    public Camera cam;
+    public Light sun;
+    public bool started, paused;
+
+    Transform _pickups;
+    GameObject _planet;
+    Vector3 _planetTrue;
+    float _cullT, _saveT;
+    readonly List<Pickup> _drops = new List<Pickup>();
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    static void Boot()
+    {
+        if (FindFirstObjectByType<Game>() != null) return;
+        new GameObject("Game").AddComponent<Game>();
+    }
+
+    void Awake()
+    {
+        State.Init();
+        var args = Environment.GetCommandLineArgs();
+        foreach (var a in args) if (a == "-smoke" || a == "--smoke") _smoke = true;
+        var t0 = Time.realtimeSinceStartup;
+        SetupCamera();
+        SetupLighting();
+        belt = new Belt();
+        _pickups = new GameObject("Pickups").transform;
+        var shipGo = new GameObject("Ship");
+        ship = shipGo.AddComponent<Ship>();
+        ship.game = this;
+        ship.belt = belt;
+        ship.cam = cam;
+        ship.Build();
+        var hudGo = new GameObject("HUD");
+        hud = hudGo.AddComponent<Hud>();
+        hud.Build();
+        hud.onStart = StartGame;
+        hud.onNewGame = NewGame;
+        hud.onQuit = Quit;
+        LoadZone(Data.ZoneById(_smoke ? "kessler" : State.zoneId));
+        SpawnInZone();
+        ship.UpdateCamera(1f);
+        Debug.Log("belt: " + belt.count + " rocks in " + belt.ChunkCount + " chunks, built in " + Mathf.RoundToInt((Time.realtimeSinceStartup - t0) * 1000f) + " ms");
+        if (_smoke)
+        {
+            ship.mouseSteer = false;
+            StartGame();
+        }
+        else
+        {
+            paused = true;
+            hud.ShowMenu(true, false);
+        }
+    }
+
+    void SetupCamera()
+    {
+        cam = Camera.main;
+        if (cam == null)
+        {
+            var go = new GameObject("Main Camera");
+            go.tag = "MainCamera";
+            cam = go.AddComponent<Camera>();
+            go.AddComponent<AudioListener>();
+        }
+        cam.clearFlags = CameraClearFlags.SolidColor;
+        cam.backgroundColor = zone.bg;
+        cam.nearClipPlane = 2f;
+        cam.farClipPlane = 4000000f;
+        cam.fieldOfView = 62f;
+        cam.allowHDR = true;
+    }
+
+    void SetupLighting()
+    {
+        // a template scene's own directional light would double the sun
+        foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None)) l.enabled = false;
+        var go = new GameObject("Sun");
+        sun = go.AddComponent<Light>();
+        sun.type = LightType.Directional;
+        sun.color = Data.Hex("#fff3e3");
+        sun.intensity = 1.35f;
+        sun.shadows = LightShadows.Soft;
+        sun.shadowStrength = 0.92f;
+        sun.shadowBias = 0.08f;
+        sun.shadowNormalBias = 0.6f;
+        RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
+        RenderSettings.ambientLight = new Color(0.045f, 0.05f, 0.07f);
+        RenderSettings.fog = false;
+        // shadows as the browser casts them: one box a few kilometres round the ship, never the whole belt
+        QualitySettings.shadowDistance = 3300f;
+        QualitySettings.shadowCascades = 1;
+        QualitySettings.shadows = ShadowQuality.All;
+        QualitySettings.shadowResolution = ShadowResolution.VeryHigh;
+    }
+
+    void LoadZone(Data.Zone z)
+    {
+        zone = z;
+        State.zoneId = z.id;
+        foreach (var p in _drops) if (p != null) Destroy(p.gameObject);
+        _drops.Clear();
+        ship.nearRocks = new List<int>();
+        belt.Clear();
+        belt.Build(z, z.id == "kessler" ? SEED : SEED + 11);
+        cam.backgroundColor = z.bg;
+        sun.transform.rotation = Quaternion.LookRotation(-z.sunDir.normalized, Vector3.up);
+        float r = z.planetR * Data.PLANET_SCALE;
+        _planetTrue = z.planetPos;
+        if (_planet != null) Destroy(_planet);
+        _planet = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        _planet.name = "Planet " + z.planetName;
+        Destroy(_planet.GetComponent<Collider>());
+        _planet.transform.localScale = Vector3.one * r * 2f;
+        var pm = new Material(Shader.Find("Standard"));
+        pm.color = z.tint;
+        pm.SetFloat("_Glossiness", z.central ? 0.05f : 0.45f);
+        _planet.GetComponent<MeshRenderer>().sharedMaterial = pm;
+        _planet.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+    }
+
+    /// The ship starts in the ring belt, where the cargo ship orbits, nose along the orbit.
+    void SpawnInZone()
+    {
+        float a = _smoke ? Mathf.PI / 2f : UnityEngine.Random.value * Mathf.PI * 2f;
+        var start = new Vector3(Mathf.Cos(a) * 925000f, 0f, Mathf.Sin(a) * 925000f);
+        worldOffset = start;
+        ship.transform.position = Vector3.zero;
+        ship.transform.rotation = Quaternion.LookRotation(new Vector3(-Mathf.Sin(a), 0f, Mathf.Cos(a)), Vector3.up);
+        ship.vel = Vector3.zero;
+        ApplyOffsets();
+    }
+
+    void ApplyOffsets()
+    {
+        belt.ApplyOffset(worldOffset);
+        _planet.transform.position = _planetTrue - worldOffset;
+        belt.Cull(ship.TruePos);
+    }
+
+    // ---- start, pause, resume, new game (the browser's startGame / pauseGame / resumeGame / newGame / resetSave)
+    void StartGame()
+    {
+        started = true;
+        paused = false;
+        hud.ShowMenu(false, false);
+        if (!_smoke) hud.Toast("Kessler Belt · " + belt.count + " rocks charted · R pulses the radar", false);
+    }
+
+    void Pause()
+    {
+        if (!started || paused) return;
+        paused = true;
+        hud.ShowMenu(true, true);
+    }
+
+    void Resume()
+    {
+        paused = false;
+        hud.ShowMenu(false, false);
+    }
+
+    void NewGame()
+    {
+        State.Reset();
+        LoadZone(Data.ZONE_KESSLER);
+        SpawnInZone();
+        ship.throttle = 0f;
+        ship.UpdateCamera(1f);
+        StartGame();
+        hud.Toast("New pilot · saved game wiped", false);
+    }
+
+    void Quit()
+    {
+        if (started) State.Save();
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
+
+    public void Toast(string msg, bool bad)
+    {
+        hud.Toast(msg, bad);
+    }
+
+    // ---- ore
+    public Pickup SpawnPickup(string ore, float units, Vector3 at, Vector3 drift)
+    {
+        var p = Pickup.Make(_pickups, ore, units, at, drift);
+        _drops.Add(p);
+        return p;
+    }
+
+    /// A rock breaks (the browser's breakRock): big rocks break into smaller mineable rocks (colossal → giants → large →
+    /// small), a quarter of their ore coming loose at once and the rest riding in the fragments; a small rock's ore all
+    /// comes loose. The lumps drift with the rock's orbital velocity.
+    public void BreakRock(int i)
+    {
+        string rname = belt.RockName(i);
+        int oreI = belt.ore[i];
+        int c = belt.cls[i];
+        var p = belt.RockPos(i);
+        var at = p - worldOffset;
+        float r = belt.radius[i];
+        var v = belt.RockVel(i);
+        int bi = belt.beltOf[i];
+        bool splits = c > 0;
+        float total = belt.Kill(i);
+        float loose = splits ? total * 0.25f : total;
+        if (oreI >= 0 && loose > 0f)
+        {
+            int k = Mathf.Clamp(Mathf.RoundToInt(loose / 40f), 1, 8);
+            string oreKey = Data.ORE_KEYS[oreI];
+            for (int n = 0; n < k; n++)
+            {
+                var dir = UnityEngine.Random.onUnitSphere;
+                SpawnPickup(oreKey, loose / k, at + dir * r * UnityEngine.Random.Range(0.1f, 0.5f), v + dir * UnityEngine.Random.Range(20f, 60f));
+            }
+        }
+        int parts = 0;
+        if (splits) parts = SplitRock(c, r, oreI, total, p, v, bi);
+        string oreTxt = oreI >= 0 && loose > 0f ? " · " + Mathf.RoundToInt(loose) + " " + Data.ORES[oreI].name + " loose" : "";
+        if (splits) hud.Toast(rname + " broken into " + parts + " " + Belt.CLS_NAME[c - 1].ToLowerInvariant() + " rocks" + oreTxt, false);
+        else if (oreI >= 0 && loose > 0f) hud.Toast(rname + " broken" + oreTxt, false);
+        else hud.Toast(rname + " broken · scrap only", false);
+    }
+
+    /// splitRock: three to five fragments of the next class down, about half of them carrying three quarters of the
+    /// parent's ore between them (always at least one), the rest plain stone; directions kept some 70 degrees apart.
+    int SplitRock(int c, float r, int oreI, float total, Vector3 p, Vector3 v, int bi)
+    {
+        int k = 3 + UnityEngine.Random.Range(0, c == 1 ? 3 : 2);
+        var carry = new bool[k];
+        int nCarry = 0;
+        for (int n = 0; n < k; n++) { carry[n] = oreI >= 0 && UnityEngine.Random.value < 0.5f; if (carry[n]) nCarry++; }
+        if (oreI >= 0 && nCarry == 0) { carry[UnityEngine.Random.Range(0, k)] = true; nCarry = 1; }
+        float share = nCarry > 0 ? total * 0.75f / nCarry : 0f;
+        var dirs = new List<Vector3>();
+        int tries = 0;
+        while (dirs.Count < k && tries < 200)
+        {
+            tries++;
+            var d = UnityEngine.Random.onUnitSphere;
+            bool apart = true;
+            foreach (var o in dirs) if (Vector3.Dot(o, d) >= 0.35f) { apart = false; break; }
+            if (apart) dirs.Add(d);
+        }
+        while (dirs.Count < k) dirs.Add(UnityEngine.Random.onUnitSphere);
+        float size0 = bi < belt.belts.Count ? belt.belts[bi].size0 : 16f;
+        for (int n = 0; n < k; n++)
+        {
+            float fr = Mathf.Max(size0 * 0.6f, r * Mathf.Pow(0.12f / k, 1f / 3f) * UnityEngine.Random.Range(0.85f, 1.15f));
+            bool barren = !carry[n] || share < 1.5f;
+            var d = dirs[n];
+            belt.AddFragment(c - 1, fr, oreI, barren, p + d * r * UnityEngine.Random.Range(0.6f, 0.85f), barren ? 0f : share * UnityEngine.Random.Range(0.8f, 1.2f), v + d * UnityEngine.Random.Range(30f, 70f), bi);
+        }
+        return k;
+    }
+
+    // ---- the frame
+    void Update()
+    {
+        float dt = Mathf.Min(Time.deltaTime, 0.05f);
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            if (!started) { }
+            else if (paused) Resume();
+            else Pause();
+        }
+        belt.Draw();
+        if (!started || paused)
+        {
+            hud.UpdateHud(dt, ship, belt, zone);
+            if (_smoke) SmokeStep();
+            return;
+        }
+        if (Input.GetKeyDown(KeyCode.F5)) { State.Save(); hud.Toast("Saved", false); }
+        if (Input.GetKeyDown(KeyCode.C)) hud.ToggleControls();
+        State.time += dt;
+        State.TickMarket(dt);
+        ship.Tick(dt);
+        belt.Tick(dt, ship.TruePos);
+        for (int i = _drops.Count - 1; i >= 0; i--)
+        {
+            var p = _drops[i];
+            if (p == null) { _drops.RemoveAt(i); continue; }
+            if (p.Tick(dt, ship.transform.position))
+            {
+                Destroy(p.gameObject);
+                _drops.RemoveAt(i);
+            }
+        }
+        // floating origin
+        if (ship.transform.position.magnitude > SHIFT_AT)
+        {
+            var delta = ship.transform.position;
+            worldOffset += delta;
+            ship.transform.position = Vector3.zero;
+            belt.ApplyOffset(worldOffset);
+            _planet.transform.position = _planetTrue - worldOffset;
+            foreach (var p in _drops) if (p != null) p.transform.localPosition -= delta;
+            ship.OnShift(delta);
+        }
+        ship.UpdateCamera(dt);
+        _cullT += dt;
+        if (_cullT > 0.25f)
+        {
+            _cullT = 0f;
+            belt.Cull(ship.TruePos);
+        }
+        _saveT += dt;
+        if (_saveT > 30f)
+        {
+            _saveT = 0f;
+            State.Save();
+        }
+        hud.UpdateHud(dt, ship, belt, zone);
+        if (_smoke) SmokeStep();
+    }
+
+    // ---- `-smoke`: an unattended run that prints what happened and saves screenshots under persistentDataPath
+    bool _smoke;
+    int _frame;
+    int _smokeRock = -1;
+    float _smokeHp;
+
+    void SmokeStep()
+    {
+        _frame++;
+        if (_frame == 5)
+        {
+            Debug.Log("smoke: zone=" + zone.id + " rocks=" + belt.count + " chunks=" + belt.ChunkCount + " visible=" + belt.VisibleChunks());
+            Shot("smoke_launch");
+            int nearest;
+            float dist;
+            int n = belt.Scan(ship.TruePos, 200000f, Data.OreIndex("copper"), 0f, out nearest, out dist);
+            _smokeRock = nearest;
+            Debug.Log("smoke: copper rocks within 200,000 u: " + n + " · nearest " + (nearest >= 0 ? belt.RockName(nearest) + " at " + Mathf.RoundToInt(dist) : "none"));
+            if (nearest >= 0)
+            {
+                belt.SetFree(nearest, Vector3.zero);   // a rock knocked off its rail and at rest, so the parked ship keeps the beam on it
+                var rp = belt.RockPos(nearest) - worldOffset;
+                var dir = (rp - ship.transform.position).normalized;
+                ship.transform.position = rp - dir * (belt.radius[nearest] + 560f);
+                ship.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+                ship.vel = Vector3.zero;
+                ship.UpdateCamera(1f);
+                belt.hp[nearest] = 45f;
+                _smokeHp = belt.hp[nearest];
+                ship.autoFire = true;
+            }
+        }
+        if (_frame == 60 && _smokeRock >= 0)
+        {
+            Shot("smoke_mine");
+            Debug.Log("smoke: cutting " + belt.RockName(_smokeRock) + " · target=" + ship.target + " laser_on=" + ship.laserOn + " hp=" + belt.hp[_smokeRock].ToString("0") + " (was " + _smokeHp.ToString("0") + ")");
+        }
+        if (_frame == 400)
+        {
+            ship.autoFire = false;
+            Debug.Log("smoke: mined · rock_alive=" + (_smokeRock >= 0 && belt.alive[_smokeRock]) + " pickups_left=" + _drops.Count + " cargo=" + State.CargoTotal().ToString("0") + " fuel=" + State.fuel.ToString("0.0") + " fps=" + (1f / Mathf.Max(0.0001f, Time.smoothDeltaTime)).ToString("0"));
+            ship.throttle = 1f;
+        }
+        if (_frame == 520)
+        {
+            Shot("smoke_flight");
+            Debug.Log("smoke: flight · speed=" + ship.Speed.ToString("0") + " throttle=" + ship.throttle.ToString("0.00") + " offset=" + worldOffset.ToString("0"));
+        }
+        if (_frame == 540)
+        {
+            State.Save();
+            Debug.Log("smoke: saved to " + State.SavePath + " · screenshots in " + Application.persistentDataPath);
+            Quit();
+        }
+    }
+
+    void Shot(string name)
+    {
+        ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.persistentDataPath, name + ".png"));
+    }
+}
