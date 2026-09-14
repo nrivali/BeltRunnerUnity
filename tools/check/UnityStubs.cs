@@ -63,6 +63,7 @@ namespace UnityEngine
         public override bool Equals(object o) => o is Vector3 v && v == this;
         public override int GetHashCode() => x.GetHashCode() ^ y.GetHashCode() ^ z.GetHashCode();
         public static float Dot(Vector3 a, Vector3 b) => a.x * b.x + a.y * b.y + a.z * b.z;
+        public void Normalize() { var n = normalized; x = n.x; y = n.y; z = n.z; }
         public static Vector3 Cross(Vector3 a, Vector3 b) => new Vector3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
         public static Vector3 Lerp(Vector3 a, Vector3 b, float t) => a + (b - a) * Mathf.Clamp01(t);
         public static Vector3 Reflect(Vector3 a, Vector3 n) => a - n * (2f * Dot(a, n));

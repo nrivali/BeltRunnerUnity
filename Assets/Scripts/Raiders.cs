@@ -25,6 +25,12 @@ public class Raiders
         public string state = "idle";
         public bool dead;
         public bool frozen;   // the combat test: holds its place (still turns to face the ship and fires)
+        // the attack: a run in (weaving), a strafing pass at a radius and direction of its own, a breakaway, then again
+        public string move = "run";
+        public float moveT, orbitR = 400f, orbitDir = 1f, weave;
+        // the jink: a burst sideways when a bolt is coming, with a cooldown so it is not perfect
+        public float dodgeT, dodgeCd;
+        public Vector3 dodgeDir;
     }
 
     public class Bolt
@@ -236,7 +242,29 @@ public class Raiders
         var b = new Bolt { pos = from, dir = dir.normalized, life = 1.6f, dmg = dmg, player = player, node = BoltNode(player) };
         b.node.rotation = Quaternion.FromToRotation(Vector3.up, b.dir);
         bolts.Add(b);
-        if (player) shotsFired++;
+        if (player)
+        {
+            shotsFired++;
+            // a raider that sees the bolt coming its way jinks aside, most of the time, once its cooldown allows
+            foreach (var r in raiders)
+            {
+                if (r.frozen || r.dodgeCd > 0f) continue;
+                var to = r.pos - from;
+                float along = Vector3.Dot(to, b.dir);
+                if (along < 0f || along > 2500f) continue;
+                float miss = (to - b.dir * along).magnitude;
+                if (miss > Raiders.RADIUS + 110f) continue;
+                if (Random.value > 0.7f) { r.dodgeCd = 0.8f; continue; }   // caught flat-footed this time
+                var perp = Vector3.Cross(b.dir, Vector3.up);
+                if (perp.sqrMagnitude < 1e-4f) perp = Vector3.Cross(b.dir, Vector3.right);
+                perp.Normalize();
+                float ang = Random.Range(0f, Mathf.PI * 2f);
+                var up = Vector3.Cross(b.dir, perp).normalized;
+                r.dodgeDir = (perp * Mathf.Cos(ang) + up * Mathf.Sin(ang)).normalized;
+                r.dodgeT = 0.5f;
+                r.dodgeCd = 1.4f;
+            }
+        }
     }
 
     public void Tick(float dt)
@@ -272,9 +300,35 @@ public class Raiders
             if (r.state == "attack")
             {
                 threat++;
-                r.a += 0.9f * dt;
-                var orbit = new Vector3(Mathf.Cos(r.a) * 260f, Mathf.Sin(r.a * 0.7f) * 120f, Mathf.Sin(r.a) * 260f);
-                desired = d > 900f ? sp : sp + orbit;
+                var toShip = d > 1f ? (sp - r.pos) / d : Vector3.forward;
+                var side = Vector3.Cross(toShip, Vector3.up);
+                if (side.sqrMagnitude < 1e-4f) side = Vector3.Cross(toShip, Vector3.right);
+                side.Normalize();
+                r.moveT -= dt;
+                r.weave += dt * 1.7f;
+                if (r.move == "run")
+                {
+                    // the run in: toward the ship, weaving side to side, until close
+                    desired = sp + side * Mathf.Sin(r.weave) * 260f + Vector3.up * Mathf.Sin(r.weave * 0.6f) * 90f;
+                    if (d < 750f) { r.move = "strafe"; r.moveT = Random.Range(2.5f, 6f); r.orbitR = Random.Range(300f, 700f); r.orbitDir = Random.value < 0.5f ? -1f : 1f; }
+                }
+                else if (r.move == "strafe")
+                {
+                    // a strafing pass round the ship at its own radius and direction, weaving up and down
+                    r.a += r.orbitDir * (r.speed * 0.6f / r.orbitR) * dt;
+                    var orbit = new Vector3(Mathf.Cos(r.a) * r.orbitR, Mathf.Sin(r.a * 0.7f) * r.orbitR * 0.35f, Mathf.Sin(r.a) * r.orbitR);
+                    desired = sp + orbit;
+                    if (r.moveT <= 0f) { r.move = Random.value < 0.35f ? "strafe" : "break"; r.moveT = r.move == "break" ? Random.Range(1.5f, 3.5f) : Random.Range(2.5f, 6f); r.orbitR = Random.Range(300f, 700f); if (Random.value < 0.5f) r.orbitDir = -r.orbitDir; }
+                }
+                else
+                {
+                    // the breakaway: out to 1,600 u off to one side, then a fresh run
+                    desired = sp - toShip * 1600f + side * r.orbitDir * 700f + Vector3.up * Mathf.Sin(r.weave * 0.5f) * 200f;
+                    if (r.moveT <= 0f || d > 1900f) { r.move = "run"; r.moveT = 0f; }
+                }
+                // the jink
+                r.dodgeCd -= dt;
+                if (r.dodgeT > 0f) { r.dodgeT -= dt; desired = r.pos + r.dodgeDir * 900f; }
                 r.fireCd -= dt;
                 // the guns are fixed forward: a raider only fires when its nose is on the ship (within 20 degrees)
                 bool facing = Vector3.Dot(r.node.forward, (sp - r.pos).normalized) > Mathf.Cos(20f * Mathf.Deg2Rad);
@@ -302,7 +356,8 @@ public class Raiders
             }
             else
             {
-                r.vel = Vector3.Lerp(r.vel, want * (r.state == "attack" ? r.speed : 300f), 1f - Mathf.Exp(-2.2f * dt));
+                float agility = r.dodgeT > 0f ? 6f : 2.2f;   // a jink is a snap, the rest a lean
+                r.vel = Vector3.Lerp(r.vel, want * (r.state == "attack" ? r.speed : 300f), 1f - Mathf.Exp(-agility * dt));
                 r.pos += r.vel * dt;
                 if (r.vel.sqrMagnitude > 1f) r.node.rotation = Quaternion.Slerp(r.node.rotation, Ship.LevelHeading(r.vel.normalized), 1f - Mathf.Exp(-6f * dt));
             }
