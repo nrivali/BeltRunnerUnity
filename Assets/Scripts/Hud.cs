@@ -278,6 +278,7 @@ public class Hud : MonoBehaviour
         const float keyW = 72f, descW = 280f;
         foreach (var row in CONTROL_ROWS)
         {
+            if (!State.sandbox && row.Length > 1 && row[1] is string td && td.StartsWith("Test")) continue;   // the test keys: the combat test only
             var keys = row[0] as string[];
             if (keys != null) Ui.Keys(_controls, keys, true, 14f, y);
             else

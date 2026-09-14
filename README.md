@@ -23,7 +23,7 @@ Built-in render pipeline, legacy Input Manager, UGUI, and the Unity glTFast pack
 
 boots straight into a fight: the menu is skipped, the ship is set down 1,500 u off a raider hold facing it with the
 autocannon at its base level (`-gun 2` for a refit level), 5,000 cr to refit with, hull full, a tank that never runs dry, the tutorial off. It is
-a sandbox: nothing the session does reaches the save file. `combat-test.bat` at the root runs it. In any session F9
+a sandbox: nothing the session does reaches the save file. `combat-test.bat` at the root runs it. The test keys below (F8, F9, F10) and their rows in the controls list and the menu exist only in the test; in the game proper they do nothing. In any session F9
 jumps to the next raider hold, so a fight can be re-run without flying back. In the test a raider killed comes back where it died three seconds on, so the same hold can be fought again and again. F10 makes the raiders hold their fire (they still fly and chase); press it again and they fire. Credits are bottomless, F8 opens the refit panel anywhere (not just docked; F is the torch in flight), and each refit row carries a − button that takes a level off, so any loadout can be tried on the spot.
 
 ### Building and the smoke run from the command line

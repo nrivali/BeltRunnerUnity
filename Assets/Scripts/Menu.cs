@@ -172,6 +172,7 @@ public class Menu
         var f = new Ui.Flow(scroll.content, 0f, 0f, w);
         foreach (var row in CONTROLS)
         {
+            if (!State.sandbox && row.Length > 1 && row[1] is string td && td.StartsWith("Testing")) continue;   // the test keys: the combat test only
             var keys = row[0] as string[];
             float top = f.y;
             if (keys != null) Ui.Keys(scroll.content, keys, false, 0f, f.y);

@@ -500,11 +500,12 @@ public class Game : MonoBehaviour
             return;
         }
         if (Input.GetKeyDown(KeyCode.F5)) { State.Save(); hud.Toast(State.sandbox ? "Sandbox · nothing is saved" : "Saved", false); }
-        if (Input.GetKeyDown(KeyCode.F9)) JumpToHold();
-        if (Input.GetKeyDown(KeyCode.F10) && raiders != null) { raiders.holdFire = !raiders.holdFire; hud.Toast(raiders.holdFire ? "Test · raiders hold their fire" : "Test · raiders fire again", false); }
+        // the test keys: only in the combat test (combat-test.bat), never in the game proper
+        if (Input.GetKeyDown(KeyCode.F9) && _combat) JumpToHold();
+        if (Input.GetKeyDown(KeyCode.F10) && _combat && raiders != null) { raiders.holdFire = !raiders.holdFire; hud.Toast(raiders.holdFire ? "Test · raiders hold their fire" : "Test · raiders fire again", false); }
         if (Input.GetKeyDown(KeyCode.C)) hud.ToggleControls();
         if (Input.GetKeyDown(KeyCode.F) && ship.docked) hud.ToggleServices();
-        if (Input.GetKeyDown(KeyCode.F8) && State.sandbox) hud.ToggleServices();   // the test: the refits anywhere (F is the torch in flight)
+        if (Input.GetKeyDown(KeyCode.F8) && _combat) hud.ToggleServices();   // the test: the refits anywhere (F is the torch in flight)
         if (Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.I)) hud.ToggleInventory();
         if (Input.GetKeyDown(KeyCode.N) && ship.warp == null) hud.ToggleMap();
         State.time += dt;
