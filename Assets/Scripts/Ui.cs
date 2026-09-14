@@ -603,6 +603,28 @@ public static class Ui
         }
     }
 
+    // ---- the gunnery crosshair: a thin ring with four ticks and a centre dot, on the point the nose ray reaches at gun range
+    public class Crosshair : MaskableGraphic
+    {
+        public bool hot;
+        public void Set(bool h) { if (h != hot) { hot = h; SetVerticesDirty(); } }
+
+        protected override void OnPopulateMesh(VertexHelper vh)
+        {
+            vh.Clear();
+            var c = hot ? AMBER : A(CYAN, 0.85f);
+            const int N = 32;
+            float r = 14f;
+            for (int i = 0; i < N; i++)
+            {
+                float a0 = i * Mathf.PI * 2f / N, a1 = (i + 1) * Mathf.PI * 2f / N;
+                Line(vh, new Vector2(Mathf.Cos(a0), Mathf.Sin(a0)) * r, new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * r, 1.5f, c);
+            }
+            foreach (var d in new[] { Vector2.up, -Vector2.up, new Vector2(1f, 0f), new Vector2(-1f, 0f) }) Line(vh, d * (r + 3f), d * (r + 9f), 1.5f, c);
+            Rectangle(vh, new Rect(-1.5f, -1.5f, 3f, 3f), c);
+        }
+    }
+
     // ---- .marker: a rotated square (or, off screen, an arrow) over a small letter-spaced label; the HUD moves it each frame
     public class Marker
     {

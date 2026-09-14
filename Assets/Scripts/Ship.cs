@@ -983,9 +983,10 @@ public class Ship : MonoBehaviour
             lookYaw *= Mathf.Exp(-4f * dt);
             lookPitch *= Mathf.Exp(-4f * dt);
         }
-        if (flying && lockKind != "")
+        if (flying && lockKind != "" && lockKind != "raider")
         {
-            // Q lock: the ship turns itself to put the locked object on the nose ray (the laser's line, not the camera's);
+            // Q lock: the ship turns itself to put the locked object on the nose ray (rocks and the cargo ship; a locked
+            // raider is tracked for the lead pip only, the gunnery is yours) (the laser's line, not the camera's);
             // the mouse is ignored until the lock is released (roll is still yours). Proportional: full rate beyond about
             // seven degrees off, easing in as the nose comes on.
             var L = transform.InverseTransformPoint(LockPos() - game.worldOffset) - new Vector3(0f, 0f, 20f);
@@ -1140,6 +1141,37 @@ public class Ship : MonoBehaviour
     }
 
     /// impact: a knock above the safe speed costs plating, shakes the camera, sparks and sounds.
+    /// The gun's reach at the current level, in world units.
+    public float GunReach { get { var g = State.Stat("gun"); return g.reach > 0f ? g.reach : 1800f; } }
+
+    /// Where a bolt fired now would meet the raider (true coordinates): the intercept of a bolt at PLAYER_BOLT_SPEED
+    /// with the raider's straight-line motion, or a simple lead when there is no solution.
+    public Vector3 LeadPoint(Raiders.Raider r)
+    {
+        var o = LaserOrigin();
+        var p = r.pos - o;
+        var v = r.vel;
+        float s = Raiders.PLAYER_BOLT_SPEED;
+        float a = Vector3.Dot(v, v) - s * s;
+        float b = 2f * Vector3.Dot(p, v);
+        float c = Vector3.Dot(p, p);
+        float t;
+        if (Mathf.Abs(a) < 1e-3f) t = b != 0f ? -c / b : 0f;
+        else
+        {
+            float disc = b * b - 4f * a * c;
+            if (disc < 0f) t = p.magnitude / s;
+            else
+            {
+                float q = Mathf.Sqrt(disc);
+                float t1 = (-b - q) / (2f * a), t2 = (-b + q) / (2f * a);
+                t = t1 > 0f ? t1 : t2;
+                if (t <= 0f) t = p.magnitude / s;
+            }
+        }
+        return r.pos + v * t;
+    }
+
     /// Damage that is not a collision (a raider's bolt): no speed threshold; the flash, the shake, sparks and the sound.
     public void Hurt(float dmg, Vector3 atTrue, string label)
     {
@@ -1674,13 +1706,7 @@ public class Ship : MonoBehaviour
             if (_gunCd <= 0f)
             {
                 _gunCd = 1f / gun.rate;
-                Vector3 aim = fwd;
-                if (raiderTarget != null)
-                {
-                    float d = (raiderTarget.pos - origin).magnitude;
-                    aim = raiderTarget.pos + raiderTarget.vel * (d / Raiders.PLAYER_BOLT_SPEED) - origin;   // lead the shot
-                }
-                game.raiders.Fire(origin, aim, gun.mult, true);
+                game.raiders.Fire(origin, fwd, gun.mult, true);   // straight down the nose: leading the target is the pilot's job
                 Audio.Play("zap", -4f);
             }
             TickSpot(dt, false, _spotPos);

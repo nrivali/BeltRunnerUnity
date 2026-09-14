@@ -30,7 +30,9 @@ public class Hud : MonoBehaviour
     Ui.Blips _blips;
     Ui.Reticle _reticle;
     RectTransform _reticleRt;
-    Ui.Marker _marker, _fieldMarker;
+    Ui.Marker _marker, _fieldMarker, _leadPip;
+    Ui.Crosshair _crosshair;
+    RectTransform _crosshairRt;
     readonly List<Ui.Marker> _droneMarkers = new List<Ui.Marker>();
     readonly List<Ui.Marker> _raiderMarkers = new List<Ui.Marker>();
     RectTransform _status, _readouts, _target, _controls, _prompt, _notice, _toastBox, _version, _hoverLbl;
@@ -122,6 +124,12 @@ public class Hud : MonoBehaviour
         _reticleRt.gameObject.SetActive(false);
         _marker = Ui.Marker.Make(_root, Ui.AMBER);
         _fieldMarker = Ui.Marker.Make(_root, Ui.MUTED, false, true);
+        // the gunnery: the crosshair on the nose ray at gun range, and the lead pip for a locked raider
+        _crosshairRt = Ui.Rect("Crosshair", _root, Ui.BL, Ui.MID, Vector2.zero, new Vector2(48f, 48f));
+        _crosshair = _crosshairRt.gameObject.AddComponent<Ui.Crosshair>();
+        _crosshair.raycastTarget = false;
+        _crosshairRt.gameObject.SetActive(false);
+        _leadPip = Ui.Marker.Make(_root, Ui.AMBER2, true);
         BuildStatus();
         BuildReadouts();
         BuildTarget();
@@ -1461,7 +1469,7 @@ public class Hud : MonoBehaviour
             else if (State.fuel <= 0.5f && ship.cut == null) segs.Add(Kbd("T") + " Out of fuel · recovery to the cargo ship (15% of credits)");
             if (ship.cut == null && ship.CanFly)
             {
-                if (ship.weapon == "gun") segs.Add(ship.gunFiring ? (ship.raiderTarget != null ? "Autocannon on the raider" : "Autocannon firing") : (ship.raiderTarget != null ? Kbd("LMB") + " Fire at raider" : Kbd("LMB") + " Fire the autocannon"));
+                if (ship.weapon == "gun") segs.Add(ship.gunFiring ? "Autocannon firing · bolts go where the crosshair is" : (ship.lockKind == "raider" ? Kbd("LMB") + " Fire · put the crosshair on the LEAD pip" : Kbd("LMB") + " Fire the autocannon"));
                 else if (ship.raiderTarget != null && !hasTarget) segs.Add(Kbd("Wheel") + " Autocannon for the raider");
             }
             if (hasTarget && ship.cut == null && ship.weapon == "laser")
@@ -1515,6 +1523,25 @@ public class Hud : MonoBehaviour
         var fc = _fade.color;
         fc.a = ship.WarpFade();
         _fade.color = fc;
+        // the gunnery crosshair: where a bolt goes, at gun range; and the lead pip: where to put it for the locked raider
+        if (showFlight && !docked && ship.cut == null && ship.CanFly)
+        {
+            Vector2 cp;
+            bool cBehind = Project(ship.LaserOrigin() + ship.Forward * ship.GunReach - game.worldOffset, out cp);
+            _crosshairRt.gameObject.SetActive(!cBehind);
+            _crosshairRt.anchoredPosition = cp;
+            _crosshair.Set(ship.gunFiring);
+            var lr = ship.lockKind == "raider" && ship.lockRaider != null && !ship.lockRaider.dead ? ship.lockRaider : ship.raiderTarget;
+            if (lr != null)
+            {
+                var lead = ship.LeadPoint(lr);
+                Vector2 lp;
+                bool lBehind = Project(lead - game.worldOffset, out lp);
+                if (!lBehind && OnScreen(lp)) _leadPip.Place(lp - new Vector2(0f, 30f), false, 0f, "LEAD"); else _leadPip.Hide();
+            }
+            else _leadPip.Hide();
+        }
+        else { _crosshairRt.gameObject.SetActive(false); _leadPip.Hide(); }
         // the reticle on the target
         if (hasTarget && showFlight && ship.cut == null)
         {
