@@ -24,7 +24,7 @@ Built-in render pipeline, legacy Input Manager, UGUI, and the Unity glTFast pack
 boots straight into a fight: the menu is skipped, the ship is set down 1,500 u off a raider hold facing it with the
 autocannon at its base level (`-gun 2` for a refit level), 5,000 cr to refit with, hull and tank full, the tutorial off. It is
 a sandbox: nothing the session does reaches the save file. `combat-test.bat` at the root runs it. In any session F9
-jumps to the next raider hold, so a fight can be re-run without flying back. In the test the raiders hold their place (they still turn to face the ship and fire); this is temporary while the gun is tuned.
+jumps to the next raider hold, so a fight can be re-run without flying back. In the test the raiders hold their place (they still turn to face the ship and fire) and a raider killed comes back where it stood three seconds on; both are temporary while the gun is tuned.
 
 ### Building and the smoke run from the command line
 

@@ -41,6 +41,9 @@ public class Raiders
     public int kills, shotsFired, hitsTaken;   // for the smoke run
     public float danger;
     public bool frozen;   // the combat test: raiders hold their place (they still turn to face the ship and fire)
+    public bool respawn;  // the combat test: a raider killed comes back where it stood, three seconds on
+    class Pending { public Vector3 pos, home; public float t; }
+    readonly List<Pending> _pending = new List<Pending>();
     Transform _root;
     Material _hull, _trim, _boltRed, _boltCyan;
     Mesh _boltMesh;
@@ -67,6 +70,7 @@ public class Raiders
 
     public void Clear()
     {
+        _pending.Clear();
         foreach (var r in raiders) if (r.node != null) Object.Destroy(r.node.gameObject);
         raiders.Clear();
         foreach (var b in bolts) if (b.node != null) b.node.gameObject.SetActive(false);
@@ -181,6 +185,7 @@ public class Raiders
     {
         r.dead = true;
         raiders.Remove(r);
+        if (respawn) _pending.Add(new Pending { pos = r.pos, home = r.home, t = 3f });
         if (r.node != null) Object.Destroy(r.node.gameObject);
         Audio.Play("boom");
         if (game.sparks != null)
@@ -235,6 +240,15 @@ public class Raiders
     public void Tick(float dt)
     {
         var ship = game.ship;
+        for (int i = _pending.Count - 1; i >= 0; i--)
+        {
+            var p = _pending[i];
+            p.t -= dt;
+            if (p.t > 0f) continue;
+            _pending.RemoveAt(i);
+            Make(p.pos, p.home);
+            game.Toast("Test · raider respawned", false);
+        }
         var carrier = game.carrier;
         var off = game.worldOffset;
         var sp = ship.TruePos;

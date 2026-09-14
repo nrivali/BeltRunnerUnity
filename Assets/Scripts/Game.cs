@@ -367,6 +367,7 @@ public class Game : MonoBehaviour
         var home = homes[_holdIdx];
         if (ship.docked) ship.LeaveHangar();
         raiders.frozen = true;   // for now the raiders hold still in the test, turning to face the ship
+        raiders.respawn = true;  // and a raider killed comes back three seconds on
         ship.weapon = "gun";
         var scene = home - worldOffset;
         var dir = (scene - ship.transform.position).normalized;
