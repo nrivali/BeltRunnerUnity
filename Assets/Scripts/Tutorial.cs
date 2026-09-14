@@ -1,6 +1,6 @@
 using UnityEngine;
 
-/// Vega's questline (Vega is the ship's onboard assistant, voiced by ElevenLabs "Matilda"; see tools/gen-voice.ps1), ported
+/// Vega's questline (Vega is the ship's onboard assistant, voiced by an ElevenLabs voice; see tools/gen-voice.ps1), ported
 /// from TUT in belt-runner-3d.html: fourteen steps that walk a new pilot through the
 /// launch, the controls, the HUD, the radar, a copper rock locked with Q, cutting it, the hold, docking, the pad,
 /// stowing, refits, the Hub and the departure. Every step is spoken by a recorded line (Sfx/tut_<id>) when it appears,
