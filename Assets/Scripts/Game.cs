@@ -366,8 +366,9 @@ public class Game : MonoBehaviour
         _holdIdx = (_holdIdx + 1) % homes.Count;
         var home = homes[_holdIdx];
         if (ship.docked) ship.LeaveHangar();
-        raiders.frozen = true;   // for now the raiders hold still in the test, turning to face the ship
+        raiders.frozen = true;   // for now the raiders of the hold hold still in the test, turning to face the ship
         raiders.respawn = true;  // and a raider killed comes back three seconds on
+        foreach (var r in raiders.raiders) r.frozen = true;
         ship.weapon = "gun";
         var scene = home - worldOffset;
         var dir = (scene - ship.transform.position).normalized;
@@ -378,6 +379,9 @@ public class Game : MonoBehaviour
         ship.exitPending = false;
         ship.ReleaseLock();
         ship.UpdateCamera(1f);
+        // and one more raider that moves, off to the side of the hold, so the gun meets a live target too
+        var mover = raiders.Make(home + Vector3.Cross(dir, Vector3.up).normalized * 900f + new Vector3(0f, 120f, 0f), home);
+        mover.frozen = false;
         int n = 0;
         foreach (var r in raiders.raiders) if ((r.home - home).sqrMagnitude < 1f) n++;
         Debug.Log("combat test: hold " + (_holdIdx + 1) + " of " + homes.Count + " · " + n + " raiders · gun Lv" + State.up["gun"] + " · at " + home.ToString("0"));

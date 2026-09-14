@@ -24,6 +24,7 @@ public class Raiders
         public float hp, maxHp, dmg, speed, bounty, a, fireCd;
         public string state = "idle";
         public bool dead;
+        public bool frozen;   // the combat test: holds its place (still turns to face the ship and fires)
     }
 
     public class Bolt
@@ -40,9 +41,9 @@ public class Raiders
     public int threat;              // raiders attacking right now
     public int kills, shotsFired, hitsTaken;   // for the smoke run
     public float danger;
-    public bool frozen;   // the combat test: raiders hold their place (they still turn to face the ship and fire)
+    public bool frozen;   // the combat test: raiders made while this is set hold their place
     public bool respawn;  // the combat test: a raider killed comes back where it stood, three seconds on
-    class Pending { public Vector3 pos, home; public float t; }
+    class Pending { public Vector3 pos, home; public float t; public bool frozen; }
     readonly List<Pending> _pending = new List<Pending>();
     Transform _root;
     Material _hull, _trim, _boltRed, _boltCyan;
@@ -101,7 +102,7 @@ public class Raiders
     }
 
     /// makePirate: a cone hull with swept wings, red trim tips, an eye and an exhaust glow (primitives, as the browser's).
-    void Make(Vector3 pos, Vector3 home)
+    public Raider Make(Vector3 pos, Vector3 home)
     {
         var go = new GameObject("Raider");
         go.transform.SetParent(_root, false);
@@ -138,8 +139,9 @@ public class Raiders
         raiders.Add(new Raider
         {
             pos = pos, home = home, wp = home, node = go.transform, exhaust = ex, hp = hp, maxHp = hp, dmg = Mathf.Round(3f + 4f * danger),
-            a = Random.value * 6f, fireCd = Random.Range(1f, 2f), speed = 820f + danger * 90f, bounty = Mathf.Round(120f * danger + 80f),
+            a = Random.value * 6f, fireCd = Random.Range(1f, 2f), speed = 820f + danger * 90f, bounty = Mathf.Round(120f * danger + 80f), frozen = frozen,
         });
+        return raiders[raiders.Count - 1];
     }
 
     public bool AnyAttacking
@@ -185,7 +187,7 @@ public class Raiders
     {
         r.dead = true;
         raiders.Remove(r);
-        if (respawn) _pending.Add(new Pending { pos = r.pos, home = r.home, t = 3f });
+        if (respawn) _pending.Add(new Pending { pos = r.pos, home = r.home, t = 3f, frozen = r.frozen });
         if (r.node != null) Object.Destroy(r.node.gameObject);
         Audio.Play("boom");
         if (game.sparks != null)
@@ -246,7 +248,7 @@ public class Raiders
             p.t -= dt;
             if (p.t > 0f) continue;
             _pending.RemoveAt(i);
-            Make(p.pos, p.home);
+            Make(p.pos, p.home).frozen = p.frozen;
             game.Toast("Test · raider respawned", false);
         }
         var carrier = game.carrier;
@@ -293,7 +295,7 @@ public class Raiders
             var want = desired - r.pos;
             float dist = want.magnitude;
             if (dist > 1f) want /= dist;
-            if (frozen)
+            if (r.frozen)
             {
                 r.vel = Vector3.zero;
                 if (r.state == "attack" && d > 1f) r.node.rotation = Quaternion.Slerp(r.node.rotation, Ship.LevelHeading((sp - r.pos) / d), 1f - Mathf.Exp(-3f * dt));
