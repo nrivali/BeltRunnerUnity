@@ -48,6 +48,34 @@ the ore, flies, saves, and quits, printing `smoke:` lines to the log and saving 
 (`%USERPROFILE%AppDataocallow
 rivalibelt runner`).
 
+## Milestone 9 — the HUD and the menus
+
+The browser HUD's stylesheet, rebuilt in UGUI: `Assets/Scripts/Ui.cs` holds the palette, the three type families the
+browser loads from Google Fonts (Chakra Petch, IBM Plex Sans, IBM Plex Mono, bundled under `Assets/Resources/Fonts`,
+Open Font Licence) and the custom controls, each a small `MaskableGraphic` that draws one piece of the CSS;
+`Assets/Scripts/Hud.cs` is the layout; `Assets/Scripts/Menu.cs` is the start and pause menu.
+
+| Piece | Where | Status |
+|---|---|---|
+| Chamfered glass panes with cyan corner brackets, segmented glowing gauges, amber chamfered buttons, key chips, glowing mono readings, dim links that turn red | `Ui.cs` (`Pane`, `SegBar`, `Gauge`, `Face`/`Btn`, `Chip`, `Link`, `Box`) | rebuilt from the CSS (.pane, .bar, .btn, kbd, .link) |
+| Status pane bottom-centre (hull, fuel, big speed, thrust, cargo), readouts top-right (zone, speed, cargo ship, field; laser, range, radar), target pane top-centre (name, size, range, health, warning) | `Hud.cs` (`BuildStatus`, `BuildReadouts`, `BuildTarget`) | rebuilt to the browser's layout |
+| Boresight brackets on the rock under the nose (amber while cutting), the cargo ship's diamond marker with an edge arrow when off screen, the nearest field's dashed marker, a marker on every collector drone, radar blips in the ore's colour with name-and-range labels for the nearest four | `Ui.cs` (`Reticle`, `Marker`, `Blips`), `Hud.cs` (`PlaceMarker`, `UpdateHud`), `Belt.cs` (`FieldAt`, `NearestField`) | ported |
+| The hint bar above the status pane (approach control, auto-dock, hold to mine, cutting…), the cargo-full notice, toasts with an amber or red edge fading in and out, the vignette, the red flash on a hull knock, the letterbox bars and caption for cutscenes, the version tag | `Hud.cs`, `Ui.cs` (`Vignette`) | ported |
+| Flight controls list bottom-left with key chips (C hides it, remembered in the save) | `Hud.cs` (`BuildControls`), `GameState.cs` (`controlsShown`) | rebuilt |
+| Cargo ship services: a glass side panel on the right with balance, gauges, the market table at the Hub with per-ore sell links and today's prices, the hold, refit rows with level pips and price buttons, Depart / Warp to the Hub / Hide (F) and Reset save (click twice) | `Hud.cs` (`BuildServices`, `RefreshServices`, `Market`) | rebuilt to #station; the body scrolls |
+| Inventory: a glass side panel on the left with credits, the hold's slot grid (ore colour along the top, ✕ jettisons) and the storage grid while docked | `Hud.cs` (`BuildInventory`, `RefreshInventory`, `Slot`), `GameState.cs` (`Stacks`) | rebuilt to #inv |
+| Drag and drop: a hold stack dragged onto the storage grid is stowed, a storage stack dragged onto the hold grid comes back aboard, a hold stack let go anywhere else is jettisoned (it drifts off behind the ship and cannot be scooped up for a minute); a double-click moves a stack across too; the slots that would take the stack light up amber | `Hud.cs` (`Slot`, `BeginDrag`, `EndDrag`, `Jettison`), `GameState.cs` (`StowStack`, `TakeStack`, `Jettison`) | ported from wireInventoryDrag / stowStack / takeStack / jettisonSlot with UGUI's drag handlers |
+| Nav computer: the chart drawn as the browser's SVG (grid, dashed lanes with distances, zone nodes, click to pick), the picked zone's details and the warp button | `Ui.cs` (`Chart`), `Hud.cs` (`BuildMap`, `RefreshMap`) | rebuilt |
+| Tutorial card with the pulsing amber rings round the HUD pieces each step talks about | `Hud.cs` (`BuildTutorial`, `ShowTutorial`), `Ui.cs` (`Rings`), `Tutorial.cs` (`ring`, `ring2`) | ported |
+| Start menu at launch, pause menu on Escape: Continue / Resume, New game (click twice to wipe), Controls, Settings (sound, volume, HUD size, tutorial restart, wipe save), Quit | `Menu.cs`, `Game.cs` (`WipeSave`, `ApplySetting`) | rebuilt to #intro; settings saved with the game (`hud`, `controls`); no music rows yet, the music engine is not ported |
+
+The smoke run now also captures the inventory and the three menu pages, and drives the drag and drop the way the
+pointer would (storage to hold, hold to storage, a stack let go outside the grids). Escape closes the pause menu first,
+then the nav map, then the inventory, and only then pauses.
+
+Still to come from the browser HUD: the hover readout beside the cursor and the Q lock (milestone 12), the tow status,
+and the music settings.
+
 ## Milestone 8 — lighting and the sky
 
 | Piece | Where | Status |
@@ -70,10 +98,10 @@ rivalibelt runner`).
 
 | Piece | Where | Status |
 |---|---|---|
-| The Flight Ops questline: fourteen steps (launch, the stick, the HUD, the radar, a copper rock under the nose, cutting it, the hold, heading home, the pad, stowing, refits, the Hub, departing, done); steps with a wait watch for the deed, the rest take Next (Enter); Replay and Skip; progress saved as `tut` | `Assets/Scripts/Tutorial.cs`, `Assets/Scripts/Hud.cs` (`BuildTutorial`, `ShowTutorial`) | ported from TUT; the browser's highlight rings are not drawn yet |
+| The Flight Ops questline: fourteen steps (launch, the stick, the HUD, the radar, a copper rock under the nose, cutting it, the hold, heading home, the pad, stowing, refits, the Hub, departing, done); steps with a wait watch for the deed, the rest take Next (Enter); Replay and Skip; progress saved as `tut` | `Assets/Scripts/Tutorial.cs`, `Assets/Scripts/Hud.cs` (`BuildTutorial`, `ShowTutorial`) | ported from TUT; the highlight rings came with milestone 9 |
 | The voice: every step spoken by its recording (`Resources/Sfx/tut_*`), approach control's five radio calls, the hangar deck's four intercom announcements, colony control, the jump's warp-ready call; radio lines open with a squelch burst and close with one, intercom lines get the PA chime and a tannoy chain (high-pass, low-pass, overdrive, hangar reverb) | `Assets/Scripts/Audio.cs` | ported from SFX via the Godot port; the 53 ElevenLabs recordings copied in |
 | Sound effects: dock, stow, cash, chime, pickup, rock break, hit, radar ping, warp charge and jump, laser on/off/bite; the loops (engine idle, thrust with pitch, boost, retros, laser beam and cut, space hum) faded toward per-frame targets | `Assets/Scripts/Audio.cs` (`Engine`, `Laser`, `Sfx`) | ported |
-| The inventory (Tab or I): the hold's stacks and the storage | `Assets/Scripts/Hud.cs` (`ToggleInventory`) | plain list; the drag-and-drop grid comes with the HUD milestone |
+| The inventory (Tab or I): the hold's stacks and the storage | `Assets/Scripts/Hud.cs` (`ToggleInventory`) | replaced by the slot grid of milestone 9 |
 | The smoke run drives the questline, pressing Next where it waits, and prints every step and the play counts | `Assets/Scripts/Game.cs` (`SmokeTutorial`) | |
 
 ## Milestone 4 — Astra's models

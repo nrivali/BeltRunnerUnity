@@ -9,27 +9,27 @@ public class Tutorial
 {
     public class Step
     {
-        public string id, title, text, wait;
+        public string id, title, text, wait, ring, ring2;   // ring: the HUD piece the card points at (Hud._ringTargets)
         public bool final;
-        public Step(string id, string title, string text, string wait = null, bool final = false) { this.id = id; this.title = title; this.text = text; this.wait = wait; this.final = final; }
+        public Step(string id, string title, string text, string wait = null, bool final = false, string ring = null, string ring2 = null) { this.id = id; this.title = title; this.text = text; this.wait = wait; this.final = final; this.ring = ring; this.ring2 = ring2; }
         public bool Auto { get { return wait != null && !final; } }
     }
 
     public static readonly Step[] STEPS =
     {
         new Step("launch", "Welcome aboard", "Flight Ops is on the line. Press W on the pad and approach control taxis you out of the hangar; the ship is yours the moment it lets go.", "press W to launch"),
-        new Step("steer", "Take the stick", "The mouse steers. W and S work the throttle, A and D roll, X cuts the throttle. Open her up and give me a turn.", "open the throttle and turn"),
-        new Step("hud", "Ship and world", "Bottom centre is your ship: hull, fuel, speed, thrust and cargo. Top right is the world: zone, laser, radar, and whatever you are looking at."),
-        new Step("radar", "Find ore", "Press R to pulse the radar. Every rock it reaches is marked for a while. Ore shows as coloured veins and crystals; plain grey rock is barren, so do not waste the laser on it.", "press R"),
-        new Step("lock", "Find a copper rock", "Find a copper rock (orange veins) and put it under the nose. The target panel shows its size and what is left in it.", "put a copper rock under the nose"),
-        new Step("mine", "Cut it", "Get within laser reach and hold the left mouse button (Space or L too). The dish under the nose cuts while you hold. When the rock breaks, fly through the glow and the ore comes aboard.", "collect copper"),
+        new Step("steer", "Take the stick", "The mouse steers. W and S work the throttle, A and D roll, X cuts the throttle. Open her up and give me a turn.", "open the throttle and turn", false, "controls"),
+        new Step("hud", "Ship and world", "Bottom centre is your ship: hull, fuel, speed, thrust and cargo. Top right is the world: zone, laser, radar, and whatever you are looking at.", null, false, "status", "readout"),
+        new Step("radar", "Find ore", "Press R to pulse the radar. Every rock it reaches is marked for a while. Ore shows as coloured veins and crystals; plain grey rock is barren, so do not waste the laser on it.", "press R", false, "readout"),
+        new Step("lock", "Find a copper rock", "Find a copper rock (orange veins) and put it under the nose. The target panel shows its size and what is left in it.", "put a copper rock under the nose", false, "target"),
+        new Step("mine", "Cut it", "Get within laser reach and hold the left mouse button (Space or L too). The dish under the nose cuts while you hold. When the rock breaks, fly through the glow and the ore comes aboard.", "collect copper", false, "target"),
         new Step("inv", "Your hold", "Copper in the hold. Press Tab for your inventory: four slots, one stack each. Deposit all moves it aboard the cargo ship once you are docked.", "press Tab"),
-        new Step("return", "Head home", "Follow the CARGO SHIP readout. Within 2,250 press E and approach control brings you in, or fly slowly into either hangar mouth yourself.", "dock with the cargo ship"),
-        new Step("hangar", "On the pad", "Your tank fills from the cargo ship's fuel supply and your hull mends from its repair parts, one part per hull point. Both run down, and both restock at the Hub."),
-        new Step("stow", "Stow the haul", "Press E, or Deposit all, to move your copper into the cargo ship's storage: 50 slots, and it all warps with you. Your hold is for the trip out; the storage is for the haul.", "move copper into storage"),
-        new Step("refit", "Refits", "The services panel lists your refits: laser, engine, tank, cargo, scanner, hull. A bigger hold and a stronger laser pay for themselves fastest."),
-        new Step("hub", "Selling", "Nothing sells out here. Press N for the nav map and warp to the Hub. Meridian Colony buys everything, and it is where the cargo ship refuels and restocks."),
-        new Step("depart", "Back out", "Press Depart (or W on the pad) to launch. The belt is all yours out there: fill the hold and bring it home. Keep an eye on the fuel; the pad tops you up every time you dock.", "press Depart"),
+        new Step("return", "Head home", "Follow the CARGO SHIP readout. Within 2,250 press E and approach control brings you in, or fly slowly into either hangar mouth yourself.", "dock with the cargo ship", false, "marker"),
+        new Step("hangar", "On the pad", "Your tank fills from the cargo ship's fuel supply and your hull mends from its repair parts, one part per hull point. Both run down, and both restock at the Hub.", null, false, "status"),
+        new Step("stow", "Stow the haul", "Press E, or Deposit all, to move your copper into the cargo ship's storage: 50 slots, and it all warps with you. Your hold is for the trip out; the storage is for the haul.", "move copper into storage", false, "deposit"),
+        new Step("refit", "Refits", "The services panel lists your refits: laser, engine, tank, cargo, scanner, hull. A bigger hold and a stronger laser pay for themselves fastest.", null, false, "refits"),
+        new Step("hub", "Selling", "Nothing sells out here. Press N for the nav map and warp to the Hub. Meridian Colony buys everything, and it is where the cargo ship refuels and restocks.", null, false, "navmap"),
+        new Step("depart", "Back out", "Press Depart (or W on the pad) to launch. The belt is all yours out there: fill the hold and bring it home. Keep an eye on the fuel; the pad tops you up every time you dock.", "press Depart", false, "depart"),
         new Step("done", "Tutorial complete", "That is the loop: fill the hold, stow it, warp to the Hub, sell, refit, repeat. Flight Ops out. Good hunting.", null, true),
     };
 

@@ -72,13 +72,18 @@ public class Game : MonoBehaviour
         var hudGo = new GameObject("HUD");
         hud = hudGo.AddComponent<Hud>();
         hud.ship = ship;
+        hud.game = this;
         hud.Build();
         tutorial = new Tutorial { game = this, ship = ship, hud = hud };
         hud.tutorial = tutorial;
         drones = new Drones { game = this, carrier = carrier };
-        hud.onStart = StartGame;
-        hud.onNewGame = NewGame;
-        hud.onQuit = Quit;
+        hud.menu.onStart = StartGame;
+        hud.menu.onResume = Resume;
+        hud.menu.onNewGame = NewGame;
+        hud.menu.onWipe = WipeSave;
+        hud.menu.onTutorialRestart = () => { tutorial.Restart(); hud.Toast("Tutorial restarted", false); };
+        hud.menu.onSetting = ApplySetting;
+        hud.menu.onQuit = Quit;
         LoadZone(Data.ZoneById(_smoke ? "kessler" : State.zoneId));
         SpawnInZone();
         ship.UpdateCamera(1f);
@@ -270,6 +275,30 @@ public class Game : MonoBehaviour
         hud.Toast("New pilot · saved game wiped", false);
     }
 
+    /// Wipe the save (Settings, or the services panel's Reset save): a fresh pilot, back at the start menu.
+    public void WipeSave()
+    {
+        State.Reset();
+        LoadZone(Data.ZONE_KESSLER);
+        SpawnInZone();
+        ship.throttle = 0f;
+        ship.UpdateCamera(1f);
+        started = false;
+        paused = true;
+        hud.ShowMenu(true, false);
+        hud.Toast("Saved game wiped", false);
+    }
+
+    /// A setting changed in the menu: sound and volume go to the mixer, the HUD size to the canvas; all are saved.
+    void ApplySetting(string key, float v)
+    {
+        if (key == "sound") State.soundOn = v > 0.5f;
+        else if (key == "volume") State.volume = Mathf.Clamp01(v);
+        else if (key == "hud") { State.hudScale = Mathf.Clamp(v, 0.7f, 1.6f); hud.SetScale(State.hudScale); }
+        if (Audio.I != null) Audio.I.ApplySettings();
+        State.Save();
+    }
+
     void Quit()
     {
         if (started) State.Save();
@@ -383,15 +412,18 @@ public class Game : MonoBehaviour
         float dt = Mathf.Min(Time.deltaTime, 0.05f);
         if (Input.GetKeyDown(KeyCode.Escape))
         {
+            // the pause menu comes down first, then whatever panel is open, then the pause menu goes up
             if (!started) { }
-            else if (hud.MapOpen) hud.CloseMap();
             else if (paused) Resume();
+            else if (hud.MapOpen) hud.CloseMap();
+            else if (hud.InvOpen) hud.ToggleInventory();
             else Pause();
         }
         belt.Draw();
         if (!started || paused)
         {
-            hud.UpdateHud(dt, ship, belt, zone);
+            hud.UpdateHud(dt, ship, belt, carrier, zone, started);
+        hud.menu.Tick(dt);
             if (_smoke) SmokeStep();
             return;
         }
@@ -452,7 +484,8 @@ public class Game : MonoBehaviour
             _saveT = 0f;
             State.Save();
         }
-        hud.UpdateHud(dt, ship, belt, zone);
+        hud.UpdateHud(dt, ship, belt, carrier, zone, started);
+        hud.menu.Tick(dt);
         tutorial.Update(dt);
         if (_smoke) SmokeStep();
     }
@@ -607,6 +640,31 @@ public class Game : MonoBehaviour
                     Debug.Log("smoke: drones · " + drones.Stats() + " · stowed " + State.droneUnits.ToString("0") + " · pickups " + _drops.Count + " · dish " + carrier.DishStats());
                     if (State.droneUnits > 0.5f) _droneDone = true;
                 }
+                // the inventory beside the services panel: both grids, then the drag and drop driven as the pointer would do it: a
+                // storage stack dropped on the hold grid, a hold stack dropped on the storage grid, a small stack, then one let go
+                // outside the grids (jettisoned into the hangar)
+                if (_phaseFrame == 90) hud.ToggleInventory();
+                if (_phaseFrame == 100)
+                {
+                    float h0 = State.CargoTotal();
+                    bool ok = hud.SmokeDrop(true);
+                    Debug.Log("smoke: drag storage -> hold · " + ok + " · hold " + h0.ToString("0") + " -> " + State.CargoTotal().ToString("0") + " · store=" + State.StoreTotal().ToString("0") + " · slots hold " + hud.holdSlots.Count + " store " + hud.storeSlots.Count);
+                }
+                if (_phaseFrame == 110)
+                {
+                    float s0 = State.StoreTotal();
+                    bool ok = hud.SmokeDrop(false);
+                    Debug.Log("smoke: drag hold -> storage · " + ok + " · store " + s0.ToString("0") + " -> " + State.StoreTotal().ToString("0") + " · hold=" + State.CargoTotal().ToString("0"));
+                }
+                if (_phaseFrame == 115) hud.SmokeDrop(true, 10f);   // a small stack to throw away
+                if (_phaseFrame == 120)
+                {
+                    Shot("smoke_inventory");
+                    int before = _drops.Count;
+                    bool ok = hud.SmokeJettisonFirst();   // what a drag let go outside the grids does
+                    Debug.Log("smoke: jettison · " + ok + " · hold=" + State.CargoTotal().ToString("0") + " · lumps " + before + " -> " + _drops.Count + " · noPick=" + (_drops.Count > 0 ? _drops[_drops.Count - 1].noPick.ToString("0") : "-"));
+                }
+                if (_phaseFrame == 125) hud.ToggleInventory();   // the screenshot is taken at the end of the frame, so the panel closes a few frames on
                 if (_phaseFrame == 150 || (_phaseFrame > 150 && _phaseFrame % 30 == 0 && _droneDone) || _phaseFrame == 7000)
                 {
                     if (_phaseFrame == 150 && !_droneDone) { Shot("smoke_pad"); break; }   // the first shot; the run then waits for the drone
@@ -675,13 +733,21 @@ public class Game : MonoBehaviour
                 if (_phaseFrame > 6000) { Debug.Log("smoke: FAIL · never arrived at the Hub · warp=" + (ship.warp != null) + " zone=" + zone.id + " docked=" + ship.docked + " cut=" + (ship.cut != null)); Quit(); }
                 break;
             case "hub":
-                if (_phaseFrame == 120)
+                // screenshots land at the end of their frame, so each page change comes the frame after its shot
+                if (_phaseFrame == 120) Shot("smoke_market");
+                if (_phaseFrame == 121) Pause();   // the pause menu over the frozen game, then its settings and controls pages
+                if (_phaseFrame == 150) Shot("smoke_menu");
+                if (_phaseFrame == 151) hud.menu.ShowPage("settings");
+                if (_phaseFrame == 170) Shot("smoke_settings");
+                if (_phaseFrame == 171) hud.menu.ShowPage("controls");
+                if (_phaseFrame == 190) Shot("smoke_controls");
+                if (_phaseFrame == 191) Resume();
+                if (_phaseFrame == 210)
                 {
-                    Shot("smoke_market");
                     ship.StartWarp(Data.ZONE_KESSLER);
-                    Debug.Log("smoke: warp home requested · warp=" + (ship.warp != null));
+                    Debug.Log("smoke: warp home requested · warp=" + (ship.warp != null) + " · fonts missing " + Ui.fontsMissing);
                 }
-                if (_phaseFrame > 130 && ship.warp == null && !zone.hub && ship.docked)
+                if (_phaseFrame > 220 && ship.warp == null && !zone.hub && ship.docked)
                 {
                     Shot("smoke_home");
                     Debug.Log("smoke: home · zone=" + zone.id + " docked=" + ship.docked + " hold=" + ship.hold + " dock=" + CargoShip.BayName(ship.dockSide) + " local=" + carrier.ToLocalTrue(ship.TruePos).ToString("0") + " rocks=" + belt.count);

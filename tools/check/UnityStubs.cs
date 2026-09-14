@@ -20,7 +20,24 @@ namespace UnityEngine
         public override bool Equals(object o) => o is Vector2 v && v == this;
         public override int GetHashCode() => x.GetHashCode() ^ y.GetHashCode();
         public float magnitude => (float)Math.Sqrt(x * x + y * y);
+        public float sqrMagnitude => x * x + y * y;
+        public Vector2 normalized => magnitude > 1e-6f ? this * (1f / magnitude) : this;
+        public static Vector2 operator /(Vector2 a, float s) => new Vector2(a.x / s, a.y / s);
+        public static Vector2 operator -(Vector2 a) => new Vector2(-a.x, -a.y);
         public static float Distance(Vector2 a, Vector2 b) => (a - b).magnitude;
+    }
+
+    public struct Rect
+    {
+        public float x, y, width, height;
+        public Rect(float x, float y, float w, float h) { this.x = x; this.y = y; width = w; height = h; }
+        public float xMin => x;
+        public float yMin => y;
+        public float xMax => x + width;
+        public float yMax => y + height;
+        public Vector2 center => new Vector2(x + width * 0.5f, y + height * 0.5f);
+        public Vector2 size => new Vector2(width, height);
+        public static Rect MinMaxRect(float x0, float y0, float x1, float y1) => new Rect(x0, y0, x1 - x0, y1 - y0);
     }
 
     public struct Vector3
@@ -98,6 +115,10 @@ namespace UnityEngine
         public static Color magenta => new Color(1, 0, 1);
         public static Color Lerp(Color a, Color b, float t) => new Color(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t, a.a + (b.a - a.a) * t);
         public static Color operator *(Color c, float s) => new Color(c.r * s, c.g * s, c.b * s, c.a);
+        public static bool operator ==(Color a, Color b) => a.r == b.r && a.g == b.g && a.b == b.b && a.a == b.a;
+        public static bool operator !=(Color a, Color b) => !(a == b);
+        public override bool Equals(object o) => o is Color c && c == this;
+        public override int GetHashCode() => r.GetHashCode() ^ g.GetHashCode() ^ b.GetHashCode() ^ a.GetHashCode();
     }
 
     public struct Bounds
@@ -122,6 +143,7 @@ namespace UnityEngine
         public static float Abs(float x) => Math.Abs(x);
         public static float Sign(float x) => x >= 0f ? 1f : -1f;
         public static float Min(float a, float b) => a < b ? a : b;
+        public static float Min(params float[] v) { float m = v[0]; foreach (var x in v) if (x < m) m = x; return m; }
         public static int Min(int a, int b) => a < b ? a : b;
         public static float Max(float a, float b) => a > b ? a : b;
         public static int Max(int a, int b) => a > b ? a : b;
@@ -143,6 +165,7 @@ namespace UnityEngine
         static readonly System.Random _r = new System.Random(1);
         public static float value => (float)_r.NextDouble();
         public static Vector3 onUnitSphere => new Vector3(value * 2 - 1, value * 2 - 1, value * 2 - 1).normalized;
+        public static Vector3 insideUnitSphere => new Vector3(value * 2 - 1, value * 2 - 1, value * 2 - 1) * 0.5f;
         public static float Range(float a, float b) => a + (b - a) * value;
         public static int Range(int a, int b) => a + _r.Next(Math.Max(1, b - a));
     }
@@ -216,8 +239,10 @@ namespace UnityEngine
         public Transform transform => null;
         public string tag { get; set; }
         public bool activeSelf => true;
+        public bool activeInHierarchy => true;
         public T AddComponent<T>() where T : Component => null;
         public T GetComponent<T>() => default(T);
+        public T GetComponentInParent<T>() => default(T);
         public T[] GetComponentsInChildren<T>(bool inactive) => new T[0];
         public T GetComponentInChildren<T>() => default(T);
         public void SetActive(bool v) { }
@@ -229,6 +254,7 @@ namespace UnityEngine
         public GameObject gameObject => null;
         public Transform transform => null;
         public T GetComponent<T>() => default(T);
+        public T GetComponentInParent<T>() => default(T);
         public T GetComponentInChildren<T>() => default(T);
         public T[] GetComponentsInChildren<T>(bool inactive) => new T[0];
     }
@@ -258,6 +284,7 @@ namespace UnityEngine
         public Vector3 InverseTransformPoint(Vector3 p) => p;
         public void SetParent(Transform t, bool keep) { }
         public void Rotate(Vector3 axis, float angle, Space s) { }
+        public void SetAsLastSibling() { }
     }
 
     public class RectTransform : Transform
@@ -269,6 +296,8 @@ namespace UnityEngine
         public Vector2 sizeDelta { get; set; }
         public Vector2 offsetMin { get; set; }
         public Vector2 offsetMax { get; set; }
+        public Rect rect => new Rect(0, 0, sizeDelta.x, sizeDelta.y);
+        public void GetWorldCorners(Vector3[] c) { }
     }
 
     public class Camera : Behaviour
@@ -280,6 +309,7 @@ namespace UnityEngine
         public float farClipPlane { get; set; }
         public float fieldOfView { get; set; }
         public bool allowHDR { get; set; }
+        public Vector3 WorldToScreenPoint(Vector3 p) => p;
     }
 
     public class AudioListener : Behaviour
@@ -450,6 +480,7 @@ namespace UnityEngine
 
     public static class ColorUtility
     {
+        public static string ToHtmlStringRGB(Color c) => "";
         public static bool TryParseHtmlString(string s, out Color c)
         {
             c = new Color();
@@ -479,6 +510,22 @@ namespace UnityEngine
     public class Canvas : Behaviour
     {
         public RenderMode renderMode { get; set; }
+        public float scaleFactor => 1f;
+    }
+
+    public enum FontStyle { Normal, Bold, Italic, BoldAndItalic }
+
+    public struct UIVertex
+    {
+        public Vector3 position;
+        public Color color;
+        public Vector2 uv0;
+        public static UIVertex simpleVert => new UIVertex();
+    }
+
+    public static class RectTransformUtility
+    {
+        public static bool ScreenPointToLocalPointInRectangle(RectTransform rt, Vector2 p, Camera c, out Vector2 local) { local = p; return true; }
     }
 
     namespace Rendering
@@ -495,12 +542,29 @@ namespace UnityEngine
         {
             public void AddListener(Action a) { }
         }
+        public class UnityEvent<T>
+        {
+            public void AddListener(Action<T> a) { }
+        }
     }
 
     namespace EventSystems
     {
         public class EventSystem : MonoBehaviour { }
         public class StandaloneInputModule : MonoBehaviour { }
+        public class PointerEventData
+        {
+            public Vector2 position;
+            public GameObject pointerEnter;
+            public int clickCount;
+            public Camera pressEventCamera;
+        }
+        public interface IPointerEnterHandler { void OnPointerEnter(PointerEventData e); }
+        public interface IPointerExitHandler { void OnPointerExit(PointerEventData e); }
+        public interface IPointerClickHandler { void OnPointerClick(PointerEventData e); }
+        public interface IBeginDragHandler { void OnBeginDrag(PointerEventData e); }
+        public interface IDragHandler { void OnDrag(PointerEventData e); }
+        public interface IEndDragHandler { void OnEndDrag(PointerEventData e); }
     }
 
     namespace UI
@@ -518,24 +582,78 @@ namespace UnityEngine
             public Color color { get; set; }
             public bool raycastTarget { get; set; }
             public RectTransform rectTransform => null;
+            public void SetVerticesDirty() { }
+            public Rect GetPixelAdjustedRect() => new Rect();
+            protected virtual void OnPopulateMesh(VertexHelper vh) { }
+        }
+        public class MaskableGraphic : Graphic { }
+        public class VertexHelper
+        {
+            public int currentVertCount => 0;
+            public void Clear() { }
+            public void AddVert(UIVertex v) { }
+            public void AddTriangle(int a, int b, int c) { }
         }
         public class Image : Graphic { }
+        public class RectMask2D : Behaviour { }
         public class Text : Graphic
         {
             public Font font { get; set; }
             public int fontSize { get; set; }
+            public FontStyle fontStyle { get; set; }
             public TextAnchor alignment { get; set; }
             public string text { get; set; }
+            public bool supportRichText { get; set; }
+            public float lineSpacing { get; set; }
             public HorizontalWrapMode horizontalOverflow { get; set; }
             public VerticalWrapMode verticalOverflow { get; set; }
+            public float preferredWidth => 100f;
+            public float preferredHeight => 16f;
+        }
+        public class BaseMeshEffect : Behaviour { }
+        public class Shadow : BaseMeshEffect
+        {
+            public Color effectColor { get; set; }
+            public Vector2 effectDistance { get; set; }
+            public bool useGraphicAlpha { get; set; }
+        }
+        public class Outline : Shadow { }
+        public class Selectable : Behaviour
+        {
+            public enum Transition { None, ColorTint, SpriteSwap, Animation }
+            public Transition transition { get; set; }
+            public Graphic targetGraphic { get; set; }
+            public bool interactable { get; set; }
+        }
+        public class Slider : Selectable
+        {
+            public enum Direction { LeftToRight, RightToLeft, BottomToTop, TopToBottom }
+            public RectTransform fillRect { get; set; }
+            public RectTransform handleRect { get; set; }
+            public Direction direction { get; set; }
+            public float minValue { get; set; }
+            public float maxValue { get; set; }
+            public bool wholeNumbers { get; set; }
+            public float value { get; set; }
+            public Events.UnityEvent<float> onValueChanged => new Events.UnityEvent<float>();
+        }
+        public class ScrollRect : Behaviour
+        {
+            public enum MovementType { Unrestricted, Elastic, Clamped }
+            public RectTransform content { get; set; }
+            public RectTransform viewport { get; set; }
+            public bool horizontal { get; set; }
+            public bool vertical { get; set; }
+            public MovementType movementType { get; set; }
+            public float scrollSensitivity { get; set; }
+            public bool inertia { get; set; }
         }
         public struct ColorBlock
         {
             public Color normalColor, highlightedColor, pressedColor, selectedColor, disabledColor;
         }
-        public class Button : Behaviour
+        public class Button : Selectable
         {
-            public bool interactable { get; set; }
             public ColorBlock colors { get; set; }
             public Events.UnityEvent onClick => new Events.UnityEvent();
         }

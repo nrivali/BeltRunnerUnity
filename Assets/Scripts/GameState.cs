@@ -33,6 +33,8 @@ public static class State
     public static float time = 0f;
     public static bool soundOn = true;
     public static float volume = 1f;
+    public static float hudScale = 1f;         // Settings: HUD size
+    public static bool controlsShown = true;   // C hides the flight controls list; remembered in the save
     public static bool hasSave = false;
 
     static bool _init;
@@ -171,6 +173,60 @@ public static class State
         return moved;
     }
 
+    // ---- stacks: the inventory grids' view of a bag, most valuable ore first, full stacks before part stacks
+    public class Stack { public string k; public float u; }
+
+    public static List<Stack> Stacks(Dictionary<string, float> bag)
+    {
+        var keys = new List<string>();
+        foreach (var k in Data.ORE_KEYS) if (bag[k] > 0.5f) keys.Add(k);
+        keys.Sort((a, b) => Price(b).CompareTo(Price(a)));
+        var outList = new List<Stack>();
+        foreach (var k in keys)
+        {
+            float left = bag[k];
+            while (left > 0.5f)
+            {
+                float u = Mathf.Min(Data.STACK, left);
+                outList.Add(new Stack { k = k, u = u });
+                left -= u;
+            }
+        }
+        return outList;
+    }
+
+    /// Drop one stack of `k` (up to `units`) into space. Returns the units dropped.
+    public static float Jettison(string k, float units)
+    {
+        float u = Mathf.Min(units, cargo[k]);
+        cargo[k] -= u;
+        if (cargo[k] < 0.01f) cargo[k] = 0f;
+        Save();
+        return u;
+    }
+
+    /// One stack of `k` from the hold into the storage, as far as it fits. Returns the units moved.
+    public static float StowStack(string k, float units)
+    {
+        float u = Mathf.Min(units, Mathf.Min(cargo[k], StoreRoom(k)));
+        if (u < 0.01f) return 0f;
+        cargo[k] -= u;
+        store[k] += u;
+        if (cargo[k] < 0.01f) cargo[k] = 0f;
+        return u;
+    }
+
+    /// One stack of `k` from the storage back into the hold, as far as it fits. Returns the units moved.
+    public static float TakeStack(string k, float units)
+    {
+        float u = Mathf.Min(units, Mathf.Min(store[k], CargoRoom(k)));
+        if (u < 0.01f) return 0f;
+        store[k] -= u;
+        cargo[k] += u;
+        if (store[k] < 0.01f) store[k] = 0f;
+        return u;
+    }
+
     public static float Price(string k)
     {
         var o = Data.ORES[Data.OreIndex(k)];
@@ -293,7 +349,7 @@ public static class State
     [Serializable] public class Bag { public float iron, copper, gold, platinum, crystal, cobalt, beryl; }
     [Serializable] public class Ups { public int laser, cargo, engine, tank, scanner, range, hull, thrusters, overcharge; }
     [Serializable] public class Dep { public int laser, collectors; }
-    [Serializable] public class Settings { public bool sound = true; public float volume = 1f; }
+    [Serializable] public class Settings { public bool sound = true; public float volume = 1f; public float hud = 1f; public bool controls = true; }
     [Serializable]
     public class SaveData
     {
@@ -326,7 +382,7 @@ public static class State
             cargo = ToBag(cargo), store = ToBag(store), market = ToBag(market),
             up = new Ups { laser = up["laser"], cargo = up["cargo"], engine = up["engine"], tank = up["tank"], scanner = up["scanner"], range = up["range"], hull = up["hull"], thrusters = up["thrusters"], overcharge = up["overcharge"] },
             depot = new Dep { laser = depot["laser"], collectors = depot["collectors"] }, droneUnits = droneUnits,
-            zone = zoneId, tut = tut, settings = new Settings { sound = soundOn, volume = volume },
+            zone = zoneId, tut = tut, settings = new Settings { sound = soundOn, volume = volume, hud = hudScale, controls = controlsShown },
         };
         try
         {
@@ -372,7 +428,7 @@ public static class State
             depot["collectors"] = Mathf.Clamp(s.depot.collectors, 0, Data.DEPOT_UPGRADES["collectors"].costs.Length);
         }
         droneUnits = s.droneUnits;
-        if (s.settings != null) { soundOn = s.settings.sound; volume = s.settings.volume; }
+        if (s.settings != null) { soundOn = s.settings.sound; volume = s.settings.volume; hudScale = s.settings.hud > 0f ? s.settings.hud : 1f; controlsShown = s.settings.controls; }
         hasSave = true;
         return true;
     }

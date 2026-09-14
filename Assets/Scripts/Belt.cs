@@ -19,7 +19,7 @@ public class Belt
     const float BARREN_SHARE = 2f / 3f;
     const float COLOSSAL_ORE_SHARE = 0.001f;
     const int BATCH_MAX = 1023;
-    static readonly int[] FIELDS_PER_BELT = { 7, 7, 9, 0 };
+    public static readonly int[] FIELDS_PER_BELT = { 7, 7, 9, 0 };
     public static readonly string[] CLS_NAME = { "Small", "Large", "Giant", "Colossal" };
 
     // ---- the rocks
@@ -544,6 +544,27 @@ public class Belt
     public Vector3 FieldCentre(Field f)
     {
         return f.center + Delta(f.ang, f.orbit);
+    }
+
+    /// The charted field `p` (true world) is inside, if any.
+    public Field FieldAt(Vector3 p)
+    {
+        foreach (var f in fields) if ((FieldCentre(f) - p).magnitude < f.radius) return f;
+        return null;
+    }
+
+    /// The nearest field by its edge, with the distance to that edge; null in a zone without fields.
+    public Field NearestField(Vector3 p, out float edge)
+    {
+        Field best = null;
+        float bd = float.PositiveInfinity;
+        foreach (var f in fields)
+        {
+            float e = (FieldCentre(f) - p).magnitude - f.radius;
+            if (e < bd) { bd = e; best = f; }
+        }
+        edge = Mathf.Max(0f, bd);
+        return best;
     }
 
     /// Every live rock in the chunks within `range` of `from` (true world coordinates).
