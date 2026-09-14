@@ -252,9 +252,204 @@ public class CargoShip : MonoBehaviour
                 PointLight(e + new Vector3(-100, 0, 0), "#5ed3f0", 1.2f, 900f);
             }
             Debug.Log("carrier: model loaded, " + anchors.Count + " anchors");
+            BuildDish();
             return;
         }
         BuildHull();
+        BuildDish();
+    }
+
+    // ---- the mining dish on the mast: the model's own yaw and pitch rig, slewed onto rocks by the cargo ship laser upgrade
+    Transform _dishYaw, _dishPitch, _dishFocus;
+    Vector3 _pivot = new Vector3(-40f, 995f, 0f);      // dish_mount, carrier frame
+    Vector3 _pitchOff = new Vector3(-30f, 355f, 0f);   // the pitch group's offset from the yaw pivot
+    Vector3 _focusLocal = new Vector3(158f, 105f, 0f); // the beam's origin within the pitch group
+    public int dishRock = -1;
+    public float dishYaw, dishPitch = 0.15f;
+    public bool dishFiring;
+    public Vector3 dishHit;
+    float _retarget;
+    LineRenderer _beam;
+    Transform _hitGlow;
+
+    void BuildDish()
+    {
+        if (model != null)
+        {
+            _dishYaw = Ship.FindDeep(model, "dish_yaw");
+            _dishPitch = Ship.FindDeep(model, "dish_pitch");
+            _dishFocus = Ship.FindDeep(model, "focus");
+            if (_dishYaw != null) _pivot = transform.InverseTransformPoint(_dishYaw.position);
+            if (_dishPitch != null) _pitchOff = transform.InverseTransformPoint(_dishPitch.position) - _pivot;
+            if (_dishFocus != null && _dishPitch != null) _focusLocal = transform.InverseTransformPoint(_dishFocus.position) - _pivot - _pitchOff;
+        }
+        var bg = new GameObject("DishBeam");
+        _beam = bg.AddComponent<LineRenderer>();
+        _beam.useWorldSpace = true;
+        _beam.positionCount = 2;
+        _beam.startWidth = 8f;
+        _beam.endWidth = 5f;
+        var bm = new Material(Game.Sh("Sprites/Default"));
+        bm.color = new Color(1f, 0.77f, 0.4f, 0.85f);
+        _beam.material = bm;
+        _beam.startColor = new Color(1f, 0.8f, 0.45f);
+        _beam.endColor = new Color(1f, 0.65f, 0.25f);
+        _beam.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        _beam.enabled = false;
+        var g = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        Object.Destroy(g.GetComponent<Collider>());
+        g.name = "DishHitGlow";
+        var gm = new Material(Game.Sh("Standard"));
+        gm.color = new Color(1f, 0.77f, 0.4f);
+        gm.EnableKeyword("_EMISSION");
+        gm.SetColor("_EmissionColor", new Color(1f, 0.7f, 0.3f) * 3f);
+        g.GetComponent<MeshRenderer>().sharedMaterial = gm;
+        g.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        _hitGlow = g.transform;
+        _hitGlow.gameObject.SetActive(false);
+    }
+
+    /// The yaw and pitch that point the dish at a carrier-local point.
+    public Vector2 TurretAngles(Vector3 local)
+    {
+        var L = local - _pivot;
+        return new Vector2(Mathf.Atan2(-L.z, L.x), Mathf.Atan2(L.y - _pitchOff.y, new Vector2(L.x, L.z).magnitude - _pitchOff.x));
+    }
+
+    /// Where the beam starts, in the carrier's frame, for a given yaw and pitch.
+    public Vector3 MuzzleLocal(float yaw, float pitch)
+    {
+        var f = Quaternion.AngleAxis(pitch * Mathf.Rad2Deg, Vector3.forward) * _focusLocal + _pitchOff;
+        return Quaternion.AngleAxis(-yaw * Mathf.Rad2Deg, Vector3.up) * f + _pivot;
+    }
+
+    static float Wrap(float a)
+    {
+        return Mathf.Repeat(a + Mathf.PI, Mathf.PI * 2f) - Mathf.PI;
+    }
+
+    /// Reachable: within the pitch limits, and the beam from the mast top must not pass through the carrier's own hull box.
+    bool InArc(Vector2 ang, Vector3 local)
+    {
+        if (ang.y < Data.TURRET_PITCH_MIN || ang.y > Data.TURRET_PITCH_MAX) return false;
+        var origin = MuzzleLocal(ang.x, ang.y);
+        var d = local - origin;
+        float len = d.magnitude;
+        if (len < 1e-3f) return false;
+        d /= len;
+        for (float s = 0f; s < Mathf.Min(len, 7000f); s += 150f)
+        {
+            var p = origin + d * s;
+            if (Mathf.Abs(p.x) < HALF.x && Mathf.Abs(p.y) < HALF.y && Mathf.Abs(p.z) < HALF.z) return false;
+        }
+        return true;
+    }
+
+    /// Slew onto the nearest ore rock the dish's level can open, fire once both axes are within a degree or so, cut
+    /// it, and leave its ore adrift for the collector drones (or the ship) to gather.
+    public void TickDish(float dt, Belt belt)
+    {
+        var L = Data.DEPOT_UPGRADES["laser"].levels[State.depot["laser"]];
+        _beam.enabled = false;
+        _hitGlow.gameObject.SetActive(false);
+        float step = Data.TURRET_SLEW * dt;
+        if (L == null)
+        {
+            dishRock = -1;
+            dishFiring = false;
+            dishYaw = Wrap(dishYaw + Mathf.Clamp(Wrap(0f - dishYaw), -step, step));
+            dishPitch += Mathf.Clamp(0.15f - dishPitch, -step, step);
+        }
+        else
+        {
+            float range = L.range;
+            _retarget -= dt;
+            int rock = dishRock;
+            if (rock >= belt.count) rock = -1;   // the belt was rebuilt under it (a zone change)
+            if (rock >= 0 && (!belt.alive[rock] || (belt.RockPos(rock) - truePos).magnitude > range * 1.15f)) rock = -1;
+            if (rock < 0 && _retarget <= 0f)
+            {
+                _retarget = 0.6f;
+                int best = -1;
+                float bd = range * range;
+                foreach (var i in belt.RocksNear(truePos, range))
+                {
+                    if (!belt.alive[i] || belt.ore[i] < 0 || belt.amount[i] <= 0.05f) continue;
+                    if (Data.ORES[belt.ore[i]].unlock > State.depot["laser"] + 1) continue;   // the dish only works ores its own level has opened
+                    float d2 = (belt.RockPos(i) - truePos).sqrMagnitude;
+                    if (d2 >= bd) continue;
+                    var local = ToLocalTrue(belt.RockPos(i));
+                    if (!InArc(TurretAngles(local), local)) continue;
+                    bd = d2;
+                    best = i;
+                }
+                rock = best;
+                dishFiring = false;
+            }
+            dishRock = rock;
+            if (rock >= 0)
+            {
+                var local = ToLocalTrue(belt.RockPos(rock));
+                var want = TurretAngles(local);
+                if (!InArc(want, local))
+                {
+                    dishRock = -1;
+                    dishFiring = false;
+                }
+                else
+                {
+                    dishYaw = Wrap(dishYaw + Mathf.Clamp(Wrap(want.x - dishYaw), -step, step));
+                    dishPitch += Mathf.Clamp(want.y - dishPitch, -step, step);
+                    float err = Mathf.Max(Mathf.Abs(Wrap(want.x - dishYaw)), Mathf.Abs(want.y - dishPitch));
+                    dishFiring = !(err > (dishFiring ? 0.06f : 0.02f));
+                    if (dishFiring)
+                    {
+                        var muzzle = ToTrue(MuzzleLocal(dishYaw, dishPitch));
+                        var rp = belt.RockPos(rock);
+                        dishHit = rp + (muzzle - rp).normalized * belt.radius[rock] * 0.85f;
+                        belt.Damage(rock, L.rate * 5f * dt);
+                        if (belt.hp[rock] <= 0f)
+                        {
+                            game.BreakRock(rock, true);
+                            dishRock = -1;
+                            dishFiring = false;
+                        }
+                        else
+                        {
+                            float flick = 1f + Mathf.Sin(State.time * 23f) * 0.12f;
+                            _beam.enabled = true;
+                            _beam.SetPosition(0, muzzle - game.worldOffset);
+                            _beam.SetPosition(1, dishHit - game.worldOffset);
+                            _hitGlow.gameObject.SetActive(true);
+                            _hitGlow.position = dishHit - game.worldOffset;
+                            _hitGlow.localScale = Vector3.one * 60f * flick;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                dishFiring = false;
+                dishYaw = Wrap(dishYaw + Mathf.Clamp(Wrap(0f - dishYaw), -step, step));
+                dishPitch += Mathf.Clamp(0.15f - dishPitch, -step, step);
+            }
+        }
+        // the model's rig: yaw about Y and pitch about Z in the model's frame, which is the carrier frame with Z mirrored
+        // (glTFast's X mirror and the half turn), so the yaw runs the other way
+        if (_dishYaw != null) _dishYaw.localRotation = Quaternion.AngleAxis(-dishYaw * Mathf.Rad2Deg, Vector3.up);
+        if (_dishPitch != null) _dishPitch.localRotation = Quaternion.AngleAxis(-dishPitch * Mathf.Rad2Deg, Vector3.forward);
+    }
+
+    /// How far the model's focus node sits from where the turret maths says the muzzle is, for the smoke run.
+    public float DishRigError()
+    {
+        if (_dishFocus == null) return -1f;
+        return (transform.InverseTransformPoint(_dishFocus.position) - MuzzleLocal(dishYaw, dishPitch)).magnitude;
+    }
+
+    public string DishStats()
+    {
+        return "rock " + dishRock + " firing " + dishFiring + " yaw " + dishYaw.ToString("0.00") + " pitch " + dishPitch.ToString("0.00") + " rig error " + DishRigError().ToString("0");
     }
 
     public void BuildHull()

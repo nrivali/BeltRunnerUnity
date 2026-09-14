@@ -13,6 +13,7 @@ public class Pickup : MonoBehaviour
     public Vector3 vel;
     public float age;
     public float noPick;   // seconds before the ship can pull it in
+    public object claimed; // the collector drone heading for this lump, so two never chase the same one
 
     static Mesh _mesh;
 

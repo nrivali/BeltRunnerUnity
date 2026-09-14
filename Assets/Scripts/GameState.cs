@@ -21,6 +21,8 @@ public static class State
     public static float shipFuel = 1200f;   // the cargo ship's fuel supply, which the ship's tank fills from while docked
     public static float parts = 120f;       // repair parts aboard the cargo ship, one per hull point mended while docked
     public static Dictionary<string, int> up = new Dictionary<string, int>();
+    public static Dictionary<string, int> depot = new Dictionary<string, int>();   // cargo ship upgrades: the mast dish and the collector drones
+    public static float droneUnits = 0f;                                          // ore the collectors have stowed, all told
     public static Dictionary<string, float> market = new Dictionary<string, float>();
     public static Dictionary<string, float> marketNext = new Dictionary<string, float>();
     public static float marketT = 0f;
@@ -47,6 +49,7 @@ public static class State
             marketNext[k] = 1f;
         }
         foreach (var k in Data.UPGRADE_KEYS) up[k] = 0;
+        foreach (var k in Data.DEPOT_KEYS) depot[k] = 0;
         Load();
     }
 
@@ -244,6 +247,32 @@ public static class State
         return n;
     }
 
+    /// Storage room for any ore at all (a drone only goes out if there is somewhere to put what it brings back).
+    public static bool StoreAnyRoom()
+    {
+        if (StoreFree() > 0) return true;
+        foreach (var k in Data.ORE_KEYS)
+        {
+            if (store[k] > 0.5f && Stacks(store[k]) * Data.STACK - store[k] > 0.5f) return true;
+        }
+        return false;
+    }
+
+    /// Buy the next level of a cargo ship upgrade.
+    public static bool BuyDepot(string key, out string msg)
+    {
+        var u = Data.DEPOT_UPGRADES[key];
+        int i = depot[key];
+        if (i >= u.costs.Length) { msg = u.name + " is fully upgraded"; return false; }
+        float c = u.costs[i];
+        if (credits < c) { msg = "Not enough credits"; return false; }
+        credits -= c;
+        depot[key] = i + 1;
+        Save();
+        msg = u.name + " " + (i == 0 ? "installed" : "upgraded to Lv" + (i + 1));
+        return true;
+    }
+
     /// Buy the next level of a refit. Returns whether it went through, and a message for the toast.
     public static bool Buy(string key, out string msg)
     {
@@ -263,6 +292,7 @@ public static class State
     // ---- the save file: the browser's field names, written by JsonUtility through a mirror of the save object
     [Serializable] public class Bag { public float iron, copper, gold, platinum, crystal, cobalt, beryl; }
     [Serializable] public class Ups { public int laser, cargo, engine, tank, scanner, range, hull, thrusters, overcharge; }
+    [Serializable] public class Dep { public int laser, collectors; }
     [Serializable] public class Settings { public bool sound = true; public float volume = 1f; }
     [Serializable]
     public class SaveData
@@ -270,6 +300,8 @@ public static class State
         public float credits, fuel, hull, mined, earned, time, shipFuel = 1200f, parts = 120f;
         public Bag cargo, store, market;
         public Ups up;
+        public Dep depot;
+        public float droneUnits;
         public string zone;
         public int tut;
         public Settings settings;
@@ -293,6 +325,7 @@ public static class State
             credits = credits, fuel = fuel, hull = hull, mined = mined, earned = earned, time = time, shipFuel = shipFuel, parts = parts,
             cargo = ToBag(cargo), store = ToBag(store), market = ToBag(market),
             up = new Ups { laser = up["laser"], cargo = up["cargo"], engine = up["engine"], tank = up["tank"], scanner = up["scanner"], range = up["range"], hull = up["hull"], thrusters = up["thrusters"], overcharge = up["overcharge"] },
+            depot = new Dep { laser = depot["laser"], collectors = depot["collectors"] }, droneUnits = droneUnits,
             zone = zoneId, tut = tut, settings = new Settings { sound = soundOn, volume = volume },
         };
         try
@@ -333,6 +366,12 @@ public static class State
             up["range"] = s.up.range; up["hull"] = s.up.hull; up["thrusters"] = s.up.thrusters; up["overcharge"] = s.up.overcharge;
             foreach (var k in Data.UPGRADE_KEYS) up[k] = Mathf.Clamp(up[k], 0, Data.UPGRADES[k].levels.Length - 1);
         }
+        if (s.depot != null)
+        {
+            depot["laser"] = Mathf.Clamp(s.depot.laser, 0, Data.DEPOT_UPGRADES["laser"].costs.Length);
+            depot["collectors"] = Mathf.Clamp(s.depot.collectors, 0, Data.DEPOT_UPGRADES["collectors"].costs.Length);
+        }
+        droneUnits = s.droneUnits;
         if (s.settings != null) { soundOn = s.settings.sound; volume = s.settings.volume; }
         hasSave = true;
         return true;
@@ -348,6 +387,8 @@ public static class State
         parts = 120f;
         foreach (var k in Data.ORE_KEYS) { cargo[k] = 0f; store[k] = 0f; market[k] = 1f; marketNext[k] = 1f; }
         foreach (var k in Data.UPGRADE_KEYS) up[k] = 0;
+        foreach (var k in Data.DEPOT_KEYS) depot[k] = 0;
+        droneUnits = 0f;
         marketT = 0f;
         zoneId = "kessler";
         tut = 0;

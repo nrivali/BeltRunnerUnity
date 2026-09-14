@@ -134,6 +134,7 @@ namespace UnityEngine
         public static int FloorToInt(float x) => (int)Math.Floor(x);
         public static int CeilToInt(float x) => (int)Math.Ceiling(x);
         public static float Lerp(float a, float b, float t) => a + (b - a) * Clamp01(t);
+        public static float Repeat(float t, float len) => t - (float)Math.Floor(t / len) * len;
     }
 
     public static class Random

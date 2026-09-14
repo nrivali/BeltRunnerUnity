@@ -226,7 +226,7 @@ public class Hud : MonoBehaviour
         _svcRefits.anchorMin = _svcRefits.anchorMax = new Vector2(0f, 1f);
         _svcRefits.pivot = new Vector2(0f, 1f);
         _svcRefits.anchoredPosition = new Vector2(20f, -254f);
-        _svcRefits.sizeDelta = new Vector2(360f, 380f);
+        _svcRefits.sizeDelta = new Vector2(360f, 520f);
         _departBtn = SmallButton(panel, "DEPART  (W)", new Vector2(20f, 14f), 140f, () => { if (ship != null) ship.StartDeparture(); }, true);
         _warpBtn = SmallButton(panel, "WARP TO THE HUB", new Vector2(170f, 14f), 130f, () => { if (ship != null && ship.docked && !zone.hub) ship.StartWarp(Data.ZONE_HUB); }, true);
         SmallButton(panel, "HIDE  (F)", new Vector2(310f, 14f), 70f, () => ToggleServices(), true);
@@ -320,6 +320,41 @@ public class Hud : MonoBehaviour
             }
             y -= 40f;
         }
+        // the cargo ship's own upgrades below the refits
+        y -= 6f;
+        var dcap = Label(_svcRefits, "DepotCap", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, y), new Vector2(360f, 16f), 11, TextAnchor.MiddleLeft, MUTED);
+        dcap.text = "CARGO SHIP";
+        y -= 18f;
+        foreach (var key in Data.DEPOT_KEYS)
+        {
+            var u = Data.DEPOT_UPGRADES[key];
+            int i = State.depot[key];
+            bool maxed = i >= u.costs.Length;
+            var name = Label(_svcRefits, "DName", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, y), new Vector2(240f, 16f), 12, TextAnchor.MiddleLeft, TEXT);
+            name.text = u.name + "  Lv" + i + "/" + u.costs.Length;
+            var desc = Label(_svcRefits, "DDesc", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, y - 16f), new Vector2(240f, 16f), 10, TextAnchor.MiddleLeft, MUTED);
+            desc.text = maxed ? Data.DescribeDepot(key, i) + " · fully upgraded" : Data.DescribeDepot(key, i) + "  →  " + Data.DescribeDepot(key, i + 1);
+            if (!maxed)
+            {
+                float cost = u.costs[i];
+                var k2 = key;
+                var b = SmallButton(_svcRefits, Data.Fmt(cost) + " cr", new Vector2(250f, y - 2f), 110f, () => BuyDepot(k2));
+                b.interactable = State.credits >= cost;
+                b.GetComponentInChildren<Text>().color = State.credits >= cost ? AMBER : MUTED;
+            }
+            y -= 40f;
+        }
+        var hint = Label(_svcRefits, "DHint", new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(0f, y), new Vector2(360f, 30f), 10, TextAnchor.UpperLeft, MUTED);
+        hint.text = "The dish leaves the ore it frees adrift for you to pick up. Collector drones gather it and stow it in the cargo ship storage" + (State.droneUnits > 0.5f ? " · " + Data.Fmt(State.droneUnits) + " stowed so far" : "") + ".";
+    }
+
+    void BuyDepot(string key)
+    {
+        string msg;
+        bool ok = State.BuyDepot(key, out msg);
+        Toast(msg, !ok);
+        if (ok) Audio.Play("chime");
+        RefreshServices();
     }
 
     void Buy(string key)

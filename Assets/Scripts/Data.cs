@@ -100,6 +100,29 @@ public static class Data
     };
     public static readonly string[] UPGRADE_KEYS = { "laser", "cargo", "engine", "tank", "scanner", "range", "hull", "thrusters", "overcharge" };
 
+    /// Cargo ship upgrades, bought at the services panel; they work whether or not you are docked. Level 0 = not
+    /// installed. The dish on the mast breaks rocks near the carrier and leaves their ore adrift; collector drones fly
+    /// out from the hangar, gather loose ore and stow it in the cargo ship storage.
+    public class DepotLevel { public float range, rate, cap, speed; public int ships; }
+    public class DepotUpgrade { public string name; public DepotLevel[] levels; public float[] costs; }
+    public static readonly Dictionary<string, DepotUpgrade> DEPOT_UPGRADES = new Dictionary<string, DepotUpgrade>
+    {
+        { "laser", new DepotUpgrade { name = "Cargo ship mining laser", levels = new DepotLevel[] { null, new DepotLevel { range = 12000f, rate = 2f }, new DepotLevel { range = 20000f, rate = 4f }, new DepotLevel { range = 32000f, rate = 7f } }, costs = new float[] { 5000, 14000, 40000 } } },
+        { "collectors", new DepotUpgrade { name = "Collector drones", levels = new DepotLevel[] { null, new DepotLevel { ships = 1, cap = 120f, speed = 260f, range = 20000f }, new DepotLevel { ships = 2, cap = 180f, speed = 300f, range = 35000f }, new DepotLevel { ships = 3, cap = 260f, speed = 340f, range = 60000f } }, costs = new float[] { 8000, 20000, 45000 } } },
+    };
+    public static readonly string[] DEPOT_KEYS = { "laser", "collectors" };
+    public const float TURRET_PITCH_MIN = -0.5f;
+    public const float TURRET_PITCH_MAX = 1.45f;
+    public const float TURRET_SLEW = 0.45f;   // rad/s; yaw is unlimited
+
+    public static string DescribeDepot(string key, int i)
+    {
+        var L = DEPOT_UPGRADES[key].levels[i];
+        if (L == null) return "not installed";
+        if (key == "laser") return Fm(L.range) + " m reach · " + L.rate + " dmg/s";
+        return L.ships + " drone" + (L.ships > 1 ? "s" : "") + " · " + Mathf.RoundToInt(L.cap) + " hold · " + Fm(L.range) + " m range";
+    }
+
     /// Fuel burn multiplier for an afterburner setting (0.8 x mult squared: x3.2 at x2, x20 at x5).
     public static float BurnMult(float m)
     {

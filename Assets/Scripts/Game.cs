@@ -17,6 +17,15 @@ public class Game : MonoBehaviour
     public Colony colony;
     public Hud hud;
     public Tutorial tutorial;
+    public Drones drones;
+    float _dishToastT = -100f;
+    public List<Pickup> Drops { get { return _drops; } }
+
+    public void RemoveDrop(Pickup p)
+    {
+        _drops.Remove(p);
+        Destroy(p.gameObject);
+    }
     public Camera cam;
     public Light sun;
     public bool started, paused;
@@ -39,7 +48,7 @@ public class Game : MonoBehaviour
         State.Init();
         var args = Environment.GetCommandLineArgs();
         foreach (var a in args) if (a == "-smoke" || a == "--smoke") _smoke = true;
-        if (_smoke) { State.Reset(); State.tut = 0; }   // the run starts from a fresh pilot every time, questline and all
+        if (_smoke) { State.Reset(); State.tut = 0; State.depot["laser"] = 1; State.depot["collectors"] = 1; }   // a fresh pilot every time, questline and all; the cargo ship upgrades, so the dish and a drone get exercised
         var t0 = Time.realtimeSinceStartup;
         SetupCamera();
         SetupLighting();
@@ -63,6 +72,7 @@ public class Game : MonoBehaviour
         hud.Build();
         tutorial = new Tutorial { game = this, ship = ship, hud = hud };
         hud.tutorial = tutorial;
+        drones = new Drones { game = this, carrier = carrier };
         hud.onStart = StartGame;
         hud.onNewGame = NewGame;
         hud.onQuit = Quit;
@@ -131,6 +141,9 @@ public class Game : MonoBehaviour
         foreach (var p in _drops) if (p != null) Destroy(p.gameObject);
         _drops.Clear();
         ship.nearRocks = new List<int>();
+        if (drones != null) drones.Reset();
+        carrier.dishRock = -1;
+        carrier.dishFiring = false;
         belt.Clear();
         belt.Build(z, z.id == "kessler" ? SEED : SEED + 11);
         if (colony != null) { Destroy(colony.gameObject); colony = null; }
@@ -313,7 +326,7 @@ public class Game : MonoBehaviour
     /// A rock breaks (the browser's breakRock): big rocks break into smaller mineable rocks (colossal → giants → large →
     /// small), a quarter of their ore coming loose at once and the rest riding in the fragments; a small rock's ore all
     /// comes loose. The lumps drift with the rock's orbital velocity.
-    public void BreakRock(int i)
+    public void BreakRock(int i, bool byDish = false)
     {
         string rname = belt.RockName(i);
         int oreI = belt.ore[i];
@@ -327,7 +340,8 @@ public class Game : MonoBehaviour
         float total = belt.Kill(i);
         float loose = splits ? total * 0.25f : total;
         if (_smoke) Debug.Log("smoke: break · " + rname + " total=" + total.ToString("0") + " loose=" + loose.ToString("0") + " splits=" + splits);
-        Audio.Play("rock_break", c > 0 ? 0f : -4f);
+        bool near = (p - ship.TruePos).magnitude < 3000f;
+        if (near || !byDish) Audio.Play("rock_break", c > 0 ? 0f : -4f);
         if (oreI >= 0 && loose > 0f)
         {
             int k = Mathf.Clamp(Mathf.RoundToInt(loose / 40f), 1, 8);
@@ -340,10 +354,15 @@ public class Game : MonoBehaviour
         }
         int parts = 0;
         if (splits) parts = SplitRock(c, r, oreI, total, p, v, bi);
+        // the dish works on its own, so its breaks are only announced every 20 s or so; your own always are
+        bool quiet = byDish && State.time - _dishToastT < 20f;
+        if (byDish && !quiet) _dishToastT = State.time;
+        if (quiet) return;
+        string who = byDish ? "Cargo ship dish: " : "";
         string oreTxt = oreI >= 0 && loose > 0f ? " · " + Mathf.RoundToInt(loose) + " " + Data.ORES[oreI].name + " loose" : "";
-        if (splits) hud.Toast(rname + " broken into " + parts + " " + Belt.CLS_NAME[c - 1].ToLowerInvariant() + " rocks" + oreTxt, false);
-        else if (oreI >= 0 && loose > 0f) hud.Toast(rname + " broken" + oreTxt, false);
-        else hud.Toast(rname + " broken · scrap only", false);
+        if (splits) hud.Toast(who + rname + " broken into " + parts + " " + Belt.CLS_NAME[c - 1].ToLowerInvariant() + " rocks" + oreTxt, false);
+        else if (oreI >= 0 && loose > 0f) hud.Toast(who + rname + " broken" + oreTxt, false);
+        else hud.Toast(who + rname + " broken · scrap only", false);
     }
 
     /// splitRock: three to five fragments of the next class down, about half of them carrying three quarters of the
@@ -409,6 +428,11 @@ public class Game : MonoBehaviour
         ship.Tick(dt);
         belt.Tick(dt, ship.TruePos);
         if (colony != null) colony.Tick(dt);
+        if (ship.warp == null)
+        {
+            carrier.TickDish(dt, belt);
+            drones.Tick(dt);
+        }
         Audio.I.Engine(ship.throttle, ship.afterburning, ship.braking, ship.docked || ship.InCinematic);
         Audio.I.Laser(ship.firing && !ship.docked && !ship.InCinematic, ship.laserOn);
         for (int i = _drops.Count - 1; i >= 0; i--)
@@ -463,6 +487,7 @@ public class Game : MonoBehaviour
     int _phaseFrame;
     bool _shotArrival;
     int _mapFrames;
+    bool _droneDone;
 
     void Next(string phase)
     {
@@ -537,6 +562,10 @@ public class Game : MonoBehaviour
                 }
                 break;
             case "mining":
+                if (_phaseFrame == 200 || _phaseFrame == 400)
+                {
+                    Debug.Log("smoke: dish · " + carrier.DishStats() + " · drones " + drones.Stats() + " · stowed by drones " + State.droneUnits.ToString("0") + " · pickups " + _drops.Count);
+                }
                 if (_phaseFrame == 60)
                 {
                     Shot("smoke_mine");
@@ -587,11 +616,22 @@ public class Game : MonoBehaviour
                 }
                 break;
             case "docked":
-                if (_phaseFrame == 150)
+                if (_phaseFrame == 10)
                 {
+                    // a lump of iron adrift off the mouth: the collector drone should fetch it and stow it
+                    SpawnPickup("iron", 40f, carrier.ToTrue(new Vector3(1200f, 200f, 2600f)) - worldOffset, carrier.vel);
+                }
+                if (_phaseFrame % 600 == 0 || State.droneUnits > 0.5f && !_droneDone)
+                {
+                    Debug.Log("smoke: drones · " + drones.Stats() + " · stowed " + State.droneUnits.ToString("0") + " · pickups " + _drops.Count + " · dish " + carrier.DishStats());
+                    if (State.droneUnits > 0.5f) _droneDone = true;
+                }
+                if (_phaseFrame == 150 || (_phaseFrame > 150 && _phaseFrame % 30 == 0 && _droneDone) || _phaseFrame == 7000)
+                {
+                    if (_phaseFrame == 150 && !_droneDone) { Shot("smoke_pad"); break; }   // the first shot; the run then waits for the drone
                     Shot("smoke_pad");
                     var local = carrier.ToLocalTrue(ship.TruePos);
-                    Debug.Log("smoke: on the pad · local=" + local.ToString("0") + " · park=" + CargoShip.ParkLocal(ship.dockSide).ToString("0") + " · carrier speed " + carrier.vel.magnitude.ToString("0") + " u/s");
+                    Debug.Log("smoke: on the pad · local=" + local.ToString("0") + " · park=" + CargoShip.ParkLocal(ship.dockSide).ToString("0") + " · carrier speed " + carrier.vel.magnitude.ToString("0") + " u/s · drone stowed " + State.droneUnits.ToString("0"));
                     ship.StartDeparture();
                     Next("depart2");
                 }

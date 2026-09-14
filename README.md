@@ -48,6 +48,15 @@ the ore, flies, saves, and quits, printing `smoke:` lines to the log and saving 
 (`%USERPROFILE%AppDataocallow
 rivalibelt runner`).
 
+## Milestone 6 — the cargo ship dish and the collector drones
+
+| Piece | Where | Status |
+|---|---|---|
+| The cargo ship upgrades: the mast dish (three levels of reach and rate) and the collector drones (one to three ships with a hold, a speed and a range), bought from the services panel, saved as `depot` with the drones' tally `droneUnits` | `Assets/Scripts/Data.cs` (`DEPOT_UPGRADES`), `Assets/Scripts/GameState.cs` (`BuyDepot`), `Assets/Scripts/Hud.cs` | ported |
+| The dish: the model's own yaw and pitch rig slewed at 0.45 rad/s onto the nearest ore rock its level can open, only where the beam clears the hull and within the pitch limits; it fires once both axes are within a degree or so, cuts the rock and leaves the ore adrift; its breaks are announced every 20 s at most | `Assets/Scripts/CargoShip.cs` (`TickDish`, `TurretAngles`, `MuzzleLocal`, `InArc`) | ported; the smoke run checks the rig maths against the model's focus node (error 0) |
+| The drones: stubby cargo drones at their docks off mouth 1, out to the nearest unclaimed lump in range, home in through the nearest mouth, down the lane to the drop-off pad, a pause to unload into the storage, out the far mouth; each claims its lump | `Assets/Scripts/Drones.cs` | ported from makeDrone / updateCollectors |
+| The smoke run grants both upgrades, prints the dish state while cutting, drops a lump of iron off the mouth while docked and waits for the drone to stow it | `Assets/Scripts/Game.cs` | |
+
 ## Milestone 5 — the tutorial and the voice lines
 
 | Piece | Where | Status |
