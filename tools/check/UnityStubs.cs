@@ -167,6 +167,7 @@ namespace UnityEngine
         public static float value => (float)_r.NextDouble();
         public static Vector3 onUnitSphere => new Vector3(value * 2 - 1, value * 2 - 1, value * 2 - 1).normalized;
         public static Vector3 insideUnitSphere => new Vector3(value * 2 - 1, value * 2 - 1, value * 2 - 1) * 0.5f;
+        public static Quaternion rotation => Quaternion.identity;
         public static float Range(float a, float b) => a + (b - a) * value;
         public static int Range(int a, int b) => a + _r.Next(Math.Max(1, b - a));
     }
@@ -355,6 +356,7 @@ namespace UnityEngine
         public bool isSupported => true;
         public static Shader Find(string name) => new Shader { name = name };
         public static void SetGlobalFloat(string name, float v) { }
+        public static void SetGlobalVector(string name, Vector4 v) { }
     }
 
     public class Material : Object

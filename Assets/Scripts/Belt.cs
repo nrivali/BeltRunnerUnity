@@ -15,6 +15,9 @@ public class Belt
     public const float ORBIT_SPEED = 28f;
     public const float RESPAWN_AFTER = 300f;
     public const float MARK_TIME = 25f;
+    public const float LOD0_RADII = 6f;    // a rock closer than this many of its radii draws LOD 0 (the browser's 100 px on screen)
+    public const float LOD0_OUT = 8f;      // and drops back beyond this many (hysteresis)
+    public const int SCRAP_MAX = 512;
     const float COLOSSAL_LOOSE = 0.146f;
     const float BARREN_SHARE = 2f / 3f;
     const float COLOSSAL_ORE_SHARE = 0.001f;
@@ -47,6 +50,7 @@ public class Belt
     public List<float> markFrom = new List<float>();
     public List<Quaternion> rot = new List<Quaternion>();
     public List<Vector3> scl = new List<Vector3>();
+    public List<float> glow = new List<float>();          // residual heat on a fresh fragment (1 at birth, gone in 30 s)
     public int count;
 
     public class Field
@@ -89,7 +93,32 @@ public class Belt
     List<int> _freeIds = new List<int>();
     List<int> _dead = new List<int>();
     List<int> _marked = new List<int>();
-    Mesh[,] _meshes;   // [key, lod] with lod 0 = near, 1 = far
+    Mesh[,] _meshes;   // [key, lod] with lod 0 = the finest (rocks up close), 1 = near chunks, 2 = far chunks
+    // LOD 0: the rocks close to the ship leave their chunk's batch and draw on their own with Astra's finest mesh
+    class Lod0 { public Matrix4x4[] mats = new Matrix4x4[1]; public Vector4[] colors = new Vector4[1]; public Vector4[] rails = new Vector4[1]; public MaterialPropertyBlock mpb = new MaterialPropertyBlock(); }
+    readonly Dictionary<int, Lod0> _lod0 = new Dictionary<int, Lod0>();
+    readonly HashSet<int> _lod0Keep = new HashSet<int>();
+    readonly List<int> _lod0Gone = new List<int>();
+    bool _haveLod0;
+    // scrap: small hot chunks thrown off a broken rock; they coast, spin, cool over 30 s and fade out after half an hour
+    readonly List<Vector3> _scrapPos = new List<Vector3>();
+    readonly List<Vector3> _scrapVel = new List<Vector3>();
+    readonly List<float> _scrapR = new List<float>();
+    readonly List<Vector3> _scrapAxis = new List<Vector3>();
+    readonly List<float> _scrapSpin = new List<float>();
+    readonly List<float> _scrapT = new List<float>();
+    readonly List<float> _scrapLife = new List<float>();
+    readonly List<Quaternion> _scrapRot = new List<Quaternion>();
+    readonly Matrix4x4[] _scrapMats = new Matrix4x4[SCRAP_MAX];
+    readonly Vector4[] _scrapCols = new Vector4[SCRAP_MAX];
+    readonly Vector4[] _scrapRails = new Vector4[SCRAP_MAX];
+    readonly MaterialPropertyBlock _scrapMpb = new MaterialPropertyBlock();
+    int _scrapKey;
+    readonly List<int> _hot = new List<int>();
+    // the laser heat points (the ship's beam 0, the dish's 1): true world, amount, radius
+    readonly Vector3[] _heatSrc = new Vector3[2];
+    readonly float[] _heatAmt = new float[2];
+    readonly float[] _heatRad = { 1f, 1f };
     Material _mat;
     Rng _rng = new Rng(1);
     float _elapsed;
@@ -119,7 +148,7 @@ public class Belt
             _mat = new Material(sh);
         }
         _mat.enableInstancing = true;
-        _meshes = new Mesh[RockMeshes.SHAPES.Length * 2, 2];
+        _meshes = new Mesh[RockMeshes.SHAPES.Length * 2, 3];
         _subMats = new Material[RockMeshes.SHAPES.Length * 2][];
         _tints = new bool[RockMeshes.SHAPES.Length * 2][];
         int fromLib = LoadLibrary();
@@ -128,18 +157,19 @@ public class Belt
             for (int v = 0; v < 2; v++)
             {
                 int key = s * 2 + v;
-                if (_meshes[key, 0] == null || _meshes[key, 1] == null)
+                if (_meshes[key, 1] == null || _meshes[key, 2] == null)
                 {
                     // the browser's own procedural shape stands in for a missing library entry
-                    _meshes[key, 0] = RockMeshes.Build(RockMeshes.SHAPES[s], 1, key + 1);
-                    _meshes[key, 1] = RockMeshes.Build(RockMeshes.SHAPES[s], 0, key + 1);
+                    _meshes[key, 1] = RockMeshes.Build(RockMeshes.SHAPES[s], 1, key + 1);
+                    _meshes[key, 2] = RockMeshes.Build(RockMeshes.SHAPES[s], 0, key + 1);
                     _subMats[key] = new[] { _mat };
                     _tints[key] = new[] { true };
                 }
+                if (_meshes[key, 0] == null) _meshes[key, 0] = _meshes[key, 1];
                 // the rail drift happens in the vertex shader, so a rock can sit up to a chunk away from its matrix;
                 // bounds wide enough (in mesh units, scaled by the smallest radius) keep the renderer from culling it
-                _meshes[key, 0].bounds = new Bounds(Vector3.zero, Vector3.one * 60000f);
-                _meshes[key, 1].bounds = new Bounds(Vector3.zero, Vector3.one * 60000f);
+                for (int l = 0; l < 3; l++) _meshes[key, l].bounds = new Bounds(Vector3.zero, Vector3.one * 60000f);
+                if (RockMeshes.SHAPES[s].key == "lumpy" && v == 0) _scrapKey = key;
             }
         }
         Debug.Log("rocks: library " + (fromLib > 0 ? fromLib + " shapes from Astra's asteroids" : "missing, the procedural shapes stand in"));
@@ -156,11 +186,14 @@ public class Belt
     {
         var lod1 = Resources.Load<GameObject>("Models/asteroids_lod1");
         var lod2 = Resources.Load<GameObject>("Models/asteroids_lod2");
+        var lod0 = Resources.Load<GameObject>("Models/asteroids_lod0");
         if (lod1 == null || lod2 == null) return 0;
         var near = new Dictionary<string, MeshFilter>();
         var far = new Dictionary<string, MeshFilter>();
+        var finest = new Dictionary<string, MeshFilter>();
         foreach (var mf in lod1.GetComponentsInChildren<MeshFilter>(true)) near[KeyOf(mf.name)] = mf;
         foreach (var mf in lod2.GetComponentsInChildren<MeshFilter>(true)) far[KeyOf(mf.name)] = mf;
+        if (lod0 != null) foreach (var mf in lod0.GetComponentsInChildren<MeshFilter>(true)) finest[KeyOf(mf.name)] = mf;
         int found = 0;
         for (int s = 0; s < RockMeshes.SHAPES.Length; s++)
         {
@@ -170,8 +203,10 @@ public class Belt
                 MeshFilter a, b;
                 if (!near.TryGetValue(k, out a) || !far.TryGetValue(k, out b) || a.sharedMesh == null || b.sharedMesh == null) continue;
                 int key = s * 2 + v;
-                _meshes[key, 0] = a.sharedMesh;
-                _meshes[key, 1] = b.sharedMesh;
+                _meshes[key, 1] = a.sharedMesh;
+                _meshes[key, 2] = b.sharedMesh;
+                MeshFilter f0;
+                if (finest.TryGetValue(k, out f0) && f0.sharedMesh != null && f0.sharedMesh.subMeshCount == a.sharedMesh.subMeshCount) { _meshes[key, 0] = f0.sharedMesh; _haveLod0 = true; }
                 var mr = a.GetComponent<MeshRenderer>();
                 var src = mr != null ? mr.sharedMaterials : new Material[0];
                 int n = Mathf.Max(1, a.sharedMesh.subMeshCount);
@@ -226,8 +261,12 @@ public class Belt
     {
         pos.Clear(); radius.Clear(); ore.Clear(); hp.Clear(); hpMax.Clear(); amount.Clear(); amountMax.Clear(); cls.Clear(); alive.Clear();
         meshKey.Clear(); chunkOf.Clear(); batchOf.Clear(); slotOf.Clear(); ang.Clear(); orbit.Clear(); free.Clear(); vel.Clear(); fragment.Clear();
-        beltOf.Clear(); respawnAt.Clear(); markUntil.Clear(); markFrom.Clear(); rot.Clear(); scl.Clear();
+        beltOf.Clear(); respawnAt.Clear(); markUntil.Clear(); markFrom.Clear(); rot.Clear(); scl.Clear(); glow.Clear();
         count = 0;
+        _lod0.Clear();
+        _hot.Clear();
+        ClearScrap();
+        _heatAmt[0] = _heatAmt[1] = 0f;
         fields.Clear();
         belts.Clear();
         _chunks.Clear();
@@ -420,7 +459,7 @@ public class Belt
         int i = count;
         pos.Add(p); radius.Add(r); ore.Add(oreI); hp.Add(hpm); hpMax.Add(hpm); amount.Add(amt); amountMax.Add(amt); cls.Add(c); alive.Add(true);
         meshKey.Add(key); chunkOf.Add(-1); batchOf.Add(-1); slotOf.Add(-1); markUntil.Add(0f); markFrom.Add(0f);
-        ang.Add(ra); orbit.Add(Mathf.Max(1f, ro)); free.Add(isFree); vel.Add(v); fragment.Add(false); beltOf.Add(bi); respawnAt.Add(0f);
+        ang.Add(ra); orbit.Add(Mathf.Max(1f, ro)); free.Add(isFree); vel.Add(v); fragment.Add(false); beltOf.Add(bi); respawnAt.Add(0f); glow.Add(0f);
         rot.Add(Quaternion.Euler(_rng.Value() * 360f, _rng.Value() * 360f, _rng.Value() * 360f));
         scl.Add(new Vector3(_rng.Range(0.85f, 1.2f), _rng.Range(0.8f, 1.15f), _rng.Range(0.85f, 1.2f)) * r);
         count++;
@@ -487,7 +526,7 @@ public class Belt
     {
         var b = _batches[batchOf[i]];
         int s = slotOf[i];
-        b.mats[s] = alive[i] ? Matrix4x4.TRS(pos[i] - _offset, rot[i], scl[i]) : Matrix4x4.zero;
+        b.mats[s] = alive[i] && !_lod0.ContainsKey(i) ? Matrix4x4.TRS(pos[i] - _offset, rot[i], scl[i]) : Matrix4x4.zero;
         if (b.colors[s] == Vector4.zero) b.colors[s] = RockColor(i);
         b.rails[s] = new Vector4(ang[i], orbit[i], free[i] ? 0f : 1f, BodyHeat(i));
         b.dirty = true;
@@ -502,6 +541,7 @@ public class Belt
 
     void WriteTranslation(int i)
     {
+        if (_lod0.ContainsKey(i)) return;   // drawn on its own while it is close
         var b = _batches[batchOf[i]];
         var m = b.mats[slotOf[i]];
         var p = pos[i] - _offset;
@@ -511,7 +551,16 @@ public class Belt
 
     float BodyHeat(int i)
     {
-        return Mathf.Pow(Mathf.Max(0f, 1f - hp[i] / Mathf.Max(1f, hpMax[i])), 1.3f);
+        float h = Mathf.Pow(Mathf.Max(0f, 1f - hp[i] / Mathf.Max(1f, hpMax[i])), 1.3f);
+        return Mathf.Max(h, Mathf.Pow(glow[i], 1.6f));
+    }
+
+    /// The laser heat points: where the ship's beam (0) and the dish's beam (1) are cooking a rock this frame.
+    public void SetSpotHeat(int idx, Vector3 atTrue, float amount, float radius)
+    {
+        _heatSrc[idx] = atTrue;
+        _heatAmt[idx] = amount;
+        _heatRad[idx] = Mathf.Max(1f, radius);
     }
 
     // ---- the rails: where a rock is now, and how fast it is going
@@ -685,6 +734,7 @@ public class Belt
     public float Kill(int i)
     {
         alive[i] = false;
+        _lod0.Remove(i);
         if (batchOf[i] >= 0)
         {
             _batches[batchOf[i]].mats[slotOf[i]] = Matrix4x4.zero;
@@ -737,6 +787,8 @@ public class Belt
         float hpm = Mathf.Round(40f + 2.2f * Mathf.Pow(r, 1.15f));
         int i = AppendRock(p, r, barren ? -1 : oreI, hpm, barren ? 0f : amt, c, PickShape(c), 0f, 1f, bi, true, v);
         fragment[i] = true;
+        glow[i] = 1f;   // fragments start hot and cool over 30 s
+        _hot.Add(i);
         int ci = ChunkIndex(p);
         chunkOf[i] = ci;
         _chunks[ci].rocks.Add(i);
@@ -747,10 +799,23 @@ public class Belt
 
     /// Every frame: the drift time for the rock shader, free rocks coasting (bouncing off the zone edge, coming to rest
     /// on the planet), and broken belt rocks growing back once the ship is well away.
-    public void Tick(float dt, Vector3 shipTrue)
+    public void Tick(float dt, Vector3 shipTrue, List<int> nearIds = null)
     {
         _elapsed += dt;
         Shader.SetGlobalFloat("_BeltTime", _elapsed);
+        Shader.SetGlobalVector("_HeatPos0", new Vector4(_heatSrc[0].x - _offset.x, _heatSrc[0].y - _offset.y, _heatSrc[0].z - _offset.z, _heatRad[0]));
+        Shader.SetGlobalVector("_HeatPos1", new Vector4(_heatSrc[1].x - _offset.x, _heatSrc[1].y - _offset.y, _heatSrc[1].z - _offset.z, _heatRad[1]));
+        Shader.SetGlobalVector("_HeatAmt", new Vector4(_heatAmt[0], _heatAmt[1], 0f, 0f));
+        // fresh fragments cool over 30 s
+        for (int k = _hot.Count - 1; k >= 0; k--)
+        {
+            int i = _hot[k];
+            if (!alive[i]) { _hot.RemoveAt(k); continue; }
+            glow[i] = Mathf.Max(0f, glow[i] - dt / 30f);
+            if (batchOf[i] >= 0) WriteRail(i);
+            if (glow[i] <= 0f) _hot.RemoveAt(k);
+        }
+        TickScrap(dt, nearIds);
         for (int k = _freeIds.Count - 1; k >= 0; k--)
         {
             int i = _freeIds[k];
@@ -786,6 +851,189 @@ public class Belt
                 Respawn(i);
                 _dead.RemoveAt(k);
             }
+        }
+    }
+
+    // ---- LOD 0: the rocks close to the ship draw on their own with the finest mesh, the rest ride their chunk's batch
+    void Promote(int i)
+    {
+        _lod0[i] = new Lod0();
+        if (batchOf[i] >= 0) { _batches[batchOf[i]].mats[slotOf[i]] = Matrix4x4.zero; }
+    }
+
+    void Demote(int i)
+    {
+        _lod0.Remove(i);
+        if (alive[i] && batchOf[i] >= 0) WriteInstance(i);
+    }
+
+    /// Called with the rocks near the ship: the close ones draw LOD 0, the rest drop back to their chunk.
+    public void UpdateLod0(Vector3 from, List<int> nearIds)
+    {
+        if (!_haveLod0) return;
+        _lod0Keep.Clear();
+        foreach (int i in nearIds)
+        {
+            if (i >= count || !alive[i]) continue;
+            float d = (RockPos(i) - from).magnitude;
+            bool has = _lod0.ContainsKey(i);
+            if ((has && d < radius[i] * LOD0_OUT) || (!has && d < radius[i] * LOD0_RADII))
+            {
+                _lod0Keep.Add(i);
+                if (!has) Promote(i);
+            }
+        }
+        _lod0Gone.Clear();
+        foreach (var kv in _lod0) if (!_lod0Keep.Contains(kv.Key)) _lod0Gone.Add(kv.Key);
+        foreach (int i in _lod0Gone) Demote(i);
+    }
+
+    public int Lod0Count { get { return _lod0.Count; } }
+    public bool IsLod0(int i) { return _lod0.ContainsKey(i); }
+
+    // ---- scrap (spawnDebris / chunkRock): 5 to 16 chunks, 4 to 12 % of the parent's radius (never mistakable for a
+    // rock you could cut), thrown out from the rock with the rock's own velocity plus a shove, spinning, white-hot at first
+    public void SpawnScrap(int i, Vector3 v)
+    {
+        var p = RockPos(i);
+        float r = radius[i];
+        int n = new[] { 5, 8, 11, 16 }[Mathf.Clamp(cls[i], 0, 3)];
+        for (int k = 0; k < n; k++)
+        {
+            if (_scrapPos.Count >= SCRAP_MAX) DropScrap(0);
+            var dir = Random.onUnitSphere;
+            float sr = r * Random.Range(0.04f, 0.12f);
+            _scrapPos.Add(p + dir * r * Random.Range(0.2f, 0.7f));
+            _scrapVel.Add(v + dir * Random.Range(14f, 55f));
+            _scrapR.Add(sr);
+            _scrapAxis.Add(Random.onUnitSphere);
+            _scrapSpin.Add(Random.Range(0.3f, 1.4f));
+            _scrapT.Add(0f);
+            _scrapLife.Add(1800f + Random.Range(0f, 60f));
+            _scrapRot.Add(Random.rotation);
+        }
+    }
+
+    void DropScrap(int s)
+    {
+        _scrapPos.RemoveAt(s); _scrapVel.RemoveAt(s); _scrapR.RemoveAt(s); _scrapAxis.RemoveAt(s); _scrapSpin.RemoveAt(s); _scrapT.RemoveAt(s); _scrapLife.RemoveAt(s); _scrapRot.RemoveAt(s);
+    }
+
+    void ClearScrap()
+    {
+        _scrapPos.Clear(); _scrapVel.Clear(); _scrapR.Clear(); _scrapAxis.Clear(); _scrapSpin.Clear(); _scrapT.Clear(); _scrapLife.Clear(); _scrapRot.Clear();
+    }
+
+    public int ScrapCount { get { return _scrapPos.Count; } }
+    public Vector3 ScrapPos(int s) { return _scrapPos[s]; }
+    public float ScrapR(int s) { return _scrapR[s]; }
+    public Vector3 ScrapVel(int s) { return _scrapVel[s]; }
+
+    /// The ship hit a chunk: scrap is light, so the shove is the ship's share of the momentum (chunkRock / the solids loop).
+    public void ScrapHit(int s, Vector3 n, float vn, float cv)
+    {
+        float mass = _scrapR[s] * _scrapR[s] * _scrapR[s] / 1000f;
+        float share = 10f / (10f + mass);
+        var v = _scrapVel[s];
+        if (vn < 0f) v += n * vn * 1.5f * share;
+        if (cv > 0f) v -= n * cv * 1.4f;
+        _scrapVel[s] = v;
+        _scrapSpin[s] = Mathf.Min(2.5f, _scrapSpin[s] + 0.5f);
+    }
+
+    static long CellKey(Vector3 q)
+    {
+        long x = Mathf.FloorToInt(q.x / 600f), y = Mathf.FloorToInt(q.y / 600f), z = Mathf.FloorToInt(q.z / 600f);
+        return ((x + 1000000L) << 42) ^ ((y + 1000000L) << 21) ^ (z + 1000000L);
+    }
+
+    readonly Dictionary<long, List<int>> _cells = new Dictionary<long, List<int>>();
+
+    void TickScrap(float dt, List<int> nearIds)
+    {
+        if (_scrapPos.Count == 0) return;
+        for (int s = _scrapPos.Count - 1; s >= 0; s--)
+        {
+            float t = _scrapT[s] + dt;
+            _scrapT[s] = t;
+            if (_scrapLife[s] - t <= 0f) { DropScrap(s); continue; }
+            var p = _scrapPos[s] + _scrapVel[s] * dt;
+            // a chunk bounces off the rocks near the ship (chunkRock)
+            if (nearIds != null)
+            {
+                foreach (int i in nearIds)
+                {
+                    if (i >= count || !alive[i]) continue;
+                    var rp = RockPos(i);
+                    var to = p - rp;
+                    float d = to.magnitude;
+                    float minD = radius[i] * 0.92f + _scrapR[s];
+                    if (d < 1e-3f || d >= minD) continue;
+                    var nrm = to / d;
+                    p = rp + nrm * minD;
+                    float vn = Vector3.Dot(_scrapVel[s], nrm) - (free[i] ? Vector3.Dot(vel[i], nrm) : 0f);
+                    if (vn < 0f)
+                    {
+                        _scrapVel[s] -= nrm * vn * 1.5f;
+                        _scrapSpin[s] = Mathf.Min(2.5f, _scrapSpin[s] + 0.4f);
+                    }
+                }
+            }
+            _scrapPos[s] = p;
+        }
+        // chunks bounce off one another (collideDebris): pairs found through a coarse spatial hash, mass-weighted, a little inelastic
+        int nsc = _scrapPos.Count;
+        if (nsc > 1)
+        {
+            _cells.Clear();
+            for (int k = 0; k < nsc; k++)
+            {
+                long key = CellKey(_scrapPos[k]);
+                List<int> arr;
+                if (!_cells.TryGetValue(key, out arr)) { arr = new List<int>(); _cells[key] = arr; }
+                arr.Add(k);
+            }
+            for (int k = 0; k < nsc; k++)
+            {
+                var q = _scrapPos[k];
+                for (int dx = -1; dx <= 1; dx++) for (int dy = -1; dy <= 1; dy++) for (int dz = -1; dz <= 1; dz++)
+                {
+                    List<int> arr;
+                    if (!_cells.TryGetValue(CellKey(q + new Vector3(dx * 600f, dy * 600f, dz * 600f)), out arr)) continue;
+                    foreach (int c in arr)
+                    {
+                        if (c <= k) continue;
+                        var n = _scrapPos[c] - _scrapPos[k];
+                        float d = n.magnitude;
+                        float minD = _scrapR[k] + _scrapR[c];
+                        if (d >= minD || d < 1e-3f) continue;
+                        n /= d;
+                        float mk = Mathf.Pow(_scrapR[k], 3f) / 1000f, mc = Mathf.Pow(_scrapR[c], 3f) / 1000f;
+                        float tot = mk + mc;
+                        float overlap = minD - d;
+                        _scrapPos[k] -= n * overlap * mc / tot;
+                        _scrapPos[c] += n * overlap * mk / tot;
+                        float vrel = Vector3.Dot(_scrapVel[c], n) - Vector3.Dot(_scrapVel[k], n);
+                        if (vrel >= 0f) continue;
+                        float jimp = -(1f + 0.55f) * vrel / (1f / mk + 1f / mc);
+                        _scrapVel[k] -= n * jimp / mk;
+                        _scrapVel[c] += n * jimp / mc;
+                        _scrapSpin[k] = Mathf.Min(2.5f, _scrapSpin[k] + Mathf.Abs(jimp) / mk * 0.02f);
+                        _scrapSpin[c] = Mathf.Min(2.5f, _scrapSpin[c] + Mathf.Abs(jimp) / mc * 0.02f);
+                    }
+                }
+            }
+        }
+        for (int s = 0; s < _scrapPos.Count; s++)
+        {
+            float t = _scrapT[s];
+            float left = _scrapLife[s] - t;
+            var rq = Quaternion.AngleAxis(_scrapSpin[s] * dt * Mathf.Rad2Deg, _scrapAxis[s]) * _scrapRot[s];
+            _scrapRot[s] = rq;
+            float sc = Mathf.Clamp(left / 3f, 0.01f, 1f) * _scrapR[s];   // the last three seconds shrink it away
+            _scrapMats[s] = Matrix4x4.TRS(_scrapPos[s] - _offset, rq, Vector3.one * sc);
+            _scrapCols[s] = new Vector4(0.36f, 0.34f, 0.31f, 1f);
+            _scrapRails[s] = new Vector4(0f, 1f, 0f, Mathf.Pow(Mathf.Max(0f, 1f - t / 30f), 1.6f));
         }
     }
 
@@ -836,7 +1084,7 @@ public class Belt
         {
             float d = (ch.centre - from).magnitude;
             ch.visible = d < lim;
-            ch.lod = d < near ? 0 : 1;
+            ch.lod = d < near ? 1 : 2;
         }
     }
 
@@ -888,6 +1136,34 @@ public class Belt
                     Graphics.DrawMeshInstanced(mesh, sub, mats[sub], b.mats, b.count, b.mpb, ShadowCastingMode.On, true, 0, null);
                 }
             }
+        }
+        // the rocks up close, one draw each with the finest mesh
+        foreach (var kv in _lod0)
+        {
+            int i = kv.Key;
+            if (!alive[i] || batchOf[i] < 0) continue;
+            var e = kv.Value;
+            var bt = _batches[batchOf[i]];
+            e.mats[0] = Matrix4x4.TRS(pos[i] - _offset, rot[i], scl[i]);
+            e.colors[0] = bt.colors[slotOf[i]];
+            e.rails[0] = new Vector4(ang[i], orbit[i], free[i] ? 0f : 1f, BodyHeat(i));
+            e.mpb.SetVectorArray("_Color", e.colors);
+            e.mpb.SetVectorArray("_Rail", e.rails);
+            var mesh = _meshes[meshKey[i], 0];
+            var mats = _subMats[meshKey[i]];
+            int subs = Mathf.Min(mesh.subMeshCount, mats.Length);
+            for (int sub = 0; sub < subs; sub++) Graphics.DrawMeshInstanced(mesh, sub, mats[sub], e.mats, 1, e.mpb, ShadowCastingMode.On, true, 0, null);
+        }
+        // the scrap
+        int ns = _scrapPos.Count;
+        if (ns > 0)
+        {
+            _scrapMpb.SetVectorArray("_Color", _scrapCols);
+            _scrapMpb.SetVectorArray("_Rail", _scrapRails);
+            var mesh = _meshes[_scrapKey, 2];
+            var mats = _subMats[_scrapKey];
+            int subs = Mathf.Min(mesh.subMeshCount, mats.Length);
+            for (int sub = 0; sub < subs; sub++) Graphics.DrawMeshInstanced(mesh, sub, mats[sub], _scrapMats, ns, _scrapMpb, ShadowCastingMode.On, true, 0, null);
         }
     }
 }

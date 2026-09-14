@@ -48,6 +48,22 @@ the ore, flies, saves, and quits, printing `smoke:` lines to the log and saving 
 (`%USERPROFILE%AppDataocallow
 rivalibelt runner`).
 
+## Milestone 13 — collisions, sparks, scrap, heat, LOD 0, free look
+
+| Piece | Where | Status |
+|---|---|---|
+| Ship–rock collision: the frame's path is swept in 24-unit steps against the rocks within reach (refreshed twice a second), resolved against a slightly generous sphere; a knock above 140 u/s costs plating (0.09 a unit over), shakes the camera, flashes, sparks and sounds; plating gone → recovery | `Assets/Scripts/Ship.cs` (`RockContact`, `Impact`) | ported earlier; the impact point and the spark burst came with this milestone |
+| bumpRock: a hit knocks the rock off its rail, small rocks taking the whole hit and big ones barely noticing, never faster than the ship hit it | `Assets/Scripts/Belt.cs` (`Bump`) | ported earlier |
+| Sparks: a burst of glowing streaks on a rock break or a hull hit, each stretched along its own velocity and thinning as it dies | `Assets/Scripts/Sparks.cs`, `Assets/Resources/Shaders/Spark.shader` | ported from SPARKS (instanced boxes, additive, per-instance colour) |
+| Scrap: 5 to 16 small hot chunks off a breaking rock (4 to 12 % of its radius), coasting and spinning, cooling from white-hot over 30 s, bouncing off nearby rocks, one another and the ship (which they shove), shrinking away after half an hour | `Belt.cs` (`SpawnScrap`, `TickScrap`, `ScrapHit`), `Ship.cs` (`RockContact`) | ported from spawnDebris / chunkRock / collideDebris; drawn as one instanced batch of the far lumpy mesh |
+| Heat: a damaged rock glows red, then orange, then near-white as its health goes (pulsing slightly); fresh fragments start hot and cool over 30 s; the laser's spot glows where the ship's beam is cooking the stone, with a light and a shower of sparks that grow as the spot heats over 30 s | `Assets/Resources/Shaders/Rock.shader` (`Spot`, the body heat), `Belt.cs` (`glow`, `SetSpotHeat`), `Ship.cs` (`TickSpot`) | ported from heatable() / setRockHeat / heatFx; the spot rides in shader globals |
+| LOD 0 up close: a rock nearer than six of its radii leaves its chunk's batch and draws on its own with Astra's finest mesh (back at eight) | `Belt.cs` (`UpdateLod0`, `Draw`), `Assets/Resources/Models/asteroids_lod0.glb` | ported (the browser picks by projected size, 100 px) |
+| Free look: hold the right mouse button to swing the camera without turning the ship; it eases back on release | `Ship.cs` (`Fly`, `UpdateCamera`) | ported |
+
+Not ported: the scorch decals the beam leaves on rocks, the dish's own spot heat, and the ship's wing and fitting
+variants. The smoke run reports sparks, scrap, LOD 0 rocks and the near-rock count at the cut, photographs the break,
+then parks three radii off the nearest giant and checks that it draws at LOD 0.
+
 ## Milestone 12 — the Q lock and recovery
 
 The browser's tow tug is not ported: at the user's request the Unity port brings a stranded ship straight back to the

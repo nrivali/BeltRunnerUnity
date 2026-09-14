@@ -112,6 +112,20 @@ public class Ship : MonoBehaviour
     public const float RECOVER_AT = 1.6f;
     public bool CanFly { get { return !disabled && recovery == null; } }
 
+    // free look (the browser's lookYaw / lookPitch): hold the right mouse button to swing the camera without turning
+    // the ship; it eases back once the button is released
+    public float lookYaw, lookPitch;
+    public bool rdown;
+
+    // the beam's heat effect (the browser's heatFx): the spot on the stone takes 30 s to reach white heat and cools off
+    // over 10 s; it glows, lights the rock and throws sparks
+    public float spotHeat;
+    int _spotKey = -1;
+    Vector3 _spotPos;   // true
+    Transform _spotGlow;
+    Material _spotMat;
+    Light _spotLight;
+
     /// The laser's origin in true coordinates: the dish focus on the model.
     public Vector3 LaserOrigin()
     {
@@ -514,6 +528,22 @@ public class Ship : MonoBehaviour
         // steering: the cursor's offset from screen centre yaws and pitches; A/D roll; arrow keys pitch
         float yaw = 0f, pitchUp = 0f, roll = 0f;
         bool flying = CanFly;   // nothing answers while disabled or being recovered: the ship drifts
+        var mp = Input.mousePosition;
+        float msx = Mathf.Clamp((mp.x - Screen.width * 0.5f) / (Screen.width * 0.5f), -1f, 1f);
+        float msy = Mathf.Clamp((mp.y - Screen.height * 0.5f) / (Screen.height * 0.5f), -1f, 1f);
+        rdown = mouseSteer && Input.GetMouseButton(1) && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible;
+        if (rdown)
+        {
+            // free look: the mouse swings the camera instead of the ship (the ship holds its heading)
+            lookYaw += Shape(msx) * 2.2f * dt;
+            lookPitch = Mathf.Clamp(lookPitch - Shape(msy) * 1.8f * dt, -1.35f, 1.35f);
+        }
+        else
+        {
+            // ease the free-look camera back to straight ahead once the button is released
+            lookYaw *= Mathf.Exp(-4f * dt);
+            lookPitch *= Mathf.Exp(-4f * dt);
+        }
         if (flying && lockKind != "")
         {
             // Q lock: the ship turns itself to put the locked object on the nose ray (the laser's line, not the camera's);
@@ -525,13 +555,10 @@ public class Ship : MonoBehaviour
             yaw = Mathf.Clamp(ey * 8f, -1f, 1f) * 1.2f;
             pitchUp = Mathf.Clamp(ep * 8f, -1f, 1f);
         }
-        else if (flying && mouseSteer)
+        else if (flying && mouseSteer && !rdown)
         {
-            var m = Input.mousePosition;
-            float sx = (m.x - Screen.width * 0.5f) / (Screen.width * 0.5f);
-            float sy = (m.y - Screen.height * 0.5f) / (Screen.height * 0.5f);
-            yaw = Shape(Mathf.Clamp(sx, -1f, 1f));
-            pitchUp = Shape(Mathf.Clamp(sy, -1f, 1f));
+            yaw = Shape(msx);
+            pitchUp = Shape(msy);
         }
         if (flying)
         {
@@ -641,7 +668,7 @@ public class Ship : MonoBehaviour
                     float vn = Vector3.Dot(vel - belt.RockVel(i), n);
                     if (vn < 0f)
                     {
-                        Impact(-vn);
+                        Impact(-vn, tp - n * Data.SHIP_R);
                         vel -= n * vn * 1.4f;
                         belt.Bump(i, -n, -vn);
                     }
@@ -649,15 +676,40 @@ public class Ship : MonoBehaviour
                 }
             }
         }
+        // scrap: light chunks that the ship shoves aside (and that knock the hull at speed)
+        for (int s = 0; s < belt.ScrapCount; s++)
+        {
+            var sp = belt.ScrapPos(s);
+            float sr = belt.ScrapR(s) * 0.9f;
+            if (Mathf.Abs(sp.x - tp.x) > sr + reach || Mathf.Abs(sp.y - tp.y) > sr + reach || Mathf.Abs(sp.z - tp.z) > sr + reach) continue;
+            var to = tp - sp;
+            float d = to.magnitude;
+            float minD = sr + Data.SHIP_R;
+            if (d < minD && d > 0f)
+            {
+                var n = to / d;
+                tp = sp + n * minD;
+                transform.position = tp - off;
+                float vn = Vector3.Dot(vel, n);
+                if (vn < 0f)
+                {
+                    Impact(-vn, tp - n * Data.SHIP_R);
+                    vel -= n * vn * 1.4f;
+                }
+                belt.ScrapHit(s, n, vn, Vector3.Dot(belt.ScrapVel(s), n));
+            }
+        }
     }
 
-    void Impact(float speed)
+    /// impact: a knock above the safe speed costs plating, shakes the camera, sparks and sounds.
+    void Impact(float speed, Vector3 atTrue)
     {
         if (hitCd > 0f) return;
         hitCd = 0.5f;
         float dmg = Mathf.Max(0f, speed - 140f) * 0.09f;
         shake = Mathf.Min(1f, 0.25f + speed / 400f);
         Audio.Play("hit");
+        if (game.sparks != null) game.sparks.Burst(atTrue, 60 + Mathf.RoundToInt(dmg) * 2, 260f, Data.Hex("#ffb060"), 1.2f);
         if (dmg > 0.5f)
         {
             State.hull = Mathf.Max(0f, State.hull - dmg);
@@ -845,6 +897,8 @@ public class Ship : MonoBehaviour
         ReleaseLock();
         hover = null;
         _lowHullWarned = false;
+        lookYaw = 0f;
+        lookPitch = 0f;
         Audio.Play("dock");
         // the deck welcomes you back over the intercom, one of four announcements, once the clamps have clunked (not on a
         // session's first dock, and not during the tutorial, whose own line for this step would talk over it)
@@ -1138,7 +1192,7 @@ public class Ship : MonoBehaviour
         target = belt.RayHit(origin, fwd, reach);
         laserOn = false;
         _laser.enabled = false;
-        if (!firing) return;
+        if (!firing) { TickSpot(dt, false, _spotPos); return; }
         var end = origin + fwd * reach;
         if (target >= 0)
         {
@@ -1170,6 +1224,63 @@ public class Ship : MonoBehaviour
         _laser.enabled = true;
         _laser.SetPosition(0, focus != null ? focus.position : transform.position + fwd * 20f + transform.up * -1.5f * Data.SHIP_SCALE);
         _laser.SetPosition(1, end - game.worldOffset);
+        TickSpot(dt, laserOn && target >= 0, end);
+    }
+
+    /// heatFx.update: the beam takes a full 30 s on a rock to reach white heat and cools off over about 10 s once it
+    /// comes off; moving to a new rock leaves half the heat behind. The stone's own surface glow, the spot glow, the
+    /// light and the sparks all follow the heat.
+    void TickSpot(float dt, bool active, Vector3 hitTrue)
+    {
+        int key = active ? target : -1;
+        if (key >= 0 && key != _spotKey) spotHeat *= 0.5f;
+        if (key >= 0) { _spotKey = key; _spotPos = hitTrue; }
+        spotHeat = Mathf.Clamp01(spotHeat + (active ? dt / 30f : -dt / 10f));
+        float h = spotHeat;
+        bool on = h > 0.01f;
+        float r = _spotKey >= 0 && _spotKey < belt.count ? belt.radius[_spotKey] : 40f;
+        belt.SetSpotHeat(0, _spotPos, on ? h : 0f, Mathf.Min(r * 0.9f, 8f + r * 0.05f + 22f * h));
+        if (_spotGlow == null) BuildSpotFx();
+        _spotGlow.gameObject.SetActive(on);
+        _spotLight.enabled = on;
+        if (!on) return;
+        var cold = new Color(1f, 0.18f, 0.03f);
+        var warm = new Color(1f, 0.6f, 0.23f);
+        var white = new Color(1f, 0.95f, 0.82f);
+        var col = h < 0.5f ? Color.Lerp(cold, warm, h * 2f) : Color.Lerp(warm, white, (h - 0.5f) * 2f);
+        float flick = 0.92f + Random.value * 0.16f;
+        var scenePos = _spotPos - game.worldOffset;
+        _spotGlow.position = scenePos;
+        _spotGlow.localScale = Vector3.one * (4f + 14f * h) * flick;
+        _spotMat.SetColor("_Color", new Color(col.r, col.g, col.b, 0.2f + 0.6f * h));
+        _spotLight.transform.position = scenePos;
+        _spotLight.color = col;
+        _spotLight.intensity = h * h * 6f * flick;
+        if (active && _spotKey >= 0 && game.sparks != null)
+        {
+            var nrm = (_spotPos - belt.RockPos(_spotKey)).normalized;
+            game.sparks.Emit(_spotPos, nrm, h, dt);   // a shower of streaks off the surface, more and hotter as the spot heats
+        }
+    }
+
+    /// The spot's glow (an additive sphere) and its light, made on first use.
+    void BuildSpotFx()
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        go.name = "LaserSpot";
+        Destroy(go.GetComponent<Collider>());
+        _spotMat = new Material(Game.Sh("BeltRunner/Spark"));
+        _spotMat.SetColor("_Color", new Color(1f, 0.3f, 0.05f, 0.3f));
+        var mr = go.GetComponent<MeshRenderer>();
+        mr.sharedMaterial = _spotMat;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        _spotGlow = go.transform;
+        var lg = new GameObject("LaserSpotLight");
+        _spotLight = lg.AddComponent<Light>();
+        _spotLight.type = LightType.Point;
+        _spotLight.range = 220f;
+        _spotLight.intensity = 0f;
+        _spotLight.shadows = LightShadows.None;
     }
 
     void Radar()
@@ -1238,8 +1349,10 @@ public class Ship : MonoBehaviour
             return;
         }
         _camQ = Quaternion.Slerp(_camQ, transform.rotation, 1f - Mathf.Exp(-7f * dt));
-        var f = _camQ * Vector3.forward;
-        var u = _camQ * Vector3.up;
+        // free look turns the camera relative to the hull; the chase offset stays rigid on the ship's position
+        var lq = _camQ * Quaternion.AngleAxis(lookYaw * Mathf.Rad2Deg, Vector3.up) * Quaternion.AngleAxis(lookPitch * Mathf.Rad2Deg, Vector3.right);
+        var f = lq * Vector3.forward;
+        var u = lq * Vector3.up;
         var camPos = transform.position - f * 88f * s + u * 30f * s;
         var look = transform.position + f * 140f * s + u * 10f * s;
         if (shake > 0f)

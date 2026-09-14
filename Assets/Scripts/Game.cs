@@ -18,6 +18,7 @@ public class Game : MonoBehaviour
     public Hud hud;
     public Tutorial tutorial;
     public Drones drones;
+    public Sparks sparks;
     float _dishToastT = -100f;
     public List<Pickup> Drops { get { return _drops; } }
 
@@ -56,6 +57,7 @@ public class Game : MonoBehaviour
         lighting.Setup(cam);
         sun = lighting.sun;
         belt = new Belt();
+        sparks = new Sparks();
         _pickups = new GameObject("Pickups").transform;
         var cgo = new GameObject("CargoShip");
         carrier = cgo.AddComponent<CargoShip>();
@@ -129,6 +131,7 @@ public class Game : MonoBehaviour
         if (drones != null) drones.Reset();
         carrier.dishRock = -1;
         carrier.dishFiring = false;
+        sparks.Clear();
         belt.Clear();
         belt.Build(z, z.id == "kessler" ? SEED : SEED + 11);
         if (colony != null) { Destroy(colony.gameObject); colony = null; }
@@ -346,6 +349,8 @@ public class Game : MonoBehaviour
         var v = belt.RockVel(i);
         int bi = belt.beltOf[i];
         bool splits = c > 0;
+        sparks.Burst(p, Mathf.Min(600, 80 + Mathf.RoundToInt(r * 1.2f)), 160f + r * 0.6f, Data.Hex("#ffb060"), 1.5f);
+        if ((p - ship.TruePos).magnitude < 60000f) belt.SpawnScrap(i, v);   // the scrap of a break the pilot can see
         float total = belt.Kill(i);
         float loose = splits ? total * 0.25f : total;
         if (_smoke) Debug.Log("smoke: break · " + rname + " total=" + total.ToString("0") + " loose=" + loose.ToString("0") + " splits=" + splits);
@@ -420,6 +425,7 @@ public class Game : MonoBehaviour
             else Pause();
         }
         belt.Draw();
+        sparks.Draw();
         if (!started || paused)
         {
             hud.UpdateHud(dt, ship, belt, carrier, zone, started);
@@ -438,7 +444,9 @@ public class Game : MonoBehaviour
         var moved = carrier.Tick(dt);
         if (ship.docked) ship.transform.position += moved;
         ship.Tick(dt);
-        belt.Tick(dt, ship.TruePos);
+        belt.Tick(dt, ship.TruePos, ship.nearRocks);   // the rails' drift time, fragments cooling, free rocks and scrap coasting, broken rocks growing back
+        sparks.Tick(dt, worldOffset);
+        if (ship.warp == null) belt.UpdateLod0(ship.TruePos, ship.nearRocks);   // the rocks close to the ship draw their finest mesh
         if (colony != null) colony.Tick(dt);
         lighting.Update(ship.TruePos, carrier.truePos);
         if (ship.warp == null)
@@ -503,6 +511,8 @@ public class Game : MonoBehaviour
     int _mapFrames;
     bool _droneDone;
     float _smokeCr;
+    int _smokeBig = -1;
+    bool _shotBreak;
 
     void Next(string phase)
     {
@@ -586,15 +596,47 @@ public class Game : MonoBehaviour
                 if (_phaseFrame == 60)
                 {
                     Shot("smoke_mine");
-                    Debug.Log("smoke: cutting " + (_smokeRock >= 0 ? belt.RockName(_smokeRock) : "nothing") + " · target=" + ship.target + " laser_on=" + ship.laserOn + " hp=" + (_smokeRock >= 0 ? belt.hp[_smokeRock].ToString("0") : "-") + " (was " + _smokeHp.ToString("0") + ")");
+                    Debug.Log("smoke: cutting " + (_smokeRock >= 0 ? belt.RockName(_smokeRock) : "nothing") + " · target=" + ship.target + " laser_on=" + ship.laserOn + " hp=" + (_smokeRock >= 0 ? belt.hp[_smokeRock].ToString("0") : "-") + " (was " + _smokeHp.ToString("0") + ") · lod0 rocks " + belt.Lod0Count + " (target lod0 " + (_smokeRock >= 0 && belt.IsLod0(_smokeRock)) + " r=" + (_smokeRock >= 0 ? belt.radius[_smokeRock].ToString("0") : "-") + ") · sparks " + sparks.Count + " · spot heat " + ship.spotHeat.ToString("0.00") + " · near rocks " + ship.nearRocks.Count);
                 }
+                if (_smokeRock >= 0 && !belt.alive[_smokeRock] && !_shotBreak) { _shotBreak = true; Shot("smoke_break"); }   // the sparks and the scrap of the break
                 if (_phaseFrame > 400 && (_smokeRock < 0 || !belt.alive[_smokeRock] || _phaseFrame > 1500))
                 {
                     ship.autoFire = false;
                     Debug.Log("smoke: mined · rock_alive=" + (_smokeRock >= 0 && belt.alive[_smokeRock]) + " pickups_left=" + _drops.Count + " cargo=" + State.CargoTotal().ToString("0") + " fuel=" + State.fuel.ToString("0.0") + " fps=" + (1f / Mathf.Max(0.0001f, Time.smoothDeltaTime)).ToString("0"));
-                    ship.throttle = 1f;
-                    Next("collect");
+                    Debug.Log("smoke: fx · sparks " + sparks.Count + " · scrap " + belt.ScrapCount + " · lod0 rocks " + belt.Lod0Count + " · near rocks " + ship.nearRocks.Count + " · spot heat " + ship.spotHeat.ToString("0.00"));
+                    Next("closeup");
                 }
+                break;
+            case "closeup":
+                // park three radii off the nearest giant, so the close-up LOD 0 mesh and the scrap show in the shot
+                if (_phaseFrame == 1)
+                {
+                    _smokeBig = -1;
+                    float bd = float.PositiveInfinity;
+                    foreach (int i in belt.RocksNear(ship.TruePos, 300000f))
+                    {
+                        if (belt.cls[i] < 2) continue;
+                        float d = (belt.RockPos(i) - ship.TruePos).magnitude;
+                        if (d < bd) { bd = d; _smokeBig = i; }
+                    }
+                    if (_smokeBig >= 0)
+                    {
+                        var rp = belt.RockPos(_smokeBig) - worldOffset;
+                        var dir = (rp - ship.transform.position).normalized;
+                        ship.transform.position = rp - dir * belt.radius[_smokeBig] * 3f;
+                        ship.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+                        ship.vel = Vector3.zero;
+                        ship.throttle = 0f;
+                        ship.UpdateCamera(1f);
+                    }
+                    Debug.Log("smoke: closeup · rock " + _smokeBig + " " + (_smokeBig >= 0 ? belt.RockName(_smokeBig) + " r=" + belt.radius[_smokeBig].ToString("0") : "none"));
+                }
+                if (_phaseFrame == 45)
+                {
+                    Shot("smoke_closeup");
+                    Debug.Log("smoke: closeup · lod0 " + (_smokeBig >= 0 && belt.IsLod0(_smokeBig)) + " · lod0 rocks " + belt.Lod0Count + " · near rocks " + ship.nearRocks.Count + " · at " + (_smokeBig >= 0 ? (belt.RockPos(_smokeBig) - ship.TruePos).magnitude.ToString("0") : "-") + " u · scrap " + belt.ScrapCount);
+                }
+                if (_phaseFrame == 60) { ship.throttle = 1f; Next("collect"); }
                 break;
             case "collect":
                 if (_phaseFrame == 300 || _drops.Count == 0)
