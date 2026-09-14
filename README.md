@@ -48,6 +48,18 @@ the ore, flies, saves, and quits, printing `smoke:` lines to the log and saving 
 (`%USERPROFILE%AppDataocallow
 rivalibelt runner`).
 
+## Milestone 15 — the curved hull, the radar pulse, exhaust and navigation lights
+
+| Piece | Where | Status |
+|---|---|---|
+| The cargo ship's curved pressure hull as the collision surface outside the passage: the profile exported with the model (18 stations of a superellipse cross-section and three engine envelopes, the `hull_collision_profile` node's extras) with the nearest surface point and normal found as hull-contact.js does; the box rules stay inside the bay | `Assets/Scripts/CargoShip.cs` (`HullContact`, `Collide`) | ported from hull-contact.js rawContact; the profile is written into the script, since glTFast does not surface node extras |
+| Rocks that drift into the hull are set on its surface and shoved off it | `CargoShip.cs` (`BumpRocks`), `Assets/Scripts/Belt.cs` (`PlaceFree`) | ported from depotBumpRocks |
+| The radar pulse you can see: a faint sphere and a bright ring growing to scanner range over 2.6 s, and rocks marked only once the pulse reaches them | `Assets/Scripts/Ship.cs` (`BuildPulseFx`, `TickPulse`), `Belt.cs` (`Scan`, `markFrom`) | ported from pulseSphere / pulseRing (the timed marks were in since milestone 1) |
+| The engines' exhaust glows swell and brighten with thrust (wide open on the afterburner), the red and green navigation lights blink, the engine light comes on under thrust | `Ship.cs` (`TickEngineFx`, `GlowQuad`, `FaceCamera`) | ported from the exhaust sprites, navLights and shipLight; soft billboard quads on the Field shader |
+
+The smoke run pulses the radar on the way back from the cut, photographs the ring, and prints how many of the marks
+have landed as the pulse spreads; it counts the rocks the hull shoved on the way to the pad.
+
 ## Milestone 14 — fields, markers, the dish's effects, force fields, rock-on-rock
 
 | Piece | Where | Status |

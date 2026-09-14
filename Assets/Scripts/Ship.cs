@@ -173,8 +173,19 @@ public class Ship : MonoBehaviour
                 l.range = 140f;
                 l.shadows = LightShadows.None;
                 _engineLights.Add(l);
+                if (_exhaustMat == null) _exhaustMat = SoftMaterial(new Color(0.37f, 0.83f, 0.94f, 0.15f));
+                _exhausts.Add(GlowQuad(a, new Vector3(0f, 0f, -0.25f), 5f, _exhaustMat, "Exhaust"));
+            }
+            foreach (var pair in new[] { new object[] { "nav_l", "#ff5a5a" }, new object[] { "nav_r", "#6bd69a" } })
+            {
+                var a = FindDeep(model, (string)pair[0]);
+                if (a == null) continue;
+                var c = Data.Hex((string)pair[1]);
+                c.a = 0.85f;
+                _navLights.Add(GlowQuad(a, Vector3.zero, 0.9f, SoftMaterial(c), "NavLight").gameObject);
             }
             BuildDishFx();
+            BuildPulseFx();
             Debug.Log("ship: model loaded, focus " + (focus != null ? "found" : "missing") + " · dish rig " + (_dishPitch != null ? "found" : "missing") + " · rim emitters " + _rimMats.Count);
             return;
         }
@@ -182,6 +193,125 @@ public class Ship : MonoBehaviour
     }
 
     readonly List<Light> _engineLights = new List<Light>();
+    // the engines' exhaust glows, the navigation lights (exhausts / navLights) and the radar pulse you can see
+    readonly List<Transform> _exhausts = new List<Transform>();
+    readonly List<GameObject> _navLights = new List<GameObject>();
+    Material _exhaustMat;
+    Transform _pulseSphere, _pulseRing;
+    Material _pulseSphereMat, _pulseRingMat;
+    float _pulseT = -1f, _pulseRange;
+    Vector3 _pulseOrigin;   // true
+
+    /// A soft radial glow texture for the sprites (the browser's texSoft / exhaustTex).
+    static Texture2D _soft;
+    static Texture2D SoftTexture()
+    {
+        if (_soft != null) return _soft;
+        _soft = new Texture2D(64, 64, TextureFormat.RGBA32, false);
+        for (int y = 0; y < 64; y++)
+        {
+            for (int x = 0; x < 64; x++)
+            {
+                float d = new Vector2(x - 31.5f, y - 31.5f).magnitude / 32f;
+                float a = Mathf.Clamp01(1f - d);
+                a = a * a * (3f - 2f * a);
+                _soft.SetPixel(x, y, new Color(1f, 1f, 1f, a));
+            }
+        }
+        _soft.wrapMode = TextureWrapMode.Clamp;
+        _soft.Apply();
+        return _soft;
+    }
+
+    /// A billboard quad with a soft additive glow, parented under a model node.
+    static Transform GlowQuad(Transform parent, Vector3 localPos, float size, Material mat, string name)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+        go.transform.localPosition = localPos;
+        go.transform.localScale = Vector3.one * size;
+        go.AddComponent<MeshFilter>().sharedMesh = MeshUtil.Quad(1f, 1f, 1f, 1f);
+        var mr = go.AddComponent<MeshRenderer>();
+        mr.sharedMaterial = mat;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        go.AddComponent<FaceCamera>();
+        return go.transform;
+    }
+
+    static Material SoftMaterial(Color c)
+    {
+        var m = new Material(Game.Sh("BeltRunner/Field"));
+        m.mainTexture = SoftTexture();
+        m.SetColor("_Color", c);
+        return m;
+    }
+
+    /// The radar pulse: a faint sphere and a bright ring (in the XY plane, as the browser's) that grow to scanner range.
+    void BuildPulseFx()
+    {
+        var sg = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        Object.Destroy(sg.GetComponent<Collider>());
+        sg.name = "PulseSphere";
+        _pulseSphereMat = new Material(Game.Sh("BeltRunner/Spark"));
+        _pulseSphereMat.SetColor("_Color", new Color(0.37f, 0.83f, 0.94f, 0.05f));
+        var smr = sg.GetComponent<MeshRenderer>();
+        smr.sharedMaterial = _pulseSphereMat;
+        smr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        _pulseSphere = sg.transform;
+        sg.SetActive(false);
+        var rg = new GameObject("PulseRing");
+        rg.AddComponent<MeshFilter>().sharedMesh = MeshUtil.Torus(1f, 0.0075f, 128, 6);
+        _pulseRingMat = new Material(Game.Sh("BeltRunner/Spark"));
+        _pulseRingMat.SetColor("_Color", new Color(0.56f, 0.91f, 1f, 0.5f));
+        var rmr = rg.AddComponent<MeshRenderer>();
+        rmr.sharedMaterial = _pulseRingMat;
+        rmr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        rg.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
+        _pulseRing = rg.transform;
+        rg.SetActive(false);
+    }
+
+    void TickPulse(float dt)
+    {
+        if (_pulseT < 0f) return;
+        _pulseT += dt;
+        float t = _pulseT;
+        if (t >= Data.PULSE_TIME + 0.4f)
+        {
+            _pulseT = -1f;
+            _pulseSphere.gameObject.SetActive(false);
+            _pulseRing.gameObject.SetActive(false);
+            return;
+        }
+        float r = _pulseRange * Mathf.Min(1f, t / Data.PULSE_TIME);
+        float f = 1f - Mathf.Min(1f, t / Data.PULSE_TIME);
+        var at = _pulseOrigin - game.worldOffset;
+        _pulseSphere.gameObject.SetActive(true);
+        _pulseSphere.position = at;
+        _pulseSphere.localScale = Vector3.one * Mathf.Max(1f, r) * 2f;
+        _pulseSphereMat.SetColor("_Color", new Color(0.37f, 0.83f, 0.94f, 0.05f * f));
+        _pulseRing.gameObject.SetActive(true);
+        _pulseRing.position = at;
+        _pulseRing.localScale = Vector3.one * Mathf.Max(1f, r);
+        _pulseRingMat.SetColor("_Color", new Color(0.56f, 0.91f, 1f, 0.55f * f));
+    }
+
+    public bool PulseVisible { get { return _pulseT >= 0f; } }
+
+    /// The exhaust glows swell and brighten with thrust, the navigation lights blink, the engine light comes on under thrust.
+    void TickEngineFx()
+    {
+        if (_exhaustMat != null)
+        {
+            float ex = thrusting ? 0.35f + 0.6f * throttle + Random.value * 0.1f : 0.15f;
+            float es = thrusting ? (afterburning ? 22f : 5f + 9f * throttle) + Random.value * 4f : 5f;
+            _exhaustMat.SetColor("_Color", new Color(0.37f, 0.83f, 0.94f, ex));
+            foreach (var q in _exhausts) q.localScale = Vector3.one * es;
+        }
+        bool blink = Mathf.Repeat(State.time, 1.2f) < 0.12f;
+        foreach (var l in _navLights) if (l.activeSelf != blink) l.SetActive(blink);
+        foreach (var l in _engineLights) l.intensity = thrusting ? (afterburning ? 2.5f : 1.2f) : 0f;
+    }
 
     public static Transform FindDeep(Transform t, string name)
     {
@@ -437,6 +567,8 @@ public class Ship : MonoBehaviour
     public void Tick(float dt)
     {
         if (torch != null) torch.enabled = torchOn && !docked && warp == null;
+        TickPulse(dt);
+        TickEngineFx();
         // passing through a mouth's force field flashes it, under approach control or on your own
         if (carrier != null && !carrier.hold && warp == null)
         {
@@ -790,7 +922,6 @@ public class Ship : MonoBehaviour
         float sp2 = vel.magnitude;
         float lim = Mathf.Max(eng.max * mult, spBefore * Mathf.Exp(-dragK * dt));
         if (sp2 > lim) vel *= lim / sp2;
-        foreach (var l in _engineLights) l.intensity = thrusting ? (afterburning ? 2.5f : 1.2f) : 0f;
         transform.position += vel * dt;
         // the zone edge bounces you back; the planet stops you
         tp = TruePos;
@@ -1452,13 +1583,14 @@ public class Ship : MonoBehaviour
         _spotLight.shadows = LightShadows.None;
     }
 
-    void Radar()
+    public void Radar()
     {
         if (radarCd > 0f) return;
         radarCd = Data.PULSE_CD;
         radarPulsed = true;
         Audio.Play("radar_ping");
         float range = State.Stat("scanner").range;
+        if (_pulseSphere != null) { _pulseT = 0f; _pulseRange = range; _pulseOrigin = TruePos; }
         scanCount = belt.Scan(TruePos, range, -1, range / Data.PULSE_TIME, out scanNearest, out scanDist);
         if (scanCount == 0) game.Toast("Radar: no ore within " + Data.Fm(range) + " m", true);
         else game.Toast("Radar: " + scanCount + " ore rocks within " + Data.Fm(range) + " m · nearest " + belt.RockName(scanNearest) + " at " + Data.Fm(scanDist) + " m", false);
@@ -1575,5 +1707,15 @@ public class Ship : MonoBehaviour
     {
         cam.transform.position -= delta;
         _prevPos -= delta;
+    }
+}
+
+/// A sprite that always faces the camera (the browser's billboarded sprites).
+public class FaceCamera : MonoBehaviour
+{
+    void LateUpdate()
+    {
+        var cam = Camera.main;
+        if (cam != null) transform.rotation = cam.transform.rotation;
     }
 }

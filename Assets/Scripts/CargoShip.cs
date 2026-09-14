@@ -11,6 +11,21 @@ using UnityEngine;
 public class CargoShip : MonoBehaviour
 {
     public static readonly Vector3 HALF = new Vector3(3700f, 540f, 900f);   // the hull's collision box
+    // the curved pressure hull's collision profile, as exported with the model (the hull_collision_profile node's
+    // extras, which hull-contact.js reads in the browser): longitudinal stations [x, half-width, half-height] of a
+    // superellipse cross-section, and three engine envelopes [x0, x1, cy, cz, r]
+    static readonly float[][] HULL_STATIONS =
+    {
+        new[] { -3290f, 665f, 390f }, new[] { -3090f, 815f, 488f }, new[] { -2800f, 872f, 523f }, new[] { -2300f, 894f, 537f }, new[] { -1500f, 900f, 540f }, new[] { -650f, 900f, 540f },
+        new[] { 0f, 900f, 540f }, new[] { 650f, 897f, 537f }, new[] { 1300f, 880f, 523f }, new[] { 2100f, 850f, 498f }, new[] { 2700f, 813f, 467f }, new[] { 3200f, 758f, 425f },
+        new[] { 3700f, 676f, 355f }, new[] { 4020f, 545f, 282f }, new[] { 4280f, 370f, 203f }, new[] { 4460f, 205f, 126f }, new[] { 4560f, 96f, 77f }, new[] { 4600f, 32f, 52f },
+    };
+    const float HULL_EXP = 2.5f;
+    static readonly float[][] HULL_ENGINES = { new[] { -3550f, -2840f, 220f, 0f, 283f }, new[] { -3550f, -2840f, -140f, -470f, 283f }, new[] { -3550f, -2840f, -140f, 470f, 283f } };
+    public const float BUMP_RANGE = 5600f;   // only rocks near enough to be seen being shoved
+    public int bumps;                        // rocks shoved so far, for the smoke print
+    int _bumpFrame;
+    List<int> _bumpIds = new List<int>();
     public const float PROW_X0 = 3700f;
     public const float PROW_X1 = 4600f;
     public const float PROW_R0 = 800f;
@@ -116,6 +131,106 @@ public class CargoShip : MonoBehaviour
         return Vector3.Dot(Dir(FaceLocal(1)), toPlanet) >= Vector3.Dot(Dir(FaceLocal(-1)), toPlanet) ? 1 : -1;
     }
 
+    /// Contact with the curved hull (hull-contact.js rawContact): for a point p (carrier frame) and a ship radius, the
+    /// nearest point on the inflated hull surface and its outward normal, or false when p is clear. The hull is a
+    /// superellipse (|y/h|^N + |z/w|^N = 1) whose half-width and half-height run along the stations; the engine bank is
+    /// three capsules.
+    public static bool HullContact(Vector3 p, float radius, out Vector3 pos, out Vector3 n)
+    {
+        pos = p;
+        n = Vector3.up;
+        bool body = false;
+        var rows = HULL_STATIONS;
+        var first = rows[0];
+        var last = rows[rows.Length - 1];
+        float N = HULL_EXP;
+        if (p.x >= first[0] - radius && p.x <= last[0] + radius)
+        {
+            float x = Mathf.Clamp(p.x, first[0], last[0]);
+            var a = first;
+            var b = rows[1];
+            for (int i = 0; i < rows.Length - 1; i++)
+            {
+                if (x >= rows[i][0] && x <= rows[i + 1][0]) { a = rows[i]; b = rows[i + 1]; break; }
+            }
+            float t = (x - a[0]) / Mathf.Max(1e-6f, b[0] - a[0]);
+            float w = a[1] + (b[1] - a[1]) * t + radius;
+            float h = a[2] + (b[2] - a[2]) * t + radius;
+            float yy = Mathf.Abs(p.y) / h, zz = Mathf.Abs(p.z) / w;
+            float level = Mathf.Pow(yy, N) + Mathf.Pow(zz, N);
+            if (level < 1f)
+            {
+                float s = level > 1e-12f ? Mathf.Pow(level, -1f / N) : 0f;
+                float y = s > 0f ? p.y * s : h;
+                float z = s > 0f ? p.z * s : 0f;
+                float sideD = new Vector2(y - p.y, z - p.z).magnitude;
+                float capD = Mathf.Min(p.x - first[0] + radius, last[0] + radius - p.x);
+                if (capD < sideD)
+                {
+                    float sgn = p.x < (first[0] + last[0]) * 0.5f ? -1f : 1f;
+                    pos = new Vector3(sgn < 0f ? first[0] - radius : last[0] + radius, p.y, p.z);
+                    n = new Vector3(sgn, 0f, 0f);
+                }
+                else
+                {
+                    float dy = (b[2] - a[2]) / Mathf.Max(1e-6f, b[0] - a[0]);
+                    float dz = (b[1] - a[1]) / Mathf.Max(1e-6f, b[0] - a[0]);
+                    float gy = Mathf.Abs(y) / h, gz = Mathf.Abs(z) / w;
+                    var nn = new Vector3(-(Mathf.Pow(gy, N) * dy / h + Mathf.Pow(gz, N) * dz / w), (y != 0f ? Mathf.Sign(y) : 1f) * Mathf.Pow(gy, N - 1f) / h, Mathf.Sign(z) * Mathf.Pow(gz, N - 1f) / w);
+                    pos = new Vector3(p.x, y, z);
+                    n = nn.sqrMagnitude > 1e-12f ? nn.normalized : Vector3.up;
+                }
+                body = true;
+            }
+        }
+        foreach (var e in HULL_ENGINES)
+        {
+            float x0 = e[0], x1 = e[1], cy = e[2], cz = e[3], r = e[4];
+            if (p.x < x0 - radius || p.x > x1 + radius) continue;
+            float y = p.y - cy, z = p.z - cz;
+            float d = new Vector2(y, z).magnitude;
+            float allow = r + radius;
+            if (d >= allow) continue;
+            float side = allow - d;
+            float cap = Mathf.Min(p.x - x0 + radius, x1 + radius - p.x);
+            Vector3 cpos, cn;
+            if (cap < side)
+            {
+                float sgn = p.x < (x0 + x1) * 0.5f ? -1f : 1f;
+                cpos = new Vector3(sgn < 0f ? x0 - radius : x1 + radius, p.y, p.z);
+                cn = new Vector3(sgn, 0f, 0f);
+            }
+            else
+            {
+                float ny = d > 0f ? y / d : 1f, nz = d > 0f ? z / d : 0f;
+                cpos = new Vector3(p.x, cy + ny * allow, cz + nz * allow);
+                cn = new Vector3(0f, ny, nz);
+            }
+            if (!body || (cpos - p).magnitude > (pos - p).magnitude) { pos = cpos; n = cn; body = true; }
+        }
+        return body;
+    }
+
+    /// depotBumpRocks: rocks that drift into the hull are set on its surface and shoved off it (with the carrier's own
+    /// motion), so the cargo ship never sails through the belt.
+    public void BumpRocks(Belt belt)
+    {
+        if (model == null) return;
+        _bumpFrame++;
+        if (_bumpFrame % 30 == 1) _bumpIds = belt.RocksWithin(truePos, BUMP_RANGE);
+        foreach (int i in _bumpIds)
+        {
+            if (i >= belt.count || !belt.alive[i]) continue;
+            float r = belt.radius[i];
+            var lp = ToLocalTrue(belt.RockPos(i));
+            if (Mathf.Abs(lp.x) > HALF.x * 1.3f + r || Mathf.Abs(lp.y) > HALF.y * 1.3f + r || Mathf.Abs(lp.z) > HALF.z * 1.3f + r) continue;
+            Vector3 cp, cn;
+            if (!HullContact(lp, r, out cp, out cn)) continue;
+            belt.PlaceFree(i, ToTrue(cp), vel + Dir(cn) * 40f);
+            bumps++;
+        }
+    }
+
     /// Collision with the hull for a ship of radius m at carrier-local position p. Inside the hangar corridor the ship
     /// is clamped to the walls; anywhere else inside the hull it is pushed out through the nearest face; the prow is a
     /// cone. Returns false for no contact, else the corrected local position and the local surface normal.
@@ -123,6 +238,7 @@ public class CargoShip : MonoBehaviour
     {
         pos = p;
         n = Vector3.up;
+        if (model != null && !InCorridor(p)) return HullContact(p, m, out pos, out n);   // the curved hull outside the passage; the bay walls keep the box rules inside it
         if (p.x > PROW_X0 && p.x < PROW_X1)
         {
             float rr = new Vector2(p.y, p.z).magnitude;

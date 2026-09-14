@@ -769,6 +769,14 @@ public class Belt
         WriteInstance(i);
     }
 
+    /// A free rock set down at a true position with a velocity (a rock shoved off the cargo ship's hull).
+    public void PlaceFree(int i, Vector3 p, Vector3 v)
+    {
+        SetFree(i, v);
+        pos[i] = p;
+        if (batchOf[i] >= 0) WriteTranslation(i);
+    }
+
     /// A shove from the ship: 80% of the closing speed, less the heavier the rock, and never faster than the ship.
     public void Bump(int i, Vector3 dir, float speed)
     {

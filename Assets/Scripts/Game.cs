@@ -442,6 +442,7 @@ public class Game : MonoBehaviour
         State.TickMarket(dt);
         // the carrier drifts round its orbit; a docked ship rides along with it
         var moved = carrier.Tick(dt);
+        carrier.BumpRocks(belt);   // rocks that drift into the hull are shoved off it
         if (ship.docked) ship.transform.position += moved;
         ship.Tick(dt);
         belt.Tick(dt, ship.TruePos, ship.nearRocks);   // the rails' drift time, fragments cooling, free rocks and scrap coasting, broken rocks growing back
@@ -639,6 +640,9 @@ public class Game : MonoBehaviour
                 if (_phaseFrame == 60) { ship.throttle = 1f; Next("collect"); }
                 break;
             case "collect":
+                if (_phaseFrame == 20) ship.Radar();   // the pulse you can see, and the marks it leaves as it reaches the rocks
+                if (_phaseFrame == 80) { Shot("smoke_radar"); Debug.Log("smoke: radar · pulse visible " + ship.PulseVisible + " · marked so far " + belt.Marked(State.time, ship.TruePos, 999).Count + " of " + ship.scanCount + " · nearest " + (ship.scanNearest >= 0 ? belt.RockName(ship.scanNearest) + " at " + Data.Fm(ship.scanDist) : "none")); }
+                if (_phaseFrame == 240) Debug.Log("smoke: radar · pulse visible " + ship.PulseVisible + " · marked " + belt.Marked(State.time, ship.TruePos, 999).Count + " of " + ship.scanCount);
                 if (_phaseFrame == 300 || _drops.Count == 0)
                 {
                     Shot("smoke_flight");
@@ -715,7 +719,7 @@ public class Game : MonoBehaviour
                     if (_phaseFrame == 150 && !_droneDone) { Shot("smoke_pad"); break; }   // the first shot; the run then waits for the drone
                     Shot("smoke_pad");
                     var local = carrier.ToLocalTrue(ship.TruePos);
-                    Debug.Log("smoke: on the pad · local=" + local.ToString("0") + " · park=" + CargoShip.ParkLocal(ship.dockSide).ToString("0") + " · carrier speed " + carrier.vel.magnitude.ToString("0") + " u/s · drone stowed " + State.droneUnits.ToString("0") + " · force field flashes " + carrier.fieldFlashes);
+                    Debug.Log("smoke: on the pad · local=" + local.ToString("0") + " · park=" + CargoShip.ParkLocal(ship.dockSide).ToString("0") + " · carrier speed " + carrier.vel.magnitude.ToString("0") + " u/s · drone stowed " + State.droneUnits.ToString("0") + " · force field flashes " + carrier.fieldFlashes + " · hull bumps " + carrier.bumps);
                     ship.StartDeparture();
                     Next("depart2");
                 }
