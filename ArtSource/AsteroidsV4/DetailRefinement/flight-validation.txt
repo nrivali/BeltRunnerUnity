@@ -1,0 +1,7 @@
+distance/radius=8 detailed=True total detailed=1
+distance/radius=11 detailed=True total detailed=1
+distance/radius=13 detailed=False total detailed=0
+distance/radius=11 detailed=False total detailed=0
+distance/radius=9 detailed=True total detailed=1
+seed=7 rocks=54975 target=63 radius=137.6685
+shader BeltRunner/Rock supported=True instancing=True · library shapes 28 · device Direct3D12 supportsInstancing=True · visible batches 369 with 1903 instances

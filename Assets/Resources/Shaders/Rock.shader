@@ -21,6 +21,9 @@ Shader "BeltRunner/Rock"
         _StoneNormal ("Barren regolith RGB normal", 2D) = "bump" {}
         _StoneMetalRough ("Barren regolith metal-roughness", 2D) = "white" {}
         _StoneColor ("Barren regolith factor", Color) = (1, 1, 1, 1)
+        _DetailNormalMap ("Chipped rock RGB normal", 2D) = "bump" {}
+        _DetailSurface ("Crevice occlusion / mineral variation / height", 2D) = "white" {}
+        _DetailStrength ("Chipped rock relief", Range(0, 2)) = 0
     }
     SubShader
     {
@@ -46,6 +49,8 @@ Shader "BeltRunner/Rock"
         float _Library;
         sampler2D _StoneTex, _StoneNormal, _StoneMetalRough;
         float4 _StoneColor;
+        sampler2D _DetailNormalMap, _DetailSurface;
+        float _DetailStrength;
         float4 _OreFinish[8];   // roughness, metallic; index zero is barren, then Data.ORE_KEYS
         float _HazeDensity;    // set by Lighting: the belt's haze with distance, on the rock alone
         float4 _HazeColor;
@@ -139,6 +144,19 @@ Shader "BeltRunner/Rock"
                 crustRoughness = tex2D(_StoneMetalRough, IN.uv_MainTex).g;
                 normal = lerp(normal, tex2D(_StoneNormal, IN.uv_MainTex).xyz * 2.0 - 1.0, crust);
             }
+            // Baked medium-scale chips remain readable on simplified meshes. Both maps are
+            // periodic linear data, shared by every instance, with gentler relief on exposed metal.
+            float4 detail = float4(1, 1, 0, 1);
+            float relief = _Library * _DetailStrength;
+            if (relief > 0.001)
+            {
+                float2 uv = IN.uv_MainTex * 0.75;
+                detail = tex2D(_DetailSurface, uv);
+                float3 dn = tex2D(_DetailNormalMap, uv).xyz * 2.0 - 1.0;
+                dn.xy *= relief * lerp(0.90, 0.25, ore * (1.0 - crust));
+                dn = normalize(dn);
+                normal = normalize(float3(normal.xy + dn.xy, normal.z * dn.z));
+            }
             normal.xy *= _BumpScale;
             normal = normalize(normal);
             float3 tint = c.rgb;
@@ -148,6 +166,9 @@ Shader "BeltRunner/Rock"
             float3 col = tex.rgb * lerp(float3(1.0, 1.0, 1.0), tint, _Library > 0.5 ? ore : _Tint);
             col = lerp(col, crustColor, crust);
             float exposedOre = ore * (1.0 - crust);
+            float stoneDetail = saturate(relief) * (1.0 - exposedOre * 0.75);
+            col *= lerp(1.0, lerp(0.45, 1.18, detail.g) * lerp(0.55, 1.0, detail.r), stoneDetail);
+            o.Occlusion = lerp(1.0, detail.r, stoneDetail);
             // the body heat pulses a little, as the browser's does
             float h = saturate(IN.heat) * (0.92 + 0.08 * sin(_Time.y * 7.0 + IN.worldPos.x * 0.05 + IN.worldPos.y * 0.07));
             // Dry, diffuse regolith around reflective mineral facets. Preserve the authored roughness;

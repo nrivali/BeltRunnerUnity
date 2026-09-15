@@ -16,9 +16,10 @@ public static class RockLookPreview
     static string output;
     static int frame;
     static int shot;
-    static readonly string[] shots = { "ores", "copper", "barren", "distance", "unlit", "shapes", "mining-heat", "shapes-2", "sun-right" };
+    static readonly string[] shots = { "ores", "copper", "barren", "distance", "unlit", "shapes", "mining-heat", "shapes-2", "sun-right", "detail-before", "detail-after", "approach-before", "approach-after", "flight-before", "flight-after" };
     static readonly string[] shapes = { "lumpy", "chunk", "boulder", "cratered", "jagged", "potato", "shard", "slab" };
     static MethodInfo colorMethod;
+    static bool flightReady;
     static ShadowQuality savedShadows;
     static ShadowResolution savedResolution;
     static int savedCascades;
@@ -84,7 +85,15 @@ public static class RockLookPreview
     static void Submit(Camera camera)
     {
         if (camera != cam) return;
-        if (shot == 0)
+        if (shot >= 13) { belt.Draw(); return; }
+        if (shot == 9 || shot == 10)
+            Draw("boulder", 1, Vector3.zero, 400, 0, Quaternion.Euler(25, -30, 14));
+        else if (shot == 11 || shot == 12)
+        {
+            for (int i = 0; i < 3; i++)
+                Draw(new[] { "boulder", "slab", "cratered" }[i], i, new Vector3((i - 1) * 380, 0, 0), 180, shot == 11 ? 1 : 0, Quaternion.Euler(25, -30, 14));
+        }
+        else if (shot == 0)
         {
             for (int i = 0; i < 8; i++)
                 Draw("lumpy", i == 7 ? -1 : i, new Vector3((i % 4 - 1.5f) * 385, (0.5f - i / 4) * 420, 0), 170, 0, Quaternion.Euler(15, 28, 10));
@@ -114,8 +123,12 @@ public static class RockLookPreview
         if (++frame < 25) return;
         try
         {
+            if (shot >= 13 && !flightReady) PrepareFlight();
+            bool before = shot == 9 || shot == 11 || shot == 13;
+            foreach (var group in materials) foreach (var mat in group) mat.SetFloat("_DetailStrength", before ? 0f : 1f);
+            cam.fieldOfView = shot >= 11 ? Ship.FOV : 39;
             lighting.sun.enabled = shot != 4;
-            lighting.sun.transform.rotation = Quaternion.LookRotation(shot == 8 ? new Vector3(-0.7f, -0.15f, 0.65f) : new Vector3(0.65f, -0.35f, 0.65f));
+            if (shot < 13) lighting.sun.transform.rotation = Quaternion.LookRotation(shot == 8 ? new Vector3(-0.7f, -0.15f, 0.65f) : new Vector3(0.65f, -0.35f, 0.65f));
             var rt = new RenderTexture(1600, 1000, 24, RenderTextureFormat.ARGBHalf);
             rt.antiAliasing = 4;
             cam.targetTexture = rt;
@@ -149,6 +162,49 @@ public static class RockLookPreview
         }
     }
 
+    // Exercise the real seeded Belt loader, proximity query, promotion, demotion and instanced
+    // rendering at the ship's cruise FOV. No Game, State.Init, Play Mode or player save access.
+    static void PrepareFlight()
+    {
+        belt.Clear();
+        belt.Build(Data.ZONE_KESSLER, Game.SEED);
+        int target = -1;
+        for (int i = 0; i < belt.count; i++)
+            if (belt.ore[i] == 1 && belt.meshKey[i] == Key("boulder") && belt.radius[i] > 120 && belt.radius[i] < 600)
+            { target = i; break; }
+        if (target < 0) throw new Exception("No copper boulder for the flight validation.");
+        var direction = (Data.ZONE_KESSLER.sunDir.normalized + new Vector3(0.35f, 0.15f, -0.1f)).normalized;
+        var center = belt.RockPos(target);
+        var report = new System.Text.StringBuilder();
+        foreach (float radii in new[] { 8f, 11f, 13f, 11f, 9f })
+        {
+            var viewer = center + direction * (belt.radius[target] * radii);
+            belt.UpdateLod0(viewer, belt.RocksWithin(viewer, 12000));
+            // Sequence explicitly checks both sides of the hysteresis band.
+            bool actual = belt.IsLod0(target);
+            report.AppendLine("distance/radius=" + radii + " detailed=" + actual + " total detailed=" + belt.Lod0Count);
+        }
+        string transitions = report.ToString();
+        var rows = transitions.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+        var expectedStates = new[] { true, true, false, false, true };
+        for (int i = 0; i < rows.Length; i++)
+            if (!rows[i].Contains("detailed=" + expectedStates[i])) throw new Exception("LOD hysteresis failed: " + rows[i]);
+        var from = center + direction * (belt.radius[target] * 8f);
+        belt.UpdateLod0(from, belt.RocksWithin(from, 12000));
+        belt.ApplyOffset(from);
+        belt.Cull(from);
+        cam.transform.position = Vector3.zero;
+        cam.transform.rotation = Quaternion.LookRotation(center - from, Vector3.up);
+        cam.farClipPlane = Belt.DRAW_DIST;
+        lighting.SetZone(Data.ZONE_KESSLER);
+        lighting.Update(from, from + Vector3.one * 100000);
+        report.AppendLine("seed=" + Game.SEED + " rocks=" + belt.count + " target=" + target + " radius=" + belt.radius[target]);
+        report.AppendLine(belt.DrawReport());
+        File.WriteAllText(Path.Combine(output, "flight-validation.txt"), report.ToString());
+        Debug.Log("rock-flight-validation: " + report);
+        flightReady = true;
+    }
+
     static void RestoreQuality()
     {
         QualitySettings.shadows = savedShadows;
@@ -160,7 +216,7 @@ public static class RockLookPreview
     static void PrepareTextures()
     {
         AssetDatabase.Refresh();
-        foreach (var textureName in new[] { "regolith_albedo", "regolith_normal", "regolith_metalrough", "ore_albedo", "ore_normal", "ore_metalrough" })
+        foreach (var textureName in new[] { "regolith_albedo", "regolith_normal", "regolith_metalrough", "ore_albedo", "ore_normal", "ore_metalrough", "rock_detail_normal", "rock_detail_surface" })
         {
             var path = "Assets/Resources/Asteroids/" + textureName + ".png";
             var importer = AssetImporter.GetAtPath(path) as TextureImporter;
@@ -215,7 +271,7 @@ public static class RockLookPreview
                 lines.AppendLine(p + "=" + (t != null ? t.name + " " + t.width + "x" + t.height + " " + t.format + " mips=" + t.mipmapCount + " linear=" + !t.isDataSRGB : "null") + " scale=" + m.GetTextureScale(p) + " offset=" + m.GetTextureOffset(p));
             }
         }
-        foreach (var name in new[] { "regolith_albedo", "regolith_normal", "regolith_metalrough", "ore_albedo", "ore_normal", "ore_metalrough" })
+        foreach (var name in new[] { "regolith_albedo", "regolith_normal", "regolith_metalrough", "ore_albedo", "ore_normal", "ore_metalrough", "rock_detail_normal", "rock_detail_surface" })
         {
             var tex = Resources.Load<Texture2D>("Asteroids/" + name);
             if (tex != null) lines.AppendLine("Override " + name + " " + tex.width + "x" + tex.height + " mips=" + tex.mipmapCount + " format=" + tex.format + " sRGB=" + tex.isDataSRGB + " filter=" + tex.filterMode + " anisotropy=" + tex.anisoLevel);
@@ -230,7 +286,7 @@ public static class RockLookPreview
         var result = BuildPipeline.BuildPlayer(new BuildPlayerOptions
         {
             scenes = new[] { "Assets/Scenes/Main.unity" },
-            locationPathName = "Builds/RockLook/BeltRunner.exe",
+            locationPathName = "Builds/RockDetail/BeltRunner.exe",
             target = BuildTarget.StandaloneWindows64,
             options = BuildOptions.None
         });

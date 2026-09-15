@@ -15,8 +15,8 @@ public class Belt
     public const float ORBIT_SPEED = 28f;
     public const float RESPAWN_AFTER = 300f;
     public const float MARK_TIME = 25f;
-    public const float LOD0_RADII = 6f;    // a rock closer than this many of its radii draws LOD 0 (the browser's 100 px on screen)
-    public const float LOD0_OUT = 8f;      // and drops back beyond this many (hysteresis)
+    public const float LOD0_RADII = 10f;   // retain sculpted detail while a rock occupies roughly 1/6 of the view height at cruise FOV
+    public const float LOD0_OUT = 12f;      // and drops back beyond this many (hysteresis)
     public const int SCRAP_MAX = 512;
     public const int BURN_MAX = 64;   // scorches kept per rock, the oldest going first
     const float COLOSSAL_LOOSE = 0.146f;
@@ -329,6 +329,14 @@ public class Belt
         m.SetColor("_StoneColor", (stoneSource != null ? stoneSource.GetColor("baseColorFactor") : Color.white) * 0.50f);
         // Larger surface grains and dark basalt reflectance for the approved asteroid concepts.
         m.SetTextureScale("_MainTex", Vector2.one * 0.60f);
+        var detailNormal = Resources.Load<Texture2D>("Asteroids/rock_detail_normal");
+        var detailSurface = Resources.Load<Texture2D>("Asteroids/rock_detail_surface");
+        if (detailNormal != null && detailSurface != null)
+        {
+            m.SetTexture("_DetailNormalMap", detailNormal);
+            m.SetTexture("_DetailSurface", detailSurface);
+            m.SetFloat("_DetailStrength", 1f);
+        }
         m.SetFloat("_Library", 1f);
         m.SetFloat("_Tint", vein ? 1f : 0f);
         m.SetFloat("_BumpScale", sm.HasProperty("normalTexture_scale") ? sm.GetFloat("normalTexture_scale") : 1f);
