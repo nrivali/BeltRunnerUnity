@@ -575,12 +575,13 @@ public class Raiders
     }
 
     // ---- the wreck: a killed raider that did not blow up on the spot. Every kind flies on with the momentum it had,
-    // out of control, and ends quietly, coming apart with no blast (only the kill on the spot blows up: BLAST_CHANCE):
-    //   burn     catches fire and tumbles, trailing flame, smoke and sparks, for 3.5 to 8 s, then comes apart
-    //   chain    a run of small pops along the hull over about a second, then comes apart
-    //   runaway  the engine jams open: it flares and the hulk accelerates hard along its nose, corkscrewing, for 1.5 to 3 s, then comes apart
-    //   shed     pieces tear off one by one every 0.3 to 0.6 s with a puff and sparks, until the body comes apart too
-    //   dead     everything goes dark; it spins flat and silent for 10 to 18 s with arcs crawling over it, then breaks up
+    // out of control, and ends quietly, the hull left in one piece to drift as a dark wreck (only the kill on the spot
+    // blows up: BLAST_CHANCE):
+    //   burn     catches fire and tumbles, trailing flame, smoke and sparks, for 3.5 to 8 s, then the fire goes out
+    //   chain    a run of small pops along the hull over about a second, then it goes dark
+    //   runaway  the engine jams open: it flares and the hulk accelerates hard along its nose, corkscrewing, for 1.5 to 3 s, then the engine dies
+    //   vent     jets of gas and plasma burst from the hull every 0.35 to 0.9 s, each shoving and spinning it, for 4 to 9 s
+    //   dead     everything goes dark; it spins flat and silent for 10 to 18 s with arcs crawling over it, then the arcs stop
     public const float BLAST_CHANCE = 0.3f;   // the rest is split between the kinds below
     class Hulk
     {
@@ -593,7 +594,7 @@ public class Raiders
     void StartWreck(Raider r)
     {
         float roll = Random.value;
-        string kind = roll < 0.28f ? "burn" : roll < 0.5f ? "chain" : roll < 0.68f ? "runaway" : roll < 0.86f ? "shed" : "dead";
+        string kind = roll < 0.28f ? "burn" : roll < 0.5f ? "chain" : roll < 0.68f ? "runaway" : roll < 0.86f ? "vent" : "dead";
         var h = new Hulk
         {
             kind = kind, node = r.node, pos = r.pos, vel = r.vel + Random.insideUnitSphere * 20f, axis = Random.onUnitSphere,
@@ -605,7 +606,7 @@ public class Raiders
             case "burn": h.fuse = Random.Range(3.5f, 8f); break;
             case "chain": h.fuse = Random.Range(0.8f, 1.3f); h.spin = Random.Range(5f, 15f); break;
             case "runaway": h.fuse = Random.Range(1.5f, 3f); h.spin = Random.Range(30f, 80f); h.axis = (r.node.forward * 0.6f + Random.insideUnitSphere).normalized; break;
-            case "shed": h.fuse = 99f; h.shedT = Random.Range(0.2f, 0.5f); break;
+            case "vent": h.fuse = Random.Range(4f, 9f); h.shedT = Random.Range(0.2f, 0.5f); h.spin = Random.Range(15f, 40f); break;
             case "dead":
                 h.fuse = Random.Range(10f, 18f);
                 h.spin = Random.Range(60f, 110f);
@@ -628,7 +629,7 @@ public class Raiders
             if (h.node == null) { _hulks.RemoveAt(i); continue; }
             if (h.fuse <= 0f)
             {
-                QuietBreak(h);   // a wreck never blows up: only the kill-on-the-spot does (BLAST_CHANCE), the rest come apart quietly
+                QuietEnd(h);   // a wreck never blows up and never comes apart: it goes dark and drifts on as one piece
                 _hulks.RemoveAt(i);
                 continue;
             }
@@ -648,9 +649,8 @@ public class Raiders
                     h.vel += h.node.forward * 420f * dt;
                     h.spin = Mathf.Min(140f, h.spin + 30f * dt);
                     break;
-                case "shed":
-                    h.spin = Mathf.Min(120f, h.spin + 25f * dt);
-                    h.vel += Random.insideUnitSphere * 8f * dt;
+                case "vent":
+                    h.vel += Random.insideUnitSphere * 6f * dt;
                     break;
                 case "dead":
                     break;   // a steady flat spin, nothing else
@@ -696,23 +696,23 @@ public class Raiders
                     h.smokeT -= dt;
                     while (h.smokeT <= 0f) { h.smokeT += 0.07f; game.explosions.Smoke(h.pos - h.node.forward * 26f + Random.insideUnitSphere * 6f, h.vel - h.node.forward * 40f); }
                     break;
-                case "shed":
-                    // a piece tears off with a puff and sparks; when only the body is left, the last of it goes up small
+                case "vent":
+                    // a jet of gas and plasma bursts from somewhere on the hull every so often, with sparks and a hiss,
+                    // and shoves the hulk a little the other way; a thin haze leaks all the while
                     h.shedT -= dt;
                     if (h.shedT <= 0f)
                     {
-                        h.shedT = Random.Range(0.3f, 0.6f);
-                        Transform piece = null;
-                        for (int c = h.node.childCount - 1; c >= 0; c--) { var t = h.node.GetChild(c); if (t.name != "Exhaust" && t.name != "Core" && t.name != "Body") { piece = t; break; } }
-                        if (piece == null) { h.fuse = 0.01f; break; }   // the body is all that is left: it comes apart next frame
-                        var ppos = piece.position + game.worldOffset;
-                        piece.SetParent(_root, true);
-                        var shove = (ppos - h.pos).normalized * Random.Range(20f, 60f) + Random.insideUnitSphere * 15f;
-                        _debris.Add(new Debris { node = piece, pos = ppos, vel = h.vel + shove, axis = Random.onUnitSphere, rate = Random.Range(60f, 240f), life = DEBRIS_LIFE });
-                        game.explosions.Smoke(ppos, h.vel + shove * 0.3f);
-                        game.explosions.Pop(ppos, h.vel);
-                        if (game.sparks != null) game.sparks.Burst(ppos, 20, 140f, Data.Hex("#ffb060"), 1.3f, h.vel);
-                        Pop(ppos, -8f);
+                        h.shedT = Random.Range(0.35f, 0.9f);
+                        var at = h.pos + h.node.right * Random.Range(-26f, 26f) + h.node.forward * Random.Range(-12f, 10f) + h.node.up * Random.Range(-4f, 4f);
+                        var dirOut = (at - h.pos).sqrMagnitude > 1f ? (at - h.pos).normalized : Random.onUnitSphere;
+                        for (int k = 0; k < 6; k++) game.explosions.Jet(at + dirOut * k * 5f, h.vel + dirOut * Random.Range(60f, 140f) + Random.insideUnitSphere * 15f);
+                        game.explosions.Smoke(at, h.vel + dirOut * 40f);
+                        if (game.sparks != null) game.sparks.Burst(at, 14, 160f, Data.Hex("#ffd090"), 1.2f, h.vel + dirOut * 60f);
+                        h.vel -= dirOut * Random.Range(6f, 14f);
+                        h.spin = Mathf.Min(160f, h.spin + Random.Range(10f, 30f));
+                        h.axis = (h.axis + Random.insideUnitSphere * 0.5f).normalized;
+                        float bd = (at - game.ship.TruePos).magnitude;
+                        Audio.Play("laser_off", Mathf.Max(-30f, -4f + (bd <= 400f ? 0f : -20f * Mathf.Log10(bd / 400f))));   // the hiss
                     }
                     h.smokeT -= dt;
                     while (h.smokeT <= 0f) { h.smokeT += 0.2f; game.explosions.Smoke(h.pos + Random.insideUnitSphere * 8f, h.vel + Random.insideUnitSphere * 6f); }
@@ -741,9 +741,10 @@ public class Raiders
         Audio.Play("hit", Mathf.Max(-30f, db + (bd <= 600f ? 0f : -20f * Mathf.Log10(bd / 600f))));
     }
 
-    /// A wreck's end: no blast, the pieces part with a last crackle of arcs (the dead hull) or a last gout of flame and
-    /// smoke (the rest) and a spray of sparks.
-    void QuietBreak(Hulk h)
+    /// A wreck's end: no blast and nothing comes apart. A last crackle of arcs (the dead hull) or a last gout of flame
+    /// and smoke (the rest) and a spray of sparks, the exhaust goes out, and the hull drifts on in one piece as debris,
+    /// keeping its velocity and its tumble.
+    void QuietEnd(Hulk h)
     {
         if (game.explosions != null)
         {
@@ -752,7 +753,9 @@ public class Raiders
         }
         if (game.sparks != null) game.sparks.Burst(h.pos, 40, 100f, h.kind == "dead" ? Data.Hex("#bfe8ff") : Data.Hex("#ffb060"), 1.2f, h.vel);
         Pop(h.pos, -10f);
-        Shatter(h.node, h.pos, h.vel);
+        if (h.exhaustNode != null) h.exhaustNode.gameObject.SetActive(false);
+        _debris.Add(new Debris { node = h.node, pos = h.pos, vel = h.vel, axis = h.axis, rate = Mathf.Max(20f, h.spin * 0.6f), life = DEBRIS_LIFE });
+        while (_debris.Count > DEBRIS_MAX) { Object.Destroy(_debris[0].node.gameObject); _debris.RemoveAt(0); }
     }
 
     public int HulkCount { get { return _hulks.Count; } }
