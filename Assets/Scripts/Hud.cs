@@ -69,6 +69,8 @@ public class Hud : MonoBehaviour
     // the window's motion: it eases open and shut, a tab's contents slide in; the balance counts to its new value
     CanvasGroup _winGroup, _bodyGroup;
     bool _winWant;
+    float _cardInset = 30f;   // the tutorial card's clearance, last measured while the card was drawn
+    public bool instantUi;   // the smoke run: the window shows at once, no ease, so its screenshots catch it
     float _winK, _bodyK, _credShown = -1f;
     // the upgrade rows, kept and updated in place (a purchase lights its row instead of rebuilding the tab)
     class UpRow { public string key; public bool depot; public RectTransform[] pips; public Text desc; public Ui.Btn buy, minus; public Ui.Box bg; public float flash; }
@@ -454,13 +456,13 @@ public class Hud : MonoBehaviour
     {
         if (_win == null || !_win.gameObject.activeSelf) return;
         _winK = Mathf.Lerp(_winK, _winWant ? 1f : 0f, 1f - Mathf.Exp(-(_winWant ? 14f : 18f) * dt));
-        if (!_winWant && _winK < 0.02f) { _win.gameObject.SetActive(false); return; }
+        if (!_winWant && (_winK < 0.02f || instantUi)) { _win.gameObject.SetActive(false); return; }
         float e = 1f - (1f - _winK) * (1f - _winK);
         _winGroup.alpha = _winK;
         _winGroup.blocksRaycasts = _winWant;
         _winGroup.interactable = _winWant;
         _win.localScale = Vector3.one * (0.96f + 0.04f * e);
-        _bodyK = Mathf.Lerp(_bodyK, 1f, 1f - Mathf.Exp(-13f * dt));
+        _bodyK = instantUi ? 1f : Mathf.Lerp(_bodyK, 1f, 1f - Mathf.Exp(-13f * dt));
         _bodyGroup.alpha = _bodyK;
         _winScroll.viewport.anchoredPosition = new Vector2(0f, -(1f - _bodyK) * 14f);
         if (_credShown < 0f) _credShown = State.credits;
@@ -524,8 +526,9 @@ public class Hud : MonoBehaviour
         if (tab != "inv" && !RefitsAvailable) tab = "inv";
         if (!InvOpen) Audio.Play("ui_open");
         else if (tab != _winTab) Audio.Play("ui_tab");
-        if (!InvOpen) { _winK = 0f; _win.localScale = Vector3.one * 0.96f; if (_winGroup != null) _winGroup.alpha = 0f; }
+        if (!InvOpen) { _winK = instantUi ? 1f : 0f; _win.localScale = Vector3.one * (instantUi ? 1f : 0.96f); if (_winGroup != null) _winGroup.alpha = _winK; }
         _winWant = true;
+        if (instantUi) _bodyK = 1f;
         _winTab = tab;
         _win.gameObject.SetActive(true);
         _svcSig = "";
@@ -672,7 +675,7 @@ public class Hud : MonoBehaviour
         _rowSig = "";
         _gStoreW = _gFuelW = _gPartsW = null;
         float w = _winScroll.Width;
-        var f = new Ui.Flow(_winScroll.content, 26f, 20f, w - 52f);
+        var f = new Ui.Flow(_winScroll.content, 26f, 26f, w - 52f);
         if (_winTab == "inv") InventoryTab(f, docked, atHub);
         else if (_winTab == "ship") ShipTab(f);
         else DepotTab(f);
@@ -1809,8 +1812,18 @@ public class Hud : MonoBehaviour
         // fifth of the half-height at full pitch) and the field tips with the bank
         _speed.Set(_speedK, dt, engS.max > 0f ? Mathf.Clamp01(ship.vel.magnitude / (engS.max * 3f)) : 0.5f,
             new Vector2(ship.camYaw * 0.25f, ship.camPitch * 0.2f), -ship.camYaw * 14f - ship.camRoll * 7f);
-        // side panels follow the window
-        _win.sizeDelta = new Vector2(Mathf.Min(1100f, _canvasSize.x - 60f), Mathf.Min(760f, _canvasSize.y - 60f));
+        // the hangar window keeps clear of the tutorial card (below it while it shows) and of the status pane at the bottom
+        // (the card is judged by its step, not by whether it is drawn this frame: a cutscene hides it for a frame or two)
+        if (_tutBox != null && _tutBox.gameObject.activeSelf) _cardInset = -(_tutBox.anchoredPosition.y) + _tutBox.sizeDelta.y + 14f;   // measured while drawn, kept through a cutscene
+        bool cardUp = tutorial != null && tutorial.Active;   // a cutscene hides the card, but it comes straight back: keep its room
+        float topInset = cardUp ? _cardInset : 30f;
+        float bottomInset = 18f + 67f + 16f;
+        float winH = Mathf.Min(760f, _canvasSize.y - topInset - bottomInset);
+        var wantSize = new Vector2(Mathf.Min(1100f, _canvasSize.x - 60f), winH);
+        var wantPos = new Vector2(0f, (bottomInset - topInset) * 0.5f);
+        float ek = instantUi || !_win.gameObject.activeSelf ? 1f : 1f - Mathf.Exp(-14f * dt);   // eased in play, so the card coming or going never snaps it
+        _win.sizeDelta = Vector2.Lerp(_win.sizeDelta, wantSize, ek);
+        _win.anchoredPosition = Vector2.Lerp(_win.anchoredPosition, wantPos, ek);
         TickWindow(dt);
         if (InvOpen && Time.frameCount % 15 == 0) { RefreshWindow(); TickWindowGauges(); }
         // the tutorial's rings follow their targets

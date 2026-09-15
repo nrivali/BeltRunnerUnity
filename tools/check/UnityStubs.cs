@@ -8,6 +8,7 @@ namespace UnityEngine
 {
     public struct Vector2
     {
+        public static Vector2 Lerp(Vector2 a, Vector2 b, float t) => new Vector2(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
         public float x, y;
         public Vector2(float x, float y) { this.x = x; this.y = y; }
         public static Vector2 zero => new Vector2(0, 0);

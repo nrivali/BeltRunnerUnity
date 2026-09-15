@@ -94,6 +94,7 @@ public class Game : MonoBehaviour
         Music.Create();
         var hudGo = new GameObject("HUD");
         hud = hudGo.AddComponent<Hud>();
+        hud.instantUi = _smoke;   // the smoke run: the hangar window shows at once, no ease, so its screenshots catch it
         hud.ship = ship;
         hud.game = this;
         hud.Build();
@@ -816,7 +817,7 @@ public class Game : MonoBehaviour
                 // the inventory beside the services panel: both grids, then the drag and drop driven as the pointer would do it: a
                 // storage stack dropped on the hold grid, a hold stack dropped on the storage grid, a small stack, then one let go
                 // outside the grids (jettisoned into the hangar)
-                if (_phaseFrame == 90) hud.ToggleInventory();
+                if (_phaseFrame == 90) hud.ShowWindow("inv");   // the hangar window on its inventory tab (docking opened it already)
                 if (_phaseFrame == 100)
                 {
                     float h0 = State.CargoTotal();
@@ -848,7 +849,7 @@ public class Game : MonoBehaviour
                     bool ok = hud.SmokeJettisonFirst();   // what a drag let go outside the grids does
                     Debug.Log("smoke: jettison · " + ok + " · hold=" + State.CargoTotal().ToString("0") + " · lumps " + before + " -> " + _drops.Count + " · noPick=" + (_drops.Count > 0 ? _drops[_drops.Count - 1].noPick.ToString("0") : "-"));
                 }
-                if (_phaseFrame == 125) hud.ToggleInventory();   // the screenshot is taken at the end of the frame, so the panel closes a few frames on
+                if (_phaseFrame == 125) hud.CloseWindow();   // the screenshot is taken at the end of the frame, so the window closes a few frames on
                 if (_phaseFrame == 150 || (_phaseFrame > 150 && _phaseFrame % 30 == 0 && _droneDone) || _phaseFrame == 7000)
                 {
                     if (_phaseFrame == 150 && !_droneDone) { Shot("smoke_pad"); break; }   // the first shot; the run then waits for the drone

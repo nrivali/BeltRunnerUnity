@@ -1578,7 +1578,7 @@ public class Ship : MonoBehaviour
         // the deck welcomes you back over the intercom, one of four announcements, once the clamps have clunked (not on a
         // session's first dock, and not during the tutorial, whose own line for this step would talk over it)
         if (flownOut && State.tut < 0) _announceAt = Time.time + 0.8f;
-        game.Toast("Docked in " + CargoShip.BayName(side) + " · stow cargo from the services panel", false);
+        game.Toast("Docked in " + CargoShip.BayName(side) + " · stow cargo in the hangar window", false);
         game.OnDocked(true);
         State.Save();
     }
