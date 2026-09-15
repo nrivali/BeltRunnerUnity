@@ -369,6 +369,19 @@ public class Game : MonoBehaviour
         ship.weapon = "gun";
         ship.ReleaseLock();
         raiders.Clear();
+        // clear of the cargo ship's gun cover first (raiders inside SAFE_R die and never engage): if the ship is within it,
+        // or too close for raiders spawned up to 8,000 u out to be clear of it, move 22,000 u out along the nose
+        if (carrier != null && !carrier.hold && (ship.TruePos - carrier.truePos).magnitude < Raiders.SAFE_R + 9000f)
+        {
+            var away = ship.Forward; away.y = 0f;
+            if (away.sqrMagnitude < 0.01f) away = Vector3.forward; else away.Normalize();
+            ship.transform.position = carrier.truePos + away * 22000f - worldOffset;
+            ship.transform.rotation = Ship.LevelHeading(away);
+            ship.vel = Vector3.zero;
+            ship.throttle = 0f;
+            ship.exitPending = false;
+            ship.UpdateCamera(1f);
+        }
         var here = ship.TruePos;
         for (int i = 0; i < 3; i++)
         {
