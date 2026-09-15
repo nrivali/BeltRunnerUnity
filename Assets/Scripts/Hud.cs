@@ -1744,16 +1744,31 @@ public class Hud : MonoBehaviour
             for (; li < _leadPips.Count; li++) _leadPips[li].Hide();
         }
         else { _crosshairRt.gameObject.SetActive(false); foreach (var p in _leadPips) p.Hide(); Cursor.visible = true; }
-        // the reticle on the target
-        if (hasTarget && showFlight && ship.cut == null)
+        // the bracket: on the locked target, whatever it is, fitted to how big it looks; else a small one on a rock in the sights
         {
-            Vector2 sp;
-            bool behind = Project(belt.RockPos(ship.target) - game.worldOffset, out sp);
-            _reticleRt.gameObject.SetActive(!behind);
-            _reticleRt.anchoredPosition = sp;
-            _reticle.Set(ship.laserOn, ship.lockKind == "rock" && ship.lockRock == ship.target);   // locked on: heavier, wider corners
+            Vector3 bracketAt = Vector3.zero;
+            float bracketR = 0f;
+            bool bracketLock = false;
+            if (locked && ship.lockKind == "rock" && ship.lockRock >= 0 && ship.lockRock < belt.count && belt.alive[ship.lockRock]) { bracketAt = belt.RockPos(ship.lockRock); bracketR = belt.radius[ship.lockRock]; bracketLock = true; }
+            else if (locked && ship.lockKind == "raider" && ship.lockRaider != null && !ship.lockRaider.dead) { bracketAt = ship.lockRaider.pos; bracketR = Raiders.RADIUS * 2f; bracketLock = true; }
+            else if (locked && ship.lockKind == "station" && carrier != null) { bracketAt = carrier.truePos; bracketR = CargoShip.HALF.x; bracketLock = true; }
+            else if (hasTarget) { bracketAt = belt.RockPos(ship.target); bracketR = belt.radius[ship.target]; }
+            if (bracketR > 0f && showFlight && ship.cut == null && !docked)
+            {
+                Vector2 sp;
+                bool behind = Project(bracketAt - game.worldOffset, out sp);
+                _reticleRt.gameObject.SetActive(!behind);
+                _reticleRt.anchoredPosition = sp;
+                // the projected radius, in canvas pixels, with a margin; never smaller than a hand's width
+                float camD = (bracketAt - game.worldOffset - _cam.transform.position).magnitude;
+                float tanHalf = Mathf.Tan(_cam.fieldOfView * Mathf.Deg2Rad * 0.5f);
+                float pr = camD > 1f ? bracketR * (Screen.height * 0.5f) / (camD * tanHalf) / _canvas.scaleFactor : 0f;
+                float side = Mathf.Clamp(pr * 2f * 1.25f + 16f, bracketLock ? 56f : 44f, 480f);
+                _reticleRt.sizeDelta = new Vector2(side, side);
+                _reticle.Set(ship.laserOn || ship.gunFiring, bracketLock);
+            }
+            else _reticleRt.gameObject.SetActive(false);
         }
-        else _reticleRt.gameObject.SetActive(false);   // raiders carry no reticle: the LEAD pip is the gunnery aid
         // raiders on the attack carry a red marker
         var rl = showFlight && !docked && !hold && game.raiders != null ? game.raiders.raiders : null;
         int nr = 0;

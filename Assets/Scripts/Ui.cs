@@ -615,13 +615,14 @@ public static class Ui
         {
             vh.Clear();
             var r = GetPixelAdjustedRect();
-            var c = hot ? AMBER : CYAN;
-            float w = locked ? 3f : 2f;
-            float l = locked ? 18f : 14f;
+            // the lock: thin amber corner brackets, legs a fifth of the side; a rock merely in the sights: a small cyan one
+            var c = locked ? (hot ? AMBER2 : AMBER) : A(CYAN, hot ? 1f : 0.8f);
+            float w = locked ? 1.6f : 1.2f;
+            float l = Mathf.Clamp(Mathf.Min(r.width, r.height) * 0.22f, 10f, 40f);
             for (int pass = 0; pass < 2; pass++)
             {
-                var col = pass == 0 ? A(c, 0.35f) : c;
-                float wd = pass == 0 ? w + 3f : w;
+                var col = pass == 0 ? A(c, 0.25f) : c;
+                float wd = pass == 0 ? w + 2.5f : w;
                 Line(vh, new Vector2(r.xMin, r.yMax - l), new Vector2(r.xMin, r.yMax), wd, col); Line(vh, new Vector2(r.xMin, r.yMax), new Vector2(r.xMin + l, r.yMax), wd, col);
                 Line(vh, new Vector2(r.xMax - l, r.yMax), new Vector2(r.xMax, r.yMax), wd, col); Line(vh, new Vector2(r.xMax, r.yMax), new Vector2(r.xMax, r.yMax - l), wd, col);
                 Line(vh, new Vector2(r.xMin, r.yMin + l), new Vector2(r.xMin, r.yMin), wd, col); Line(vh, new Vector2(r.xMin, r.yMin), new Vector2(r.xMin + l, r.yMin), wd, col);
@@ -647,10 +648,10 @@ public static class Ui
         protected override void OnPopulateMesh(VertexHelper vh)
         {
             vh.Clear();
-            var c = hot ? AMBER : A(CYAN, 0.9f);
-            // a small plus: four arms with a gap at the centre
-            float r = 8f;
-            foreach (var d in new[] { Vector2.up, -Vector2.up, new Vector2(1f, 0f), new Vector2(-1f, 0f) }) Line(vh, d * 2f, d * r, 1.5f, c);
+            var c = hot ? AMBER : A(Color.white, 0.85f);
+            // a thin pale plus with a gap at the centre, as on a real gunsight
+            float r = 11f;
+            foreach (var d in new[] { Vector2.up, -Vector2.up, new Vector2(1f, 0f), new Vector2(-1f, 0f) }) Line(vh, d * 4f, d * r, 1f, c);
             if (hit > 0f)
             {
                 // the hit marker: four diagonal strokes just outside the ring, swelling as they fade
