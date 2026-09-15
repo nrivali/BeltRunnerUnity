@@ -1890,7 +1890,13 @@ public class Ship : MonoBehaviour
         if (wheel != 0f && CanFly && !docked && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible)
         {
             weapon = weapon == "laser" ? "gun" : "laser";
-            game.Toast(weapon == "gun" ? "Autocannon selected · the wheel goes back to the laser" : "Mining laser selected", false);
+            game.Toast(weapon == "gun" ? "Autocannon selected" : "Mining laser selected", false);
+        }
+        // 1 and 2 pick them outright
+        if (CanFly && !docked && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible)
+        {
+            if (Input.GetKeyDown(KeyCode.Alpha1) && weapon != "laser") { weapon = "laser"; game.Toast("Mining laser selected", false); }
+            if (Input.GetKeyDown(KeyCode.Alpha2) && weapon != "gun") { weapon = "gun"; game.Toast("Autocannon selected", false); }
         }
         // the autocannon: the raider under the nose (or the locked one, across the forward half); with the cannon selected a
         // rock in the way does not stop the shot

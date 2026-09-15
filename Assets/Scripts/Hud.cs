@@ -40,9 +40,12 @@ public class Hud : MonoBehaviour
     readonly List<Ui.Marker> _droneMarkers = new List<Ui.Marker>();
     readonly List<Ui.Marker> _raiderMarkers = new List<Ui.Marker>();
     RectTransform _status, _readouts, _target, _controls, _prompt, _notice, _toastBox, _version, _hoverLbl, _pointerDot;
-    Text _speedUnit, _tWeapon;
-    Ui.SegBar _tHeat;
-    RectTransform _tHeatRt;
+    Text _speedUnit;
+    // the WEAPON pane: two rows (the laser, the cannon), the equipped one lit, and the cannon's heat under them
+    RectTransform _weaponPane, _wHeatRt;
+    Ui.Box _wBox1, _wBox2;
+    Text _wName1, _wName2, _wHeatT;
+    Ui.SegBar _wHeat;
     const float BAND_H = 100f;   // the bottom band's panes are this tall
     Text _hoverTxt;
     Ui.Pane _statusPane;
@@ -158,6 +161,7 @@ public class Hud : MonoBehaviour
         BuildStatus();
         BuildReadouts();
         BuildTarget();
+        BuildWeaponPane();
         BuildControls();
         BuildPrompt();
         BuildNotice();
@@ -203,11 +207,12 @@ public class Hud : MonoBehaviour
         _scaler.referenceResolution = new Vector2(1280f / s, 720f / s);
     }
 
-    // ---- the bottom band: three panes in a row, 920 wide, along the bottom edge
+    // ---- the bottom band: four panes in a row, 1,130 wide, along the bottom edge
     //   SHIP   300   hull, shield, fuel and the hold, two by two
     //   FLIGHT 300   speed and thrust, the cargo ship's distance, the field, the radar, the threat
-    //   TARGET 300   what the crosshair or the lock is on: name, size, range, health, and the weapon in hand
-    const float BAND_LEFT = -460f;
+    //   TARGET 300   what the crosshair or the lock is on: name, size, range, health, the warning
+    //   WEAPON 200   the two weapons with their keys, the equipped one lit, the cannon's heat
+    const float BAND_LEFT = -565f;
 
     RectTransform BandPane(string name, float left, float w, out Ui.Pane pane)
     {
@@ -268,17 +273,35 @@ public class Hud : MonoBehaviour
         _tWarn = Ui.Label(_target, "", "body", 11, Ui.AMBER, TextAnchor.UpperLeft);
         Ui.At(_tWarn.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -72f), new Vector2(272f, 14f));
         // the weapon line shares the last row with the warning: the warning takes it while there is one
-        _tWeapon = Ui.Glow(Ui.Label(_target, "", "mono", 11, Ui.HUD_DIM, TextAnchor.UpperLeft), Ui.A(Ui.HUD_GLOW, 0.35f));
-        Ui.At(_tWeapon.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -72f), new Vector2(272f, 14f));
-        // the autocannon's heat bar under the weapon line
-        _tHeatRt = Ui.Rect("Heat", _target, Ui.TL, Ui.TL, new Vector2(14f, -88f), new Vector2(272f, 5f));
-        _tHeat = _tHeatRt.gameObject.AddComponent<Ui.SegBar>();
-        _tHeat.segmented = false;
-        _tHeat.track = new Color(0.078f, 0.098f, 0.212f);
-        _tHeat.fill = Ui.AMBER;
-        _tHeat.raycastTarget = false;
-        _tHeatRt.gameObject.SetActive(false);
         _target.gameObject.SetActive(false);
+    }
+
+    // ---- WEAPON: the two weapons as rows with their keys, the equipped one lit; the cannon's heat below
+    void BuildWeaponPane()
+    {
+        Ui.Pane p;
+        _weaponPane = BandPane("Weapon", BAND_LEFT + 930f, 200f, out p);
+        WeaponRow(-12f, "1", "Mining laser", out _wBox1, out _wName1);
+        WeaponRow(-42f, "2", "Autocannon", out _wBox2, out _wName2);
+        var he = Ui.Eyebrow(_weaponPane, "Heat", Ui.HUD_DIM);
+        Ui.At(he.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -74f), new Vector2(60f, 14f));
+        _wHeatT = Ui.Glow(Ui.Label(_weaponPane, "", "mono", 11, Ui.GLOW_TEXT, TextAnchor.UpperRight), Ui.A(Ui.HUD_GLOW, 0.35f));
+        Ui.At(_wHeatT.rectTransform, Ui.TR, Ui.TR, new Vector2(-14f, -74f), new Vector2(120f, 14f));
+        _wHeatRt = Ui.Rect("Heat", _weaponPane, Ui.TL, Ui.TL, new Vector2(14f, -90f), new Vector2(172f, 5f));
+        _wHeat = _wHeatRt.gameObject.AddComponent<Ui.SegBar>();
+        _wHeat.segmented = false;
+        _wHeat.track = new Color(0.078f, 0.098f, 0.212f);
+        _wHeat.fill = Ui.AMBER;
+        _wHeat.raycastTarget = false;
+    }
+
+    void WeaponRow(float y, string key, string name, out Ui.Box box, out Text label)
+    {
+        var row = Ui.Rect("Weapon " + key, _weaponPane, Ui.TL, Ui.TL, new Vector2(14f, y), new Vector2(172f, 26f));
+        box = Ui.MakeBox(row, Ui.A(Ui.CYAN, 0.04f), Ui.HUD_FAINT, 1f);
+        Ui.Chip(row, key, true, new Vector2(6f, -5f));
+        label = Ui.Label(row, name, "display", 13, Ui.HUD_DIM, TextAnchor.MiddleLeft);
+        Ui.At(label.rectTransform, Ui.TL, Ui.TL, new Vector2(34f, 0f), new Vector2(130f, 26f));
     }
 
     // ---- bottom left: the flight controls list (.hud-bl .controls), C hides it
@@ -293,7 +316,7 @@ public class Hud : MonoBehaviour
         new object[] { new[] { "G" }, "Laser overcharge on · off (needs the upgrade · up to ×3 damage · the beam draws fuel while it cuts)" },
         new object[] { new[] { "↑", "↓" }, "Pitch" },
         new object[] { new[] { "LMB" }, "Hold to fire the selected weapon (L too). The laser cuts only what the crosshair is on: aim the nose at a rock" },
-        new object[] { new[] { "Wheel" }, "Swap between the mining laser and the autocannon" },
+        new object[] { new[] { "1", "2" }, "Mining laser · autocannon (the wheel swaps too)" },
         new object[] { new[] { "R" }, "Radar pulse" },
         new object[] { new[] { "Q", "MMB" }, "Lock the crosshair on whatever the mouse is over · hover another target and press Q to switch · otherwise press Q to release" },
         new object[] { new[] { "F" }, "Flashlight on · off in flight · the upgrade tabs when docked" },
@@ -1589,10 +1612,14 @@ public class Hud : MonoBehaviour
         string threatTxt = threat > 0 ? Ui.Col(threat + " raider" + (threat > 1 ? "s" : ""), Ui.RED) : Ui.Col("none", Ui.GLOW_TEXT);
         string weaponTxt = ship.weapon == "gun" ? "Autocannon" : "Laser";
         _row2.text = Kv("RADAR", radar) + "   THREAT " + threatTxt;
-        _tWeapon.text = Kv("WEAPON", weaponTxt) + (ship.weapon == "gun" ? "   HEAT " + (ship.gunOverheated ? Ui.Col("OVERHEATED", Ui.RED) : Ui.Col(Mathf.RoundToInt(ship.gunHeat * 100f) + "%", ship.gunHeat > 0.75f ? Ui.AMBER : Ui.GLOW_TEXT)) : "");
-        bool heatOn = ship.weapon == "gun" && !docked && _tWeapon.gameObject.activeSelf;
-        if (_tHeatRt.gameObject.activeSelf != heatOn) _tHeatRt.gameObject.SetActive(heatOn);
-        if (heatOn) _tHeat.Set(ship.gunHeat, ship.gunOverheated ? Ui.RED : ship.gunHeat > 0.75f ? Ui.AMBER2 : Ui.AMBER);
+        // WEAPON: the equipped row lit amber, the other dim; the heat reads for the cannon
+        bool gunUp = ship.weapon == "gun";
+        _wBox1.Set(gunUp ? Ui.A(Ui.CYAN, 0.04f) : Ui.A(Ui.AMBER, 0.16f), gunUp ? Ui.HUD_FAINT : Ui.AMBER);
+        _wBox2.Set(gunUp ? Ui.A(Ui.AMBER, 0.16f) : Ui.A(Ui.CYAN, 0.04f), gunUp ? Ui.AMBER : Ui.HUD_FAINT);
+        _wName1.color = gunUp ? Ui.HUD_DIM : Ui.GLOW_TEXT;
+        _wName2.color = gunUp ? Ui.GLOW_TEXT : Ui.HUD_DIM;
+        _wHeatT.text = ship.gunOverheated ? Ui.Col("OVERHEATED", Ui.RED) : Mathf.RoundToInt(ship.gunHeat * 100f) + "%";
+        _wHeat.Set(ship.gunHeat, ship.gunOverheated ? Ui.RED : ship.gunHeat > 0.75f ? Ui.AMBER2 : Ui.AMBER);
         // the target: the panel follows the lock when there is one, else the crosshair target
         bool hasTarget = ship.target >= 0 && ship.target < belt.count && belt.alive[ship.target] && !docked;
         int panelRock = locked && ship.lockKind == "rock" ? ship.lockRock : (hasTarget ? ship.target : -1);
@@ -1645,8 +1672,6 @@ public class Hud : MonoBehaviour
             _tHpRow.gameObject.SetActive(false);
             _tWarn.gameObject.SetActive(false);
         }
-        _tWeapon.gameObject.SetActive(!_tWarn.gameObject.activeSelf);   // the warning takes the last row while there is one
-        if (_tWarn.gameObject.activeSelf && _tHeatRt.gameObject.activeSelf) _tHeatRt.gameObject.SetActive(false);
         // the hover label beside the cursor: what the mouse is over and how far it is
         var hv = ship.hover;
         if (hv != null && !docked && !inCut && started)
@@ -1715,6 +1740,7 @@ public class Hud : MonoBehaviour
         _controls.gameObject.SetActive(showFlight && !docked && _controlsShown);
         _prompt.gameObject.SetActive(showFlight && !docked && segs.Count > 0);
         _target.gameObject.SetActive(showFlight);   // up in the hangar too, reading "No target"
+        _weaponPane.gameObject.SetActive(showFlight);
         if (inCut && _tutBox.gameObject.activeSelf) _tutBox.gameObject.SetActive(false);
         _barTop.gameObject.SetActive(inCut);
         _barBot.gameObject.SetActive(inCut);
