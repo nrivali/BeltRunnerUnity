@@ -1826,16 +1826,9 @@ public class Hud : MonoBehaviour
             float cDist = ship.weapon != "laser" ? ship.GunReach : State.Stat("range").reach;
             Vector2 cp;
             bool cBehind = Project(ship.LaserOrigin() + ship.Forward * cDist - game.worldOffset, out cp);
-            // the crosshair rides the cursor (quickly smoothed), the user's call of 2026-09-15; the nose's own aim is the
-            // small dot, which sits near the centre and is what the guns and the laser follow
-            var mnow = Input.mousePosition;
-            var mc = new Vector2(mnow.x, mnow.y) / _canvas.scaleFactor;
-            _crossPos = _crossInit ? Vector2.Lerp(_crossPos, mc, 1f - Mathf.Exp(-28f * Time.unscaledDeltaTime)) : mc;
-            _crossInit = true;
-            _crosshairRt.gameObject.SetActive(true);
-            _crosshairRt.anchoredPosition = _crossPos;
-            _noseOn = !cBehind && OnScreen(cp);
-            _nosePos = cp;
+            // the crosshair is where the ship fires (the nose's aim); the dot is the cursor (the user's call, 2026-09-15)
+            _crosshairRt.gameObject.SetActive(!cBehind && OnScreen(cp));
+            _crosshairRt.anchoredPosition = cp;
             _crosshair.Set(ship.gunFiring || ship.laserOn);
             // the crosshair stands in for the mouse: the pointer hides while it shows and no panel wants clicks
             Cursor.visible = !(_crosshairRt.gameObject.activeSelf && !InvOpen && !MapOpen && !MenuVisible);
@@ -1861,12 +1854,13 @@ public class Hud : MonoBehaviour
             for (; li < _leadPips.Count; li++) _leadPips[li].Hide();
         }
         else { _crosshairRt.gameObject.SetActive(false); foreach (var p in _leadPips) p.Hide(); Cursor.visible = true; }
-        // the dot marks the nose's aim (the crosshair is on the cursor), on top of everything
-        bool dotOn = !Cursor.visible && _noseOn;
+        // the dot is the cursor, on top of everything
+        bool dotOn = !Cursor.visible;
         if (_pointerDot.gameObject.activeSelf != dotOn) _pointerDot.gameObject.SetActive(dotOn);
         if (dotOn)
         {
-            _pointerDot.anchoredPosition = _nosePos;
+            var dm = Input.mousePosition;
+            _pointerDot.anchoredPosition = new Vector2(dm.x, dm.y) / _canvas.scaleFactor;
             _pointerDot.SetAsLastSibling();
         }
         // the bracket: on the locked target, whatever it is, fitted to how big it looks; else a small one on a rock in the sights
