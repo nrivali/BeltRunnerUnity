@@ -800,8 +800,25 @@ public class Hud : MonoBehaviour
         float gutter = 30f;
         float colW = docked ? (f.w - gutter) * 0.42f : f.w;
         float rightW = f.w - gutter - colW;
+        if (docked)
+        {
+            // the cargo ship's supplies first, three gauges across: the storage, the fuel supply and the repair parts
+            H3(f, "Cargo ship supplies", 8f);
+            bool fullStore = su >= Data.STORE_SLOTS;
+            float gw = (f.w - 2f * gutter) / 3f;
+            var G0 = new Ui.Flow(f.parent, f.x, -f.y, gw);
+            var G1 = new Ui.Flow(f.parent, f.x + gw + gutter, -f.y, gw);
+            var G2 = new Ui.Flow(f.parent, f.x + 2f * (gw + gutter), -f.y, gw);
+            _gStoreW = Gauge(G0, "Cargo ship storage", fullStore ? Ui.AMBER : Ui.CARGO, State.StoreTotal() / (Data.STORE_SLOTS * Data.STACK), su + " / " + Data.STORE_SLOTS + " slots" + (fullStore ? " · FULL" : ""));
+            _gFuelW = Gauge(G1, "Cargo ship fuel supply", Ui.CYAN, 0f, "");
+            _gPartsW = Gauge(G2, "Repair parts", Ui.GREEN, 0f, "");
+            TickWindowGauges();
+            f.y = G0.y;
+            f.Rule();
+            f.Gap(14f);
+        }
         var L = new Ui.Flow(f.parent, f.x, -f.y, colW);
-        // the hold
+        // the hold: every slot the biggest hold would have, the ones this hold has not yet unlocked shown locked
         var hh = L.Box(22f);
         var he = Ui.Eyebrow(hh, "Your hold", Ui.MUTED);
         Ui.At(he.rectTransform, Ui.TL, Ui.TL, new Vector2(0f, -4f), new Vector2(200f, 14f));
@@ -812,7 +829,7 @@ public class Hud : MonoBehaviour
         seg.segmented = false; seg.track = new Color(0.078f, 0.098f, 0.212f); seg.fill = Ui.CARGO; seg.raycastTarget = false;
         seg.Set((float)us / ns, us >= ns ? Ui.AMBER : Ui.CARGO);
         L.Gap(12f);
-        SlotGrid(L, holdSt, ns, false, docked, holdSlots, docked ? 2 : 3);
+        SlotGrid(L, holdSt, Data.MaxCargoSlots(), false, docked, holdSlots, docked ? 3 : 6, ns);
         L.Gap(10f);
         var row = L.Box(36f);
         bool canDeposit = docked && State.CargoTotal() > 0.5f;
@@ -839,7 +856,7 @@ public class Hud : MonoBehaviour
             sseg.segmented = false; sseg.track = new Color(0.078f, 0.098f, 0.212f); sseg.fill = Ui.CARGO; sseg.raycastTarget = false;
             sseg.Set((float)su / Data.STORE_SLOTS, su >= Data.STORE_SLOTS ? Ui.AMBER : Ui.CARGO);
             R.Gap(12f);
-            SlotGrid(R, storeSt, Data.STORE_SLOTS, true, true, storeSlots, 3);
+            SlotGrid(R, storeSt, Data.STORE_SLOTS, true, true, storeSlots, 5);
             R.Gap(10f);
             if (su > 0) TotalRow(R, "Storage value at Hub prices", Data.Fmt(State.ValueOf(State.store)) + " cr");
             if (su > 0 && us > 0) TotalRow(R, "Everything aboard", Data.Fmt(State.ValueOf(State.store) + State.ValueOf(State.cargo)) + " cr", false);
@@ -848,19 +865,14 @@ public class Hud : MonoBehaviour
         }
         f.y = bottom;
         f.Gap(16f);
-        if (docked)
+        if (docked && atHub)
         {
             f.Rule();
             f.Gap(18f);
-            H3(f, atHub ? "Cargo ship and market" : "Cargo ship");
-            bool full = su >= Data.STORE_SLOTS;
-            _gStoreW = Gauge(f, "Cargo ship storage", full ? Ui.AMBER : Ui.CARGO, State.StoreTotal() / (Data.STORE_SLOTS * Data.STACK), su + " / " + Data.STORE_SLOTS + " slots" + (full ? " · FULL" : ""));
-            _gFuelW = Gauge(f, "Cargo ship fuel supply", Ui.CYAN, 0f, "");
-            _gPartsW = Gauge(f, "Repair parts", Ui.GREEN, 0f, "");
-            TickWindowGauges();
-            if (atHub) Market(f);
+            H3(f, "Market");
+            Market(f);
         }
-        else TotalRow(f, "Cargo ship storage", su + " / " + Data.STORE_SLOTS + " slots · dock to transfer", false, Ui.TEXT);
+        else if (!docked) TotalRow(f, "Cargo ship storage", su + " / " + Data.STORE_SLOTS + " slots · dock to transfer", false, Ui.TEXT);
     }
 
     /// Ship refits: the personal ship's rows.
@@ -1053,19 +1065,21 @@ public class Hud : MonoBehaviour
         public string k = "";
         public float u;
         public bool store, docked;
+        public bool locked;   // a hold slot the cargo refit has not unlocked yet: drawn, never dropped on
         public Ui.Box box;
         bool _drag;
         public bool IsEmpty { get { return string.IsNullOrEmpty(k); } }
 
         public bool Accepts(Slot from)
         {
-            if (from == null || from.IsEmpty) return false;
+            if (locked || from == null || from.IsEmpty) return false;
             return from.store ? !store : true;
         }
 
         public void SetOver(bool on)
         {
-            if (on) box.Set(Ui.A(Ui.AMBER, 0.12f), Ui.AMBER);
+            if (locked) box.Set(Ui.A(Ui.PANEL2, 0.2f), Ui.A(Ui.LINE2, 0.25f));
+            else if (on) box.Set(Ui.A(Ui.AMBER, 0.12f), Ui.AMBER);
             else if (IsEmpty) box.Set(Ui.A(Ui.PANEL2, 0.45f), Ui.A(Ui.LINE2, 0.45f));
             else box.Set(Ui.PANEL2, Ui.LINE2);
         }
@@ -1101,31 +1115,39 @@ public class Hud : MonoBehaviour
         public void OnPointerExit(PointerEventData e) { SetOver(false); }
     }
 
-    /// The stack's face: name, units of the stack, value at Hub prices.
+    /// The stack's face, three short lines: name, units of the stack, value at Hub prices.
     static void SlotVisual(RectTransform rt, string ore, float units)
     {
         var o = Data.ORES[Data.OreIndex(ore)];
-        var n = Ui.Label(rt, o.name, "body_semi", 14, Ui.TEXT);
-        Ui.At(n.rectTransform, Ui.TL, Ui.TL, new Vector2(12f, -12f), new Vector2(120f, 18f));
-        var c = Ui.Label(rt, Mathf.FloorToInt(units) + " / " + Data.STACK, "mono", 14, Ui.TEXT);
-        Ui.At(c.rectTransform, Ui.TL, Ui.TL, new Vector2(12f, -34f), new Vector2(120f, 18f));
-        var v = Ui.Label(rt, Data.Fmt(units * State.Price(ore)) + " cr", "mono", 12, Ui.DIM);
-        Ui.At(v.rectTransform, Ui.TL, Ui.TL, new Vector2(12f, -56f), new Vector2(120f, 16f));
+        var n = Ui.Label(rt, o.name, "body_semi", 13, Ui.TEXT);
+        Ui.At(n.rectTransform, Ui.TL, Ui.TL, new Vector2(8f, -5f), new Vector2(120f, 16f));
+        var c = Ui.Label(rt, Mathf.FloorToInt(units) + " / " + Data.STACK, "mono", 12, Ui.TEXT);
+        Ui.At(c.rectTransform, Ui.TL, Ui.TL, new Vector2(8f, -21f), new Vector2(120f, 16f));
+        var v = Ui.Label(rt, Data.Fmt(units * State.Price(ore)) + " cr", "mono", 11, Ui.DIM);
+        Ui.At(v.rectTransform, Ui.TL, Ui.TL, new Vector2(8f, -37f), new Vector2(120f, 14f));
     }
 
-    Slot MakeSlot(RectTransform parent, Vector2 pos, float w, State.Stack st, bool store, bool docked)
+    Slot MakeSlot(RectTransform parent, Vector2 pos, float w, State.Stack st, bool store, bool docked, bool locked = false)
     {
-        var rt = Ui.Rect(store ? "StoreSlot" : "HoldSlot", parent, Ui.TL, Ui.TL, pos, new Vector2(w, 92f));
+        var rt = Ui.Rect(store ? "StoreSlot" : "HoldSlot", parent, Ui.TL, Ui.TL, pos, new Vector2(w, SLOT_H));
         var s = rt.gameObject.AddComponent<Slot>();
         s.hud = this;
         s.store = store;
         s.docked = docked;
+        s.locked = locked;
         s.box = Ui.MakeBox(rt, Ui.PANEL2, Ui.LINE2, 1f, true);
+        if (locked)
+        {
+            s.box.Set(Ui.A(Ui.PANEL2, 0.2f), Ui.A(Ui.LINE2, 0.25f));
+            var e = Ui.Label(rt, "LOCKED", "mono", 11, Ui.A(Ui.DIM, 0.45f), TextAnchor.MiddleCenter);
+            Ui.At(e.rectTransform, Ui.MID, Ui.MID, Vector2.zero, new Vector2(w, SLOT_H));
+            return s;
+        }
         if (st == null)
         {
             s.box.Set(Ui.A(Ui.PANEL2, 0.45f), Ui.A(Ui.LINE2, 0.45f));
-            var e = Ui.Label(rt, "EMPTY", "body", 12, Ui.A(Ui.DIM, 0.6f), TextAnchor.MiddleCenter);
-            Ui.At(e.rectTransform, Ui.MID, Ui.MID, Vector2.zero, new Vector2(w, 92f));
+            var e = Ui.Label(rt, "EMPTY", "body", 11, Ui.A(Ui.DIM, 0.6f), TextAnchor.MiddleCenter);
+            Ui.At(e.rectTransform, Ui.MID, Ui.MID, Vector2.zero, new Vector2(w, SLOT_H));
             return s;
         }
         s.k = st.k;
@@ -1135,10 +1157,10 @@ public class Hud : MonoBehaviour
         SlotVisual(rt, st.k, st.u);
         if (!store)
         {
-            var x = Ui.Rect("X", rt, Ui.TR, Ui.TR, new Vector2(-4f, -4f), new Vector2(20f, 20f));
+            var x = Ui.Rect("X", rt, Ui.TR, Ui.TR, new Vector2(-3f, -3f), new Vector2(16f, 16f));
             Ui.MakeBox(x, Ui.PANEL, Ui.LINE2, 1f, true);
-            var xt = Ui.Label(x, "✕", "body", 11, Ui.MUTED, TextAnchor.MiddleCenter);
-            Ui.At(xt.rectTransform, Ui.MID, Ui.MID, Vector2.zero, new Vector2(20f, 20f));
+            var xt = Ui.Label(x, "✕", "body", 10, Ui.MUTED, TextAnchor.MiddleCenter);
+            Ui.At(xt.rectTransform, Ui.MID, Ui.MID, Vector2.zero, new Vector2(16f, 16f));
             var xb = x.gameObject.AddComponent<Button>();
             xb.transition = Selectable.Transition.None;
             var kk = st.k; var uu = st.u;
@@ -1253,17 +1275,20 @@ public class Hud : MonoBehaviour
         f.Gap(10f);
     }
 
-    void SlotGrid(Ui.Flow f, List<State.Stack> stacks, int n, bool store, bool docked, List<Slot> into, int cols = 3)
+    /// A grid of n slots, `unlocked` of them usable (the rest drawn locked and kept out of `into`; -1 for all of them).
+    const float SLOT_H = 56f, SLOT_GAP = 8f;
+    void SlotGrid(Ui.Flow f, List<State.Stack> stacks, int n, bool store, bool docked, List<Slot> into, int cols = 3, int unlocked = -1)
     {
-        float colW = (f.w - 10f * (cols - 1)) / cols;
+        float colW = (f.w - SLOT_GAP * (cols - 1)) / cols;
         int rows = Mathf.CeilToInt((float)n / cols);
         for (int i = 0; i < n; i++)
         {
             int r = i / cols, c = i % cols;
-            var s = MakeSlot(f.parent, new Vector2(f.x + c * (colW + 10f), f.y - r * 102f), colW, i < stacks.Count ? stacks[i] : null, store, docked);
-            into.Add(s);
+            bool locked = unlocked >= 0 && i >= unlocked;
+            var s = MakeSlot(f.parent, new Vector2(f.x + c * (colW + SLOT_GAP), f.y - r * (SLOT_H + SLOT_GAP)), colW, locked || i >= stacks.Count ? null : stacks[i], store, docked, locked);
+            if (!locked) into.Add(s);
         }
-        f.y -= rows * 102f - 10f;
+        f.y -= rows * (SLOT_H + SLOT_GAP) - SLOT_GAP;
     }
 
     void RefreshInventory() { RefreshWindow(); }

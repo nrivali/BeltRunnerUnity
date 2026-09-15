@@ -136,6 +136,13 @@ public static class Data
         return m > 1f ? 0.8f * m * m : 1f;
     }
 
+    /// The hold at the last cargo refit: every slot the inventory grid draws, unlocked or not.
+    public static int MaxCargoSlots()
+    {
+        var lv = UPGRADES["cargo"].levels;
+        return lv[lv.Length - 1].slots;
+    }
+
     /// What a refit level gives, for the services panel (the HTML's describe()).
     public static string Describe(string key, int i)
     {
