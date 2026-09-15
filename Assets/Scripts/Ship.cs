@@ -1933,14 +1933,13 @@ public class Ship : MonoBehaviour
             return;
         }
         _camQ = Quaternion.Slerp(_camQ, transform.rotation, 1f - Mathf.Exp(-7f * dt));
-        // the field of view: out on the afterburner (further with the bigger refits), in on the brakes and the drift,
+        // the field of view: out on the afterburner (further with the bigger refits), in on the drift,
         // a touch out with speed otherwise
         var eng = State.Stat("engine");
         float spFrac = eng.max > 0f ? Mathf.Clamp01(vel.magnitude / eng.max) : 0f;
         float fovWant = FOV + 4f * spFrac;
-        if (afterburning) fovWant = FOV + 8f + 2f * State.Stat("thrusters").mult;
+        if (afterburning) fovWant = FOV + 14f + 3f * State.Stat("thrusters").mult;
         else if (drifting) fovWant = FOV - 9f;
-        else if (braking) fovWant = FOV - 5f;
         _fov = Mathf.Lerp(_fov, fovWant, 1f - Mathf.Exp(-(fovWant > _fov ? 3f : 4f) * dt));
         cam.fieldOfView = _fov;
         // the turn: the chase camera hangs back on the outside of the turn, the look point leads into it, and the frame
@@ -1954,10 +1953,10 @@ public class Ship : MonoBehaviour
         var f = lq * Vector3.forward;
         var u = lq * Vector3.up;
         var r = lq * Vector3.right;
-        float bank = (-_camYaw * 7f - _camRoll * 4f) * Mathf.Deg2Rad;
+        float bank = (-_camYaw * 14f - _camRoll * 7f) * Mathf.Deg2Rad;
         u = (Mathf.Cos(bank) * u + Mathf.Sin(bank) * r).normalized;   // the bank: tip the up vector about the view axis
-        var camPos = transform.position - f * 88f * s + u * 30f * s - r * _camYaw * 16f * s - u * _camPitch * 10f * s;
-        var look = transform.position + f * 140f * s + u * 10f * s + r * _camYaw * 34f * s + u * _camPitch * 24f * s;
+        var camPos = transform.position - f * 88f * s + u * 30f * s - r * _camYaw * 30f * s - u * _camPitch * 18f * s;
+        var look = transform.position + f * 140f * s + u * 10f * s + r * _camYaw * 60f * s + u * _camPitch * 40f * s;
         if (shake > 0f)
         {
             shake = Mathf.Max(0f, shake - dt * 1.8f);
