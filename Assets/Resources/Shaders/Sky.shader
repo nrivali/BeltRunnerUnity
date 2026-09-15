@@ -82,7 +82,7 @@ Shader "BeltRunner/Sky"
                 float lanes = 1.0 - 0.75 * smoothstep(0.45, 0.62, lane) * exp(-gl * gl / 0.006);
                 float galaxy = gw * (0.35 + 0.9 * smoothstep(0.35, 0.75, cloud)) * lanes;
                 float3 gCol = lerp(float3(0.55, 0.62, 0.85), float3(0.95, 0.88, 0.74), gw);
-                col += gCol * galaxy * 0.55;
+                col += gCol * galaxy * 0.16;
                 // the nebulae: three coloured clouds in their own parts of the sky, domain-warped so they wisp
                 float3 warp = float3(fbm(d * 2.0 + 7.0), fbm(d * 2.0 + 19.0), fbm(d * 2.0 + 31.0)) - 0.5;
                 float3 dw = d + warp * 0.35;
@@ -92,7 +92,7 @@ Shader "BeltRunner/Sky"
                 float c1 = smoothstep(0.55, 0.85, nb1) * smoothstep(0.55, 0.95, dot(d, normalize(float3(-0.7, 0.35, 0.6))));
                 float c2 = smoothstep(0.55, 0.85, nb2) * smoothstep(0.5, 0.95, dot(d, normalize(float3(0.75, -0.25, 0.6))));
                 float c3 = smoothstep(0.55, 0.85, nb3) * smoothstep(0.5, 0.95, dot(d, normalize(float3(0.1, -0.6, -0.8))));
-                col += _NebulaA.rgb * c1 * 1.3 + _NebulaB.rgb * c2 * 1.3 + float3(0.55, 0.28, 0.12) * c3 * 1.0;
+                col += _NebulaA.rgb * c1 * 0.4 + _NebulaB.rgb * c2 * 0.4 + float3(0.55, 0.28, 0.12) * c3 * 0.3;
                 // stars: a hash over direction cells, denser in the galaxy band, a few bright and coloured among them
                 float3 sp = d * 260.0;
                 float3 cell = floor(sp);
