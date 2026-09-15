@@ -34,7 +34,6 @@ public class Hud : MonoBehaviour
     Ui.Reticle _reticle;
     RectTransform _reticleRt;
     Ui.Marker _marker, _fieldMarker;
-    readonly List<Ui.Marker> _leadPips = new List<Ui.Marker>();   // one LEAD pip per raider within gun reach
     Ui.Crosshair _crosshair;
     RectTransform _crosshairRt;
     readonly List<Ui.Marker> _droneMarkers = new List<Ui.Marker>();
@@ -1761,7 +1760,7 @@ public class Hud : MonoBehaviour
             else if (State.fuel <= 0.5f && ship.cut == null) segs.Add(Kbd("T") + " Out of fuel · recovery to the cargo ship (15% of credits)");
             if (ship.cut == null && ship.CanFly)
             {
-                if (ship.weapon == "gun") segs.Add(ship.gunFiring ? "Autocannon firing · bolts go to the crosshair" : (ship.lockKind == "raider" ? Kbd("LMB") + " Fire · put the crosshair on the LEAD pip" : Kbd("LMB") + " Fire the autocannon at the crosshair"));
+                if (ship.weapon == "gun") segs.Add(ship.gunFiring ? "Autocannon firing · bolts go to the crosshair" : (ship.lockKind == "raider" ? Kbd("LMB") + " Fire · the nose follows the locked raider" : Kbd("LMB") + " Fire the autocannon at the crosshair"));
                 else if (ship.weapon == "rocket") segs.Add(State.rockets <= 0 ? "No rockets aboard · the pad restocks them" : ship.rocketCd > 0f ? "Rocket tube reloading" : Kbd("LMB") + (ship.lockKind == "raider" ? " Fire a seeker rocket · it chases the locked raider" : " Fire a seeker rocket · it chases the nearest raider"));
                 else if (ship.raiderTarget != null && !hasTarget) segs.Add(Kbd("Wheel") + " Autocannon for the raider");
             }
@@ -1830,27 +1829,8 @@ public class Hud : MonoBehaviour
             // the crosshair stands in for the mouse: the pointer hides while it shows and no panel wants clicks
             Cursor.visible = !(_crosshairRt.gameObject.activeSelf && !InvOpen && !MapOpen && !MenuVisible);
             _crosshair.SetHit(game.raiders != null ? game.raiders.hitFlash : 0f, game.raiders != null && game.raiders.hitKill);
-            // a LEAD pip on every raider within gun reach: where to put the crosshair for a bolt fired now to meet it
-            int li = 0;
-            if (game.raiders != null)
-            {
-                float gunReach = ship.GunReach;
-                foreach (var r in game.raiders.raiders)
-                {
-                    if (r.dead || (r.pos - ship.LaserOrigin()).magnitude > gunReach) continue;
-                    Vector2 lp;
-                    // drawn at the crosshair's own distance along the line to the lead point, so crosshair-on-pip means the nose
-                    // is on the lead point exactly (the dish sits off the camera: the lead point itself would draw a little off)
-                    var toLead = (ship.LeadPoint(r) - ship.LaserOrigin()).normalized;
-                    bool lBehind = Project(ship.LaserOrigin() + toLead * cDist - game.worldOffset, out lp);
-                    if (lBehind || !OnScreen(lp)) continue;
-                    if (li >= _leadPips.Count) _leadPips.Add(Ui.Marker.Make(_root, Ui.AMBER2, true));
-                    _leadPips[li++].Place(lp - new Vector2(0f, 38f), false, 0f, "LEAD");
-                }
-            }
-            for (; li < _leadPips.Count; li++) _leadPips[li].Hide();
         }
-        else { _crosshairRt.gameObject.SetActive(false); foreach (var p in _leadPips) p.Hide(); Cursor.visible = true; }
+        else { _crosshairRt.gameObject.SetActive(false); Cursor.visible = true; }
         // the pointer dot stands in for the hidden pointer, on top of everything
         bool dotOn = !Cursor.visible;
         if (_pointerDot.gameObject.activeSelf != dotOn) _pointerDot.gameObject.SetActive(dotOn);
