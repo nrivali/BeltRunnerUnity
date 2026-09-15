@@ -530,23 +530,30 @@ public class Raiders
                 r.weave += dt * 1.7f;
                 if (r.move == "run")
                 {
-                    // the run in: toward the ship, weaving side to side, until close
-                    desired = sp + side * Mathf.Sin(r.weave) * 260f + Vector3.up * Mathf.Sin(r.weave * 0.6f) * 90f;
-                    if (d < 600f) { r.move = "strafe"; r.moveT = Random.Range(2f, 4f); r.orbitR = Random.Range(200f, 500f); r.orbitDir = Random.value < 0.5f ? -1f : 1f; }
+                    // the run in: toward the ship, weaving side to side (less as it closes, so the guns line up), until close
+                    float wv = Mathf.Clamp01(d / 1500f);
+                    desired = sp + side * Mathf.Sin(r.weave) * 260f * wv + Vector3.up * Mathf.Sin(r.weave * 0.6f) * 90f * wv;
+                    if (d < 600f)
+                    {
+                        // the pass (2026-09-15, the user's call: no circling, no following): straight on past the ship, offset
+                        // to one side, guns going while the nose is on it, then out to get room for the next run
+                        r.move = "strafe";
+                        r.orbitDir = Random.value < 0.5f ? -1f : 1f;
+                        r.longTo = sp + toShip * 1800f + side * r.orbitDir * 260f + Vector3.up * Random.Range(-120f, 120f);
+                        r.moveT = 1.8f;
+                    }
                 }
                 else if (r.move == "strafe")
                 {
-                    // a strafing pass round the ship at its own radius and direction, weaving up and down
-                    r.a += r.orbitDir * (r.speed * 0.6f / r.orbitR) * dt;
-                    var orbit = new Vector3(Mathf.Cos(r.a) * r.orbitR, Mathf.Sin(r.a * 0.7f) * r.orbitR * 0.35f, Mathf.Sin(r.a) * r.orbitR);
-                    desired = sp + orbit;
-                    if (r.moveT <= 0f)
+                    // the pass: through and past, no turning back toward the ship
+                    desired = r.longTo;
+                    bool past = Vector3.Dot(sp - r.pos, r.heading) < 0f;   // the ship is behind the nose now
+                    if (r.moveT <= 0f || (past && d > 350f))
                     {
-                        float roll = Random.value;
-                        if (roll < 0.5f)
+                        if (Random.value < 0.85f)
                         {
-                            // a long run, half the time: full thrust out to a point 1,250 to 2,500 m from the ship to get range,
-                            // then a fresh attack run back in, guns going as soon as the nose is on you
+                            // the extension: full thrust out to a point 1,250 to 2,500 m from the ship to get room, then a fresh
+                            // run back in, guns going as soon as the nose is on you
                             r.move = "long";
                             var away = -toShip + side * Random.Range(-0.8f, 0.8f) + Vector3.up * Random.Range(-0.3f, 0.3f);
                             float reach = Random.Range(2500f, 5000f);
@@ -555,10 +562,8 @@ public class Raiders
                         }
                         else
                         {
-                            r.move = roll < 0.9f ? "strafe" : "break";   // otherwise mostly another pass
-                            r.moveT = r.move == "break" ? Random.Range(1.2f, 2.5f) : Random.Range(2f, 4f);
-                            r.orbitR = Random.Range(200f, 500f);
-                            if (Random.value < 0.5f) r.orbitDir = -r.orbitDir;
+                            r.move = "break";   // now and then a short breakaway instead, for a quicker second pass
+                            r.moveT = Random.Range(1.2f, 2.5f);
                         }
                     }
                 }
