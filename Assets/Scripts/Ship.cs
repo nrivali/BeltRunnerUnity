@@ -1180,8 +1180,8 @@ public class Ship : MonoBehaviour
             var L = transform.InverseTransformPoint(steerAt - game.worldOffset) - new Vector3(0f, 0f, 20f);
             float ey = Mathf.Atan2(L.x, L.z);
             float ep = Mathf.Atan2(L.y, Mathf.Sqrt(L.x * L.x + L.z * L.z));
-            yaw = Mathf.Clamp(ey * 5f, -1f, 1f) * auth;
-            pitchUp = Mathf.Clamp(ep * 5f, -1f, 1f) * auth;
+            yaw = Mathf.Clamp(ey * 8f, -1f, 1f) * auth;      // a firmer gain than before (5), so the nose keeps up with a crossing raider
+            pitchUp = Mathf.Clamp(ep * 8f, -1f, 1f) * auth;
         }
         else if (flying && mouseSteer && !rdown)
         {
@@ -1343,12 +1343,16 @@ public class Ship : MonoBehaviour
     public float GunReach { get { var g = State.Stat("gun"); return g.reach > 0f ? g.reach : 1800f; } }
 
     /// Where a bolt fired now would meet the raider (true coordinates): the intercept of a bolt at PLAYER_BOLT_SPEED
-    /// with the raider's straight-line motion, or a simple lead when there is no solution.
+    /// with the raider's straight-line motion, or a simple lead when there is no solution. The point leads a little more
+    /// than the pure intercept (LEAD_EXTRA), and the raider is taken from where it will be by the time the nose has
+    /// swung onto it (NOSE_LAG), since a lock steers the nose and the nose is always a beat behind (the user found the
+    /// pure solution missing a lot, 2026-09-15).
+    public const float LEAD_EXTRA = 1.25f, NOSE_LAG = 0.22f;
     public Vector3 LeadPoint(Raiders.Raider r)
     {
         var o = LaserOrigin();
-        var p = r.pos - o;
         var v = r.vel;
+        var p = r.pos + v * NOSE_LAG - o;
         float s = Raiders.PLAYER_BOLT_SPEED;
         float a = Vector3.Dot(v, v) - s * s;
         float b = 2f * Vector3.Dot(p, v);
@@ -1367,7 +1371,7 @@ public class Ship : MonoBehaviour
                 if (t <= 0f) t = p.magnitude / s;
             }
         }
-        return r.pos + v * t;
+        return r.pos + v * (NOSE_LAG + t * LEAD_EXTRA);
     }
 
     /// The scene point to put the crosshair on so a bolt fired now flies through `trueTarget`: the aim mapping inverted.
