@@ -405,6 +405,7 @@ namespace UnityEngine
         public Texture GetTexture(string n) => null;
         public void SetTexture(string n, Texture t) { }
         public void SetVector(string n, Vector4 v) { }
+        public void SetVectorArray(string n, Vector4[] v) { }
         public Color GetColor(string n) => new Color();
         public float GetFloat(string n) => 0f;
         public void SetFloat(string n, float v) { }
@@ -541,6 +542,7 @@ namespace UnityEngine
     {
         public TextureWrapMode wrapMode { get; set; }
         public FilterMode filterMode { get; set; }
+        public int anisoLevel { get; set; }
     }
     public enum TextureFormat { RGBA32, RGB24 }
     public enum TextureWrapMode { Repeat, Clamp }

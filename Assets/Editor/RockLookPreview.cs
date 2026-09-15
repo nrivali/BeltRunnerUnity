@@ -1,0 +1,214 @@
+using System;
+using System.IO;
+using System.Reflection;
+using UnityEditor;
+using UnityEditor.SceneManagement;
+using UnityEngine;
+using UnityEngine.Rendering;
+
+// Editor-only material contact sheet. Does not enter Play Mode, boot Game, or access player saves.
+public static class RockLookPreview
+{
+    static Belt belt;
+    static Material[][] materials;
+    static Camera cam;
+    static Lighting lighting;
+    static string output;
+    static int frame;
+    static int shot;
+    static readonly string[] shots = { "ores", "copper", "barren", "distance", "unlit", "shapes", "mining-heat" };
+    static readonly string[] shapes = { "lumpy", "chunk", "boulder", "cratered", "jagged", "potato", "shard", "slab" };
+    static MethodInfo colorMethod;
+    static ShadowQuality savedShadows;
+    static ShadowResolution savedResolution;
+    static int savedCascades;
+    static float savedDistance;
+
+    public static void Render()
+    {
+        if (!Application.isBatchMode) throw new InvalidOperationException("Use this contact sheet from a batch editor, not the working scene.");
+        PrepareTextures();
+        savedShadows = QualitySettings.shadows;
+        savedResolution = QualitySettings.shadowResolution;
+        savedCascades = QualitySettings.shadowCascades;
+        savedDistance = QualitySettings.shadowDistance;
+        string tag = "current";
+        var args = Environment.GetCommandLineArgs();
+        for (int i = 0; i + 1 < args.Length; i++) if (args[i] == "-rockPreview") tag = args[i + 1];
+        output = Path.GetFullPath("Logs/rock-look/" + tag);
+        Directory.CreateDirectory(output);
+        EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        cam = new GameObject("Material preview camera").AddComponent<Camera>();
+        cam.transform.position = new Vector3(0, 0, -1600);
+        cam.nearClipPlane = 1;
+        cam.farClipPlane = 50000;
+        cam.fieldOfView = 39;
+        cam.allowHDR = true;
+        cam.allowMSAA = true;
+        cam.renderingPath = RenderingPath.Forward;
+        lighting = new Lighting();
+        lighting.Setup(cam);
+        lighting.SetZone(Data.ZONE_KESSLER);
+        lighting.sun.transform.rotation = Quaternion.LookRotation(new Vector3(0.65f, -0.35f, 0.65f));
+        Shader.SetGlobalFloat("_BeltTime", 0);
+        Shader.SetGlobalVector("_HeatAmt", Vector4.zero);
+        belt = new Belt();
+        materials = (Material[][])typeof(Belt).GetField("_subMats", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(belt);
+        colorMethod = typeof(Belt).GetMethod("RockColor", BindingFlags.NonPublic | BindingFlags.Instance);
+        Dump();
+        Camera.onPreCull += Submit;
+        frame = 0;
+        shot = 0;
+        EditorApplication.update += Tick;
+    }
+
+    static int Key(string shape)
+    {
+        for (int i = 0; i < RockMeshes.SHAPES.Length; i++) if (RockMeshes.SHAPES[i].key == shape) return i * 2;
+        throw new Exception("Missing shape " + shape);
+    }
+
+    static void Draw(string shape, int ore, Vector3 position, float radius, int lod, Quaternion rotation)
+    {
+        int key = Key(shape);
+        var matrix = Matrix4x4.TRS(position, rotation, Vector3.one * radius);
+        if (belt.ore.Count == 0) belt.ore.Add(ore); else belt.ore[0] = ore;
+        var color = (Color)colorMethod.Invoke(belt, new object[] { 0 });
+        var block = new MaterialPropertyBlock();
+        block.SetVectorArray("_Color", new Vector4[] { color });
+        block.SetVectorArray("_Rail", new Vector4[] { new Vector4(0, 1, 0, shot == 6 ? 0.65f : 0f) });
+        for (int sub = 0; sub < belt.MeshFor(key, lod).subMeshCount; sub++)
+            Graphics.DrawMeshInstanced(belt.MeshFor(key, lod), sub, materials[key][sub], new[] { matrix }, 1, block, ShadowCastingMode.On, true, 0, cam);
+    }
+
+    static void Submit(Camera camera)
+    {
+        if (camera != cam) return;
+        if (shot == 0)
+        {
+            for (int i = 0; i < 8; i++)
+                Draw("lumpy", i == 7 ? -1 : i, new Vector3((i % 4 - 1.5f) * 385, (0.5f - i / 4) * 420, 0), 170, 0, Quaternion.Euler(15, 28, 10));
+        }
+        else if (shot == 1 || shot == 2 || shot == 4 || shot == 6)
+            Draw("boulder", shot == 2 ? -1 : 1, Vector3.zero, 400, 0, Quaternion.Euler(25, -30, 14));
+        else if (shot == 3)
+        {
+            for (int i = 0; i < 3; i++)
+                Draw("lumpy", 1, new Vector3((i - 1) * 540, 0, 0), 250 / (1 + i), i, Quaternion.Euler(15, 28, 10));
+        }
+        else
+        {
+            for (int i = 0; i < 8; i++)
+                Draw(shapes[i], 1, new Vector3((i % 4 - 1.5f) * 385, (0.5f - i / 4) * 420, 0), 165, 0, Quaternion.Euler(15, 28, 10));
+        }
+    }
+
+    static void Tick()
+    {
+        if (++frame < 25) return;
+        try
+        {
+            lighting.sun.enabled = shot != 4;
+            var rt = new RenderTexture(1600, 1000, 24, RenderTextureFormat.ARGBHalf);
+            rt.antiAliasing = 4;
+            cam.targetTexture = rt;
+            cam.Render();
+            var old = RenderTexture.active;
+            RenderTexture.active = rt;
+            var image = new Texture2D(rt.width, rt.height, TextureFormat.RGB24, false);
+            image.ReadPixels(new Rect(0, 0, rt.width, rt.height), 0, 0);
+            image.Apply();
+            string path = Path.Combine(output, shots[shot] + ".png");
+            File.WriteAllBytes(path, image.EncodeToPNG());
+            RenderTexture.active = old;
+            cam.targetTexture = null;
+            UnityEngine.Object.DestroyImmediate(image);
+            UnityEngine.Object.DestroyImmediate(rt);
+            Debug.Log("rock-preview: " + path);
+            frame = 20;
+            if (++shot < shots.Length) return;
+            Camera.onPreCull -= Submit;
+            EditorApplication.update -= Tick;
+            RestoreQuality();
+            if (Application.isBatchMode) EditorApplication.Exit(0);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogException(ex);
+            EditorApplication.update -= Tick;
+            Camera.onPreCull -= Submit;
+            RestoreQuality();
+            if (Application.isBatchMode) EditorApplication.Exit(1);
+        }
+    }
+
+    static void RestoreQuality()
+    {
+        QualitySettings.shadows = savedShadows;
+        QualitySettings.shadowResolution = savedResolution;
+        QualitySettings.shadowCascades = savedCascades;
+        QualitySettings.shadowDistance = savedDistance;
+    }
+
+    static void PrepareTextures()
+    {
+        AssetDatabase.Refresh();
+        foreach (var suffix in new[] { "albedo", "normal", "metalrough" })
+        {
+            var path = "Assets/Resources/Asteroids/regolith_" + suffix + ".png";
+            var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer == null) continue;
+            // RGB glTF-style normal maps are sampled explicitly in Rock.shader, so keep them as linear data.
+            if (importer.mipmapEnabled && importer.sRGBTexture == (suffix == "albedo") && importer.anisoLevel == 4 && importer.filterMode == FilterMode.Trilinear && importer.textureCompression == TextureImporterCompression.CompressedHQ) continue;
+            importer.textureType = TextureImporterType.Default;
+            importer.sRGBTexture = suffix == "albedo";
+            importer.mipmapEnabled = true;
+            importer.wrapMode = TextureWrapMode.Repeat;
+            importer.filterMode = FilterMode.Trilinear;
+            importer.anisoLevel = 4;
+            importer.maxTextureSize = 2048;
+            importer.textureCompression = TextureImporterCompression.CompressedHQ;
+            importer.SaveAndReimport();
+        }
+    }
+
+    static void Dump()
+    {
+        var lines = new System.Text.StringBuilder();
+        lines.AppendLine(belt.DrawReport());
+        lines.AppendLine("Color space: " + QualitySettings.activeColorSpace);
+        var model = Resources.Load<GameObject>("Models/asteroids_lod1");
+        var mf = model.GetComponentsInChildren<MeshFilter>(true)[0];
+        lines.AppendLine("Mesh " + mf.name + " vertices=" + mf.sharedMesh.vertexCount + " tangents=" + mf.sharedMesh.tangents.Length);
+        foreach (var m in mf.GetComponent<MeshRenderer>().sharedMaterials)
+        {
+            lines.AppendLine(m.name + " shader=" + m.shader.name + " color=" + m.GetColor("baseColorFactor") + " roughness=" + m.GetFloat("roughnessFactor") + " metallic=" + m.GetFloat("metallicFactor"));
+            foreach (var p in new[] { "baseColorTexture", "normalTexture", "metallicRoughnessTexture" })
+            {
+                var t = m.GetTexture(p) as Texture2D;
+                lines.AppendLine(p + "=" + (t != null ? t.name + " " + t.width + "x" + t.height + " " + t.format + " mips=" + t.mipmapCount + " linear=" + !t.isDataSRGB : "null") + " scale=" + m.GetTextureScale(p) + " offset=" + m.GetTextureOffset(p));
+            }
+        }
+        foreach (var name in new[] { "regolith_albedo", "regolith_normal", "regolith_metalrough" })
+        {
+            var tex = Resources.Load<Texture2D>("Asteroids/" + name);
+            if (tex != null) lines.AppendLine("Override " + name + " " + tex.width + "x" + tex.height + " mips=" + tex.mipmapCount + " format=" + tex.format + " sRGB=" + tex.isDataSRGB + " filter=" + tex.filterMode + " anisotropy=" + tex.anisoLevel);
+        }
+        File.WriteAllText(Path.Combine(output, "materials.txt"), lines.ToString());
+        Debug.Log(lines.ToString());
+    }
+
+    public static void BuildReviewPlayer()
+    {
+        Build.RockMaterialAsset();
+        var result = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+        {
+            scenes = new[] { "Assets/Scenes/Main.unity" },
+            locationPathName = "Builds/RockLook/BeltRunner.exe",
+            target = BuildTarget.StandaloneWindows64,
+            options = BuildOptions.None
+        });
+        Debug.Log("rock-preview build: " + result.summary.result + " errors=" + result.summary.totalErrors);
+        if (result.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded) EditorApplication.Exit(1);
+    }
+}

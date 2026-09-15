@@ -206,6 +206,16 @@ public class Belt
         foreach (var mf in lod1.GetComponentsInChildren<MeshFilter>(true)) near[KeyOf(mf.name)] = mf;
         foreach (var mf in lod2.GetComponentsInChildren<MeshFilter>(true)) far[KeyOf(mf.name)] = mf;
         if (lod0 != null) foreach (var mf in lod0.GetComponentsInChildren<MeshFilter>(true)) finest[KeyOf(mf.name)] = mf;
+        // Barren instances use the same regolith maps on both submeshes, including the former vein faces.
+        Material stoneSource = null;
+        foreach (var mf in near.Values)
+        {
+            var renderer = mf.GetComponent<MeshRenderer>();
+            if (renderer == null) continue;
+            foreach (var material in renderer.sharedMaterials)
+                if (material != null && material.name == "Barren_Regolith") { stoneSource = material; break; }
+            if (stoneSource != null) break;
+        }
         int found = 0;
         for (int s = 0; s < RockMeshes.SHAPES.Length; s++)
         {
@@ -227,7 +237,7 @@ public class Belt
                 for (int i = 0; i < n; i++)
                 {
                     var sm = i < src.Length ? src[i] : null;
-                    _subMats[key][i] = ConvertMaterial(sm);
+                    _subMats[key][i] = ConvertMaterial(sm, stoneSource);
                     _tints[key][i] = sm != null && sm.name.StartsWith("Ore_");
                 }
                 found++;
@@ -245,9 +255,45 @@ public class Belt
 
     readonly Dictionary<Material, Material> _matCache = new Dictionary<Material, Material>();
 
-    /// One of Astra's glTF materials as the rock shader with the same look: the maps and factors copied across; the
-    /// ore-vein surfaces take the instance colour.
-    Material ConvertMaterial(Material sm)
+    // The approved Blender finishes, in Data.ORE_KEYS order. Entry zero is barren. Instance alpha carries
+    // the finish index; RGB remains the ore tint. This retains the existing instance batches and draw count.
+    static readonly Vector4[] OreFinishes = BuildOreFinishes();
+    static Vector4[] BuildOreFinishes()
+    {
+        var result = new Vector4[8];
+        result[0] = new Vector4(1f, 0f, 0f, 0f);
+        for (int i = 0; i < Data.ORE_KEYS.Length; i++)
+        {
+            string key = Data.ORE_KEYS[i];
+            float roughness = key == "gold" || key == "platinum" ? 0.24f : key == "beryl" ? 0.30f : key == "crystal" || key == "cobalt" ? 0.28f : 0.29f;
+            float metallic = key == "gold" ? 0.97f : key == "copper" ? 0.95f : key == "crystal" ? 0.82f : key == "beryl" ? 0.83f : key == "cobalt" ? 0.92f : 0.94f;
+            result[i + 1] = new Vector4(roughness, metallic, 0f, 0f);
+        }
+        return result;
+    }
+
+    static Color OreSurfaceColor(int oreIndex)
+    {
+        if (oreIndex < 0) return new Color(1f, 1f, 1f, 0f);
+        string key = Data.ORE_KEYS[oreIndex];
+        // Surface reflectance uses the asset palette; HUD icon colours remain independent.
+        Color c = Data.Hex(key == "iron" ? "#D3DCEC" : key == "copper" ? "#F39860" : key == "platinum" ? "#58DDD0" : key == "cobalt" ? "#578EF1" : key == "beryl" ? "#39DB85" : key == "gold" ? "#F2C94C" : "#B98CFF");
+        c.a = oreIndex + 1;
+        return c;
+    }
+
+    static void CopyRockMap(Material source, string from, Material target, string to)
+    {
+        if (source == null || !source.HasProperty(from)) return;
+        var texture = source.GetTexture(from);
+        if (texture == null) return;
+        texture.filterMode = FilterMode.Trilinear;
+        texture.anisoLevel = 4;
+        target.SetTexture(to, texture);
+    }
+
+    /// Keep the glTF surface maps, but select the actual ore finish per instance instead of tinting iron again.
+    Material ConvertMaterial(Material sm, Material stoneSource)
     {
         if (sm == null) return _mat;
         Material m;
@@ -255,17 +301,30 @@ public class Belt
         m = new Material(_mat);
         m.name = sm.name;
         m.enableInstancing = true;
-        var alb = sm.HasProperty("baseColorTexture") ? sm.GetTexture("baseColorTexture") : null;
-        if (alb != null) m.SetTexture("_MainTex", alb);
-        if (sm.HasProperty("baseColorFactor")) m.SetColor("_BaseColor", sm.GetColor("baseColorFactor"));
-        var nrm = sm.HasProperty("normalTexture") ? sm.GetTexture("normalTexture") : null;
-        if (nrm != null) m.SetTexture("_BumpMap", nrm);
-        var mrt = sm.HasProperty("metallicRoughnessTexture") ? sm.GetTexture("metallicRoughnessTexture") : null;
-        if (mrt != null) m.SetTexture("_MetalRough", mrt);
-        if (sm.HasProperty("metallicFactor")) m.SetFloat("_Metallic", sm.GetFloat("metallicFactor"));
-        if (sm.HasProperty("roughnessFactor")) m.SetFloat("_Roughness", sm.GetFloat("roughnessFactor"));
-        m.SetFloat("_Tint", sm.name.StartsWith("Ore_") ? 1f : 0f);
-        m.SetFloat("_OreGlow", sm.name.StartsWith("Ore_") ? 1f : 0f);   // the veins glow in their ore colour
+        bool vein = sm.name.StartsWith("Ore_");
+        CopyRockMap(sm, "baseColorTexture", m, "_MainTex");
+        CopyRockMap(sm, "normalTexture", m, "_BumpMap");
+        CopyRockMap(sm, "metallicRoughnessTexture", m, "_MetalRough");
+        CopyRockMap(stoneSource, "baseColorTexture", m, "_StoneTex");
+        CopyRockMap(stoneSource, "normalTexture", m, "_StoneNormal");
+        CopyRockMap(stoneSource, "metallicRoughnessTexture", m, "_StoneMetalRough");
+        // Larger fractured plates replace the port's fine gravel surface. Unity imports these with mipmaps
+        // and linear data sampling; the embedded maps remain available if an optional map is missing.
+        foreach (string suffix in new[] { "albedo", "normal", "metalrough" })
+        {
+            var texture = Resources.Load<Texture2D>("Asteroids/regolith_" + suffix);
+            if (texture == null) continue;
+            string stoneSlot = suffix == "albedo" ? "_StoneTex" : suffix == "normal" ? "_StoneNormal" : "_StoneMetalRough";
+            string bodySlot = suffix == "albedo" ? "_MainTex" : suffix == "normal" ? "_BumpMap" : "_MetalRough";
+            m.SetTexture(stoneSlot, texture);
+            if (!vein) m.SetTexture(bodySlot, texture);
+        }
+        m.SetColor("_BaseColor", vein ? Color.white : sm.GetColor("baseColorFactor"));
+        m.SetColor("_StoneColor", stoneSource != null ? stoneSource.GetColor("baseColorFactor") : Color.white);
+        m.SetFloat("_Library", 1f);
+        m.SetFloat("_Tint", vein ? 1f : 0f);
+        m.SetFloat("_BumpScale", sm.HasProperty("normalTexture_scale") ? sm.GetFloat("normalTexture_scale") : 1f);
+        m.SetVectorArray("_OreFinish", OreFinishes);
         _matCache[sm] = m;
         return m;
     }
@@ -531,7 +590,7 @@ public class Belt
     Color RockColor(int i)
     {
         var stone = Color.Lerp(new Color(0.36f, 0.34f, 0.31f), new Color(0.26f, 0.25f, 0.24f), _rng.Value());
-        if (libraryShapes > 0) return ore[i] < 0 ? new Color(0.55f, 0.52f, 0.5f) : Color.Lerp(Data.ORES[ore[i]].color, Color.white, 0.15f);
+        if (libraryShapes > 0) return OreSurfaceColor(ore[i]);
         if (ore[i] < 0) return stone;
         return Color.Lerp(stone, Data.ORES[ore[i]].color, 0.55f);
     }
@@ -1153,7 +1212,7 @@ public class Belt
             _scrapRot[s] = rq;
             float sc = Mathf.Clamp(left / 3f, 0.01f, 1f) * _scrapR[s];   // the last three seconds shrink it away
             _scrapMats[s] = Matrix4x4.TRS(_scrapPos[s] - _offset, rq, Vector3.one * sc);
-            _scrapCols[s] = new Vector4(0.36f, 0.34f, 0.31f, 1f);
+            _scrapCols[s] = new Vector4(0.36f, 0.34f, 0.31f, 0f);   // ordinary stone, with heat carried separately in _Rail.w
             _scrapRails[s] = new Vector4(0f, 1f, 0f, Mathf.Pow(Mathf.Max(0f, 1f - t / 30f), 1.6f));
         }
     }

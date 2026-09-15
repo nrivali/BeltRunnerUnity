@@ -16,7 +16,11 @@ Shader "BeltRunner/Rock"
         _Metallic ("Metallic factor", Range(0, 1)) = 0
         _Roughness ("Roughness factor", Range(0, 1)) = 1
         _Tint ("Tint by instance colour", Float) = 1
-        _OreGlow ("Ore glow", Float) = 0
+        _Library ("Imported glTF surface", Float) = 0
+        _StoneTex ("Barren regolith albedo", 2D) = "white" {}
+        _StoneNormal ("Barren regolith RGB normal", 2D) = "bump" {}
+        _StoneMetalRough ("Barren regolith metal-roughness", 2D) = "white" {}
+        _StoneColor ("Barren regolith factor", Color) = (1, 1, 1, 1)
     }
     SubShader
     {
@@ -39,7 +43,10 @@ Shader "BeltRunner/Rock"
         float _Metallic;
         float _Roughness;
         float _Tint;
-        float _OreGlow;
+        float _Library;
+        sampler2D _StoneTex, _StoneNormal, _StoneMetalRough;
+        float4 _StoneColor;
+        float4 _OreFinish[8];   // roughness, metallic; index zero is barren, then Data.ORE_KEYS
         float _HazeDensity;    // set by Lighting: the belt's haze with distance, on the rock alone
         float4 _HazeColor;
 
@@ -95,23 +102,72 @@ Shader "BeltRunner/Rock"
         void surf(Input IN, inout SurfaceOutputStandard o)
         {
             float4 c = UNITY_ACCESS_INSTANCED_PROP(Props, _Color);
-            float4 tex = tex2D(_MainTex, IN.uv_MainTex) * _BaseColor;
-            float3 col = tex.rgb * lerp(float3(1.0, 1.0, 1.0), c.rgb, _Tint);
+            int finishIndex = (int)clamp(floor(c.a + 0.5), 0.0, 7.0);
+            float ore = _Library * _Tint * step(0.5, finishIndex);
+            float4 tex;
+            float4 mr;
+            float3 normal;
+            // glTF normals contain XYZ, not Unity's compressed alpha/green encoding. Select all three
+            // regolith maps on a barren vein face so it has neither metal patches nor a visible seam.
+            if (_Library > 0.5 && _Tint > 0.5 && finishIndex == 0)
+            {
+                tex = tex2D(_StoneTex, IN.uv_MainTex) * _StoneColor;
+                mr = tex2D(_StoneMetalRough, IN.uv_MainTex);
+                normal = tex2D(_StoneNormal, IN.uv_MainTex).xyz * 2.0 - 1.0;
+            }
+            else
+            {
+                tex = tex2D(_MainTex, IN.uv_MainTex) * _BaseColor;
+                mr = tex2D(_MetalRough, IN.uv_MainTex);
+                normal = _Library > 0.5 ? tex2D(_BumpMap, IN.uv_MainTex).xyz * 2.0 - 1.0
+                                        : UnpackScaleNormal(tex2D(_BumpMap, IN.uv_MainTex), 1.0);
+            }
+            float crust = 0.0;
+            float3 crustColor = 0.0;
+            float crustRoughness = 1.0;
+            if (ore > 0.5)
+            {
+                // The same stone plates continue over parts of the vein. This breaks up the perfect
+                // ribbon boundary while retaining the broad ore regions and their existing geometry.
+                float3 rock = tex2D(_StoneTex, IN.uv_MainTex).rgb;
+                float3 mask = rock;
+                #ifndef UNITY_COLORSPACE_GAMMA
+                    mask = LinearToGammaSpace(mask);
+                #endif
+                crust = smoothstep(0.22, 0.36, dot(mask, float3(0.3, 0.59, 0.11))) * 0.85;
+                crustColor = rock * _StoneColor.rgb;
+                crustRoughness = tex2D(_StoneMetalRough, IN.uv_MainTex).g;
+                normal = lerp(normal, tex2D(_StoneNormal, IN.uv_MainTex).xyz * 2.0 - 1.0, crust);
+            }
+            normal.xy *= _BumpScale;
+            normal = normalize(normal);
+            float3 tint = c.rgb;
+            #ifndef UNITY_COLORSPACE_GAMMA
+                tint = GammaToLinearSpace(tint);
+            #endif
+            float3 col = tex.rgb * lerp(float3(1.0, 1.0, 1.0), tint, _Library > 0.5 ? ore : _Tint);
+            col = lerp(col, crustColor, crust);
+            float exposedOre = ore * (1.0 - crust);
             // the body heat pulses a little, as the browser's does
             float h = saturate(IN.heat) * (0.92 + 0.08 * sin(_Time.y * 7.0 + IN.worldPos.x * 0.05 + IN.worldPos.y * 0.07));
-            // the stone runs darker and a touch glossier than the maps say, so the sun catches its facets and the
-            // shadow side falls away (the reference frame's rock)
-            o.Albedo = col * 0.62 * (1.0 - h * 0.55);
-            float4 mr = tex2D(_MetalRough, IN.uv_MainTex);
-            o.Metallic = _Metallic * mr.b;
-            o.Smoothness = saturate(1.0 - _Roughness * mr.g * 0.82 + 0.06);
-            o.Normal = UnpackScaleNormal(tex2D(_BumpMap, IN.uv_MainTex), _BumpScale);
+            // Dry, diffuse regolith around reflective mineral facets. Preserve the authored roughness;
+            // making the entire rock glossy turns its fine normal detail into sparkling noise.
+            o.Albedo = col * lerp(0.28, 1.0, exposedOre) * (1.0 - h * 0.55);
+            float2 finish = _OreFinish[finishIndex].xy;
+            float roughness = _Library > 0.5 ? mr.g * lerp(1.0, finish.x, ore) : _Roughness * mr.g;
+            o.Metallic = _Library > 0.5 ? mr.b * finish.y * ore : _Metallic * mr.b;
+            roughness = lerp(roughness, crustRoughness, crust);
+            o.Metallic *= 1.0 - crust;
+            // Filter unresolved normal-map highlights with distance to limit specular shimmer.
+            float variance = max(dot(ddx(normal), ddx(normal)), dot(ddy(normal), ddy(normal)));
+            roughness = sqrt(saturate(roughness * roughness + min(0.12, variance * 0.15)));
+            o.Smoothness = 1.0 - clamp(roughness, 0.16, 1.0);
+            o.Normal = normal;
             float3 hc = h < 0.5 ? lerp(float3(0.9, 0.1, 0.02), float3(1.0, 0.45, 0.12), h * 2.0)
                                 : lerp(float3(1.0, 0.45, 0.12), float3(1.0, 0.82, 0.5), (h - 0.5) * 2.0);
             float lum = dot(col, float3(0.3, 0.59, 0.11));
             o.Emission = hc * h * (0.45 + 0.65 * h) * (0.6 + lum * 1.2) * 0.5;
-            // the ore veins glow with their own colour, hot at the seams, so they read from a distance and bloom a little
-            o.Emission += c.rgb * _OreGlow * (0.35 + 0.45 * tex.r);
+            // Intact ore is reflective, not emissive. Only mining damage and the beam produce heat light.
             // the laser's spot glows where the beam is cooking the stone
             o.Emission += Spot(IN.worldPos, _HeatPos0, _HeatAmt.x) + Spot(IN.worldPos, _HeatPos1, _HeatAmt.y);
             o.Alpha = 1.0;
