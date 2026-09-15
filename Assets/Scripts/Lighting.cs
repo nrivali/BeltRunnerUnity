@@ -20,8 +20,8 @@ public class Lighting
         return new Profile { color = Data.Hex("#ffd3a4"), intensity = 6.0f, radius = 0.011f, exposure = 0.95f };
     }
 
-    public const float SHADOW_REACH = 3300f;          // the browser's 2,400 u shadow box round a focus 900 u ahead of the camera
-    public const float SHADOW_REACH_CARRIER = 6500f;  // 5,600 u near the carrier, so the hangar and the hull shadow properly
+    public const float SHADOW_REACH = 16000f;         // 2026-09-15: five times the browser's 3,300 u box, over four cascades, so rocks shadow each other well out
+    public const float SHADOW_REACH_CARRIER = 18000f; // a little more near the carrier, so the hangar and the hull shadow properly
     public const float CARRIER_NEAR = 11000f;
 
     public Light sun;
@@ -44,7 +44,7 @@ public class Lighting
         sun.shadowNormalBias = 0.35f;
         // shadows as the browser casts them: one box a few kilometres round the ship, never the whole belt
         QualitySettings.shadowDistance = SHADOW_REACH;
-        QualitySettings.shadowCascades = 1;
+        QualitySettings.shadowCascades = 4;   // the near cascade keeps contact shadows crisp; the far ones carry the reach
         QualitySettings.shadows = ShadowQuality.All;
         QualitySettings.shadowResolution = ShadowResolution.VeryHigh;
         // the sky

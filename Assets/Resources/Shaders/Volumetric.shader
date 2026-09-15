@@ -1,6 +1,6 @@
 // Volumetric dust: a ray march from the camera along each pixel's view ray, through a thin dust that scatters the sun
 // toward the eye (Henyey-Greenstein, forward-peaked), stopped by the depth buffer, and shadowed by the sun's own
-// shadow map (copied to _BeltCascadeShadow after Unity draws it; the single cascade's matrix and bounds are Unity's
+// shadow map (copied to _BeltCascadeShadow after Unity draws it; the four cascades' matrices and bounds are Unity's
 // own globals), so a rock between the sun and the dust cuts a dark shaft through it. Half resolution, dithered per
 // pixel, added to the frame by the post composite. A little value noise gives the dust drift and clumps.
 Shader "BeltRunner/Volumetric"
@@ -62,12 +62,20 @@ Shader "BeltRunner/Volumetric"
                 return lerp(a, b, f.z);
             }
 
-            // 1 in the sun, 0 in a rock's shadow; lit outside the shadow box round the ship
+            // 1 in the sun, 0 in a rock's shadow; the first of the four cascades whose sphere holds the point; lit
+            // outside them all
             float ShadowAt(float3 wp)
             {
-                float3 dc = wp - unity_ShadowSplitSpheres[0].xyz;
-                if (dot(dc, dc) > unity_ShadowSplitSpheres[0].w) return 1.0;
-                float4 sc = mul(unity_WorldToShadow[0], float4(wp, 1.0));
+                float3 d0 = wp - unity_ShadowSplitSpheres[0].xyz;
+                float3 d1 = wp - unity_ShadowSplitSpheres[1].xyz;
+                float3 d2 = wp - unity_ShadowSplitSpheres[2].xyz;
+                float3 d3 = wp - unity_ShadowSplitSpheres[3].xyz;
+                float4 sc;
+                if (dot(d0, d0) < unity_ShadowSplitSpheres[0].w) sc = mul(unity_WorldToShadow[0], float4(wp, 1.0));
+                else if (dot(d1, d1) < unity_ShadowSplitSpheres[1].w) sc = mul(unity_WorldToShadow[1], float4(wp, 1.0));
+                else if (dot(d2, d2) < unity_ShadowSplitSpheres[2].w) sc = mul(unity_WorldToShadow[2], float4(wp, 1.0));
+                else if (dot(d3, d3) < unity_ShadowSplitSpheres[3].w) sc = mul(unity_WorldToShadow[3], float4(wp, 1.0));
+                else return 1.0;
                 return UNITY_SAMPLE_SHADOW(_BeltCascadeShadow, sc.xyz);
             }
 

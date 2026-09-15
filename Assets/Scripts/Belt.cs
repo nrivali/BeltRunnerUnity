@@ -10,13 +10,13 @@ using UnityEngine.Rendering;
 public class Belt
 {
     public const float CHUNK = 250000f;
-    public const float DRAW_DIST = 180000f;
-    public const float LOD1_DIST = 70000f;
+    public const float DRAW_DIST = 300000f;   // 2026-09-15: pushed out from 180,000 for detail at range (the user's call)
+    public const float LOD1_DIST = 150000f;   // from 70,000
     public const float ORBIT_SPEED = 28f;
     public const float RESPAWN_AFTER = 300f;
     public const float MARK_TIME = 25f;
-    public const float LOD0_RADII = 10f;   // retain sculpted detail while a rock occupies roughly 1/6 of the view height at cruise FOV
-    public const float LOD0_OUT = 12f;      // and drops back beyond this many (hysteresis)
+    public const float LOD0_RADII = 20f;   // from 10: retain sculpted detail while a rock occupies roughly 1/6 of the view height at cruise FOV
+    public const float LOD0_OUT = 23f;      // and drops back beyond this many (hysteresis)
     public const int SCRAP_MAX = 512;
     public const int BURN_MAX = 64;   // scorches kept per rock, the oldest going first
     const float COLOSSAL_LOOSE = 0.146f;
