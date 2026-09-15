@@ -431,8 +431,10 @@ public class Raiders
                 if (r.fireCd <= 0f && d < r.gunReach && facing && !holdFire)   // the player's own gun: its range, its rate, its damage
                 {
                     r.fireCd = 1f / r.gunRate;
-                    float spread = 0.05f;
-                    var dir = (sp + ship.vel * (d / BOLT_SPEED) - r.pos).normalized + new Vector3(Random.Range(-spread, spread), Random.Range(-spread, spread), Random.Range(-spread, spread));
+                    // a rough gunner: the lead is over- or under-estimated shot by shot, and the spread is wide (about 5 degrees)
+                    float spread = 0.09f;
+                    float leadErr = Random.Range(0.55f, 1.15f);
+                    var dir = (sp + ship.vel * (d / BOLT_SPEED) * leadErr - r.pos).normalized + new Vector3(Random.Range(-spread, spread), Random.Range(-spread, spread), Random.Range(-spread, spread));
                     Fire(r.pos, dir.normalized, r.gunDmg, false);
                     // the same blaster as the player's, quieter with distance: 6 dB a doubling beyond 300 u, silent past 30 dB down
                     float att = d <= 300f ? 0f : -20f * Mathf.Log10(d / 300f);
