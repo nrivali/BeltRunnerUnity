@@ -398,6 +398,7 @@ public class Audio : MonoBehaviour
         for (int i = 0; i < f; i++) for (int k = 0; k < ch; k++) o[i * ch + k] *= (i + 1f) / f;
         var s = AudioClip.Create(c.name + "_trim", len, ch, rate, false);
         s.SetData(o, 0);
+        Debug.Log("audio: " + c.name + " trimmed · " + (a * 1000f / rate).ToString("0") + " ms of silence off the head, " + (len * 1000f / rate).ToString("0") + " ms kept of " + (n * 1000f / rate).ToString("0"));
         return s;
     }
     public static void Say(string name) { if (I != null) I.Voice(name); }
