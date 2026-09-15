@@ -46,6 +46,9 @@ public class Raiders
         // the jink: a burst sideways when a bolt is coming, with a cooldown so it is not perfect
         public float dodgeT, dodgeCd;
         public Vector3 dodgeDir;
+        // the frustration: time spent close in without the nose on the ship; past its limit (3 to 5 s) the raider gives up
+        // the tangle and extends out for room (the user's call, 2026-09-15)
+        public float noShotT, noShotLimit = 4f;
         public Vector3 longTo;   // the far point of a long run
         public Vector3 heading = Vector3.forward;   // the way the nose points; the raider only ever moves along it
         public float spd;                           // along the heading
@@ -220,7 +223,7 @@ public class Raiders
             pos = pos, home = home, wp = home, node = go.transform, exhaust = ex, exhaustNode = exNode, hp = hp, maxHp = hp, shield = shield, maxShield = shield, dmg = Mathf.Round(3f + 4f * danger),
             heading = Random.onUnitSphere, spd = 120f,
             gunDmg = RAIDER_DMG, gunRate = Data.UPGRADES["gun"].levels[0].rate, gunReach = RAIDER_REACH,   // the player's own base autocannon
-            a = Random.value * 6f, fireCd = Random.Range(1f, 2f), speed = 820f + danger * 90f, bounty = Mathf.Round(120f * danger + 80f), frozen = frozen,
+            a = Random.value * 6f, fireCd = Random.Range(1f, 2f), speed = 820f + danger * 90f, noShotLimit = Random.Range(3f, 5f), bounty = Mathf.Round(120f * danger + 80f), frozen = frozen,
         });
         return raiders[raiders.Count - 1];
     }
@@ -585,6 +588,22 @@ public class Raiders
                 r.fireCd -= dt;
                 // the guns are fixed forward: a raider only fires when its nose is on the ship (within 20 degrees)
                 bool facing = Vector3.Dot(r.node.forward, (sp - r.pos).normalized) > Mathf.Cos(25f * Mathf.Deg2Rad);
+                // close in and unable to bring the guns to bear for 3 to 5 s: stop tangling and go out for room
+                if (facing || d > 1500f || r.move == "long") r.noShotT = 0f;
+                else
+                {
+                    r.noShotT += dt;
+                    if (r.noShotT > r.noShotLimit)
+                    {
+                        r.move = "long";
+                        var away = -toShip + side * Random.Range(-0.8f, 0.8f) + Vector3.up * Random.Range(-0.3f, 0.3f);
+                        float reach = Random.Range(2500f, 5000f);
+                        r.longTo = sp + away.normalized * reach;
+                        r.moveT = reach / r.speed * 1.6f;
+                        r.noShotT = 0f;
+                        r.noShotLimit = Random.Range(3f, 5f);
+                    }
+                }
                 if (r.fireCd <= 0f && d < r.gunReach && facing && !holdFire)   // the player's own gun: its range, its rate, its damage
                 {
                     r.fireCd = 1f / r.gunRate;
