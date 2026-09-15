@@ -39,8 +39,8 @@ public class Hud : MonoBehaviour
     RectTransform _crosshairRt;
     readonly List<Ui.Marker> _droneMarkers = new List<Ui.Marker>();
     readonly List<Ui.Marker> _raiderMarkers = new List<Ui.Marker>();
-    RectTransform _status, _readouts, _target, _cargoPane, _controls, _prompt, _notice, _toastBox, _version, _hoverLbl;
-    Text _flightEyebrow, _speedUnit, _tWeapon, _cargoRows;
+    RectTransform _status, _readouts, _target, _controls, _prompt, _notice, _toastBox, _version, _hoverLbl;
+    Text _flightEyebrow, _speedUnit, _tWeapon;
     const float BAND_H = 100f;   // the bottom band's panes are this tall
     Text _hoverTxt;
     Ui.Pane _statusPane;
@@ -150,7 +150,6 @@ public class Hud : MonoBehaviour
         _crosshair.raycastTarget = false;
         _crosshairRt.gameObject.SetActive(false);
         BuildStatus();
-        BuildCargoPane();
         BuildReadouts();
         BuildTarget();
         BuildControls();
@@ -198,12 +197,11 @@ public class Hud : MonoBehaviour
         _scaler.referenceResolution = new Vector2(1280f / s, 720f / s);
     }
 
-    // ---- the bottom band: four panes in a row, 1,090 wide, along the bottom edge
-    //   SHIP   250   hull, shield, fuel
+    // ---- the bottom band: three panes in a row, 920 wide, along the bottom edge
+    //   SHIP   300   hull, shield, fuel and the hold, two by two
     //   FLIGHT 300   speed and thrust, the cargo ship's distance, the field, the radar, the threat
     //   TARGET 300   what the crosshair or the lock is on: name, size, range, health, and the weapon in hand
-    //   CARGO  210   the hold, the cargo ship storage, the drones
-    const float BAND_LEFT = -545f;
+    const float BAND_LEFT = -460f;
 
     RectTransform BandPane(string name, float left, float w, out Ui.Pane pane)
     {
@@ -212,19 +210,22 @@ public class Hud : MonoBehaviour
 
     void BuildStatus()
     {
-        _status = BandPane("Ship", BAND_LEFT, 250f, out _statusPane);
+        _status = BandPane("Ship", BAND_LEFT, 300f, out _statusPane);
         var e = Ui.Eyebrow(_status, "Ship", Ui.HUD_DIM);
         Ui.At(e.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -8f), new Vector2(200f, 14f));
-        _gHull = Ui.Gauge.Make(_status, "Hull", Ui.GREEN, 14f, -20f, 222f, false, 6f);
-        _gShield = Ui.Gauge.Make(_status, "Shield", Data.Hex("#8fe8ff"), 14f, -44f, 222f, false, 6f);
-        _gFuel = Ui.Gauge.Make(_status, "Fuel", Ui.CYAN, 14f, -68f, 222f, false, 6f);
+        // two by two, with room: hull and shield on the first row, fuel and the hold on the second
+        const float gw = 130f, x1 = 14f, x2 = 156f, y1 = -26f, y2 = -62f;
+        _gHull = Ui.Gauge.Make(_status, "Hull", Ui.GREEN, x1, y1, gw, false, 7f);
+        _gShield = Ui.Gauge.Make(_status, "Shield", Data.Hex("#8fe8ff"), x2, y1, gw, false, 7f);
+        _gFuel = Ui.Gauge.Make(_status, "Fuel", Ui.CYAN, x1, y2, gw, false, 7f);
+        _gCargo = Ui.Gauge.Make(_status, "Hold", Ui.CARGO, x2, y2, gw, false, 7f);
     }
 
     // ---- FLIGHT: the big speed with its unit, the thrust gauge beside it, two small rows of the situation under them
     void BuildReadouts()
     {
         Ui.Pane p;
-        _readouts = BandPane("Flight", BAND_LEFT + 260f, 300f, out p);
+        _readouts = BandPane("Flight", BAND_LEFT + 310f, 300f, out p);
         _flightEyebrow = Ui.Eyebrow(_readouts, "Flight", Ui.HUD_DIM);
         Ui.At(_flightEyebrow.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -8f), new Vector2(272f, 14f));
         _speedBig = Ui.Glow(Ui.Label(_readouts, "0", "mono_semi", 26, Ui.GLOW_TEXT, TextAnchor.LowerLeft), Ui.HUD_GLOW, 1.5f);
@@ -243,18 +244,6 @@ public class Hud : MonoBehaviour
         return t;
     }
 
-    // ---- CARGO: the hold gauge, then the cargo ship storage and the drones
-    void BuildCargoPane()
-    {
-        Ui.Pane p;
-        _cargoPane = BandPane("Cargo", BAND_LEFT + 880f, 210f, out p);
-        var e = Ui.Eyebrow(_cargoPane, "Cargo", Ui.HUD_DIM);
-        Ui.At(e.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -8f), new Vector2(180f, 14f));
-        _gCargo = Ui.Gauge.Make(_cargoPane, "Hold", Ui.CARGO, 14f, -20f, 182f, false, 8f);
-        _cargoRows = Ui.Glow(Ui.Label(_cargoPane, "", "mono", 11, Ui.HUD_DIM, TextAnchor.UpperLeft), Ui.A(Ui.HUD_GLOW, 0.35f));
-        Ui.At(_cargoRows.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -64f), new Vector2(182f, 30f));
-    }
-
     static string Kv(string key, string val) { return key + " " + Ui.Col(val, Ui.GLOW_TEXT); }
     static string Kbd(string k) { return "<b>" + Ui.Col(k, Ui.GLOW_TEXT) + "</b>"; }
 
@@ -262,7 +251,7 @@ public class Hud : MonoBehaviour
     void BuildTarget()
     {
         Ui.Pane p;
-        _target = BandPane("Target", BAND_LEFT + 570f, 300f, out p);
+        _target = BandPane("Target", BAND_LEFT + 620f, 300f, out p);
         _tEyebrow = Ui.Eyebrow(_target, "Target", Ui.HUD_DIM);
         Ui.At(_tEyebrow.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -8f), new Vector2(272f, 14f));
         _tName = Ui.Glow(Ui.Label(_target, "", "display", 15, Color.white, TextAnchor.UpperLeft), Ui.A(Ui.CYAN, 0.5f));
@@ -1573,7 +1562,7 @@ public class Hud : MonoBehaviour
         int us = State.UsedSlots();
         int ns = State.CargoSlots();
         bool full = us >= ns && State.CargoTotal() >= State.CargoCapacity() - 0.5f;
-        _gCargo.Show(State.CargoTotal() / State.CargoCapacity(), us + " / " + ns + " slots", full ? Ui.AMBER : Ui.CARGO);
+        _gCargo.Show(State.CargoTotal() / State.CargoCapacity(), us + " / " + ns, full ? Ui.AMBER : Ui.CARGO);
         _gCargo.value.color = full ? Ui.AMBER2 : Ui.GLOW_TEXT;
         float spd = ship.Speed * Data.METRE;
         _speedBig.text = docked ? (hold ? "HOLD" : "DOCK") : Data.Fmt(spd);
@@ -1593,17 +1582,7 @@ public class Hud : MonoBehaviour
         string threatTxt = threat > 0 ? Ui.Col(threat + " raider" + (threat > 1 ? "s" : ""), Ui.RED) : Ui.Col("none", Ui.GLOW_TEXT);
         string weaponTxt = ship.weapon == "gun" ? "Autocannon" : "Laser";
         _row2.text = Kv("RADAR", radar) + "   THREAT " + threatTxt;
-        _tWeapon.text = Kv("WEAPON", weaponTxt) + "   " + Kv("LASER", laser) + "   " + Kv("RANGE", rangeTxt);
-        // CARGO: the storage aboard the cargo ship, and the drones
-        int su = State.StoreUsed();
-        string droneTxt = "";
-        if (game != null && game.drones != null && game.drones.drones.Count > 0)
-        {
-            int busy = 0;
-            foreach (var dr in game.drones.drones) if (dr.phase != "idle") busy++;
-            droneTxt = "\n" + Kv("DRONES", game.drones.drones.Count + (busy > 0 ? " · " + busy + " out" : " · docked"));
-        }
-        _cargoRows.text = Kv("STORAGE", su + " / " + Data.STORE_SLOTS + " slots") + droneTxt;
+        _tWeapon.text = Kv("WEAPON", weaponTxt) + "   " + Kv("LASER", laser);
         // the target: the panel follows the lock when there is one, else the crosshair target
         bool hasTarget = ship.target >= 0 && ship.target < belt.count && belt.alive[ship.target] && !docked;
         int panelRock = locked && ship.lockKind == "rock" ? ship.lockRock : (hasTarget ? ship.target : -1);
@@ -1726,7 +1705,6 @@ public class Hud : MonoBehaviour
         float sa = docked ? 0.85f : 1f;
         if (Mathf.Abs(_statusPane.alpha - sa) > 0.01f) { _statusPane.alpha = sa; _statusPane.SetVerticesDirty(); }
         _readouts.gameObject.SetActive(showFlight);
-        _cargoPane.gameObject.SetActive(showFlight);
         _controls.gameObject.SetActive(showFlight && !docked && _controlsShown);
         _prompt.gameObject.SetActive(showFlight && !docked && segs.Count > 0);
         _target.gameObject.SetActive(showFlight && !docked);
