@@ -27,7 +27,7 @@ public static class Build
         PlayerSettings.companyName = "nrivali";
         PlayerSettings.productName = "Belt Runner";
         PlayerSettings.runInBackground = true;
-        PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
+        PlayerSettings.fullScreenMode = FullScreenMode.FullScreenWindow;   // borderless full screen at the desktop resolution; Alt+Enter drops to a window; the smoke runs pass -screen-fullscreen 0
         PlayerSettings.defaultScreenWidth = 1280;
         PlayerSettings.defaultScreenHeight = 720;
         PlayerSettings.resizableWindow = true;
