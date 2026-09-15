@@ -66,6 +66,14 @@ public class Hud : MonoBehaviour
     string _invSig = "";      // kept for the callers that clear it: both feed the one window
     RectTransform _refitsBox;
     Ui.Gauge _gStoreW, _gFuelW, _gPartsW;   // the window's gauges, updated in place so the window is not rebuilt under the mouse
+    // the window's motion: it eases open and shut, a tab's contents slide in; the balance counts to its new value
+    CanvasGroup _winGroup, _bodyGroup;
+    bool _winWant;
+    float _winK, _bodyK, _credShown = -1f;
+    // the upgrade rows, kept and updated in place (a purchase lights its row instead of rebuilding the tab)
+    class UpRow { public string key; public bool depot; public RectTransform[] pips; public Text desc; public Ui.Btn buy, minus; public Ui.Box bg; public float flash; }
+    readonly List<UpRow> _rows = new List<UpRow>();
+    string _rowSig = "";
     public readonly List<Slot> holdSlots = new List<Slot>();
     public readonly List<Slot> storeSlots = new List<Slot>();
     Slot _dragging;
@@ -88,9 +96,9 @@ public class Hud : MonoBehaviour
     readonly Dictionary<string, RectTransform> _ringTargets = new Dictionary<string, RectTransform>();
     readonly List<string> _ringNames = new List<string>();
 
-    public bool InvOpen { get { return _win != null && _win.gameObject.activeSelf; } }
+    public bool InvOpen { get { return _win != null && _win.gameObject.activeSelf && _winWant; } }
     public bool MapOpen { get { return _map != null && _map.gameObject.activeSelf; } }
-    public bool ServicesVisible { get { return _win != null && _win.gameObject.activeSelf; } }
+    public bool ServicesVisible { get { return InvOpen; } }
     public bool MenuVisible { get { return menu != null && menu.Visible; } }
 
     public void Build()
@@ -434,7 +442,44 @@ public class Hud : MonoBehaviour
         _resetLink = Ui.Link(foot, "Reset save", () => ResetPressed());
         Ui.At(_resetLink.rectTransform, Ui.TR, Ui.TR, new Vector2(-26f, -20f), _resetLink.rectTransform.sizeDelta);
         _winScroll = Ui.Scroll.Make(_win, 0f, 64f, 0f, 137f);
+        _winGroup = _win.gameObject.AddComponent<CanvasGroup>();
+        _bodyGroup = _winScroll.viewport.gameObject.AddComponent<CanvasGroup>();
         _win.gameObject.SetActive(false);
+    }
+
+    /// The window's motion, every frame: the ease open and shut (alpha and a 4% scale), the tab body sliding up into
+    /// place, the balance counting to its value, the upgrade rows' flashes fading, the wheel's glide, and 1 / 2 / 3
+    /// picking the tabs.
+    void TickWindow(float dt)
+    {
+        if (_win == null || !_win.gameObject.activeSelf) return;
+        _winK = Mathf.Lerp(_winK, _winWant ? 1f : 0f, 1f - Mathf.Exp(-(_winWant ? 14f : 18f) * dt));
+        if (!_winWant && _winK < 0.02f) { _win.gameObject.SetActive(false); return; }
+        float e = 1f - (1f - _winK) * (1f - _winK);
+        _winGroup.alpha = _winK;
+        _winGroup.blocksRaycasts = _winWant;
+        _winGroup.interactable = _winWant;
+        _win.localScale = Vector3.one * (0.96f + 0.04f * e);
+        _bodyK = Mathf.Lerp(_bodyK, 1f, 1f - Mathf.Exp(-13f * dt));
+        _bodyGroup.alpha = _bodyK;
+        _winScroll.viewport.anchoredPosition = new Vector2(0f, -(1f - _bodyK) * 14f);
+        if (_credShown < 0f) _credShown = State.credits;
+        _credShown = Mathf.Lerp(_credShown, State.credits, 1f - Mathf.Exp(-9f * dt));
+        if (Mathf.Abs(_credShown - State.credits) < 0.6f) _credShown = State.credits;
+        _winCredits.text = Data.Fmt(Mathf.Round(_credShown)) + " cr";
+        foreach (var r in _rows)
+        {
+            if (r.flash <= 0f) continue;
+            r.flash = Mathf.Max(0f, r.flash - dt * 1.6f);
+            r.bg.Set(Ui.A(Ui.AMBER, 0.16f * r.flash), Ui.A(Ui.AMBER, 0.6f * r.flash));
+        }
+        _winScroll.Tick(dt);
+        if (_winWant && RefitsAvailable && !MenuVisible)
+        {
+            if (Input.GetKeyDown(KeyCode.Alpha1)) PickTab("inv");
+            if (Input.GetKeyDown(KeyCode.Alpha2)) PickTab("ship");
+            if (Input.GetKeyDown(KeyCode.Alpha3)) PickTab("depot");
+        }
     }
 
     void DepartPressed()
@@ -477,8 +522,10 @@ public class Hud : MonoBehaviour
     {
         if (_win == null) return;
         if (tab != "inv" && !RefitsAvailable) tab = "inv";
-        if (!_win.gameObject.activeSelf) Audio.Play("ui_open");
+        if (!InvOpen) Audio.Play("ui_open");
         else if (tab != _winTab) Audio.Play("ui_tab");
+        if (!InvOpen) { _winK = 0f; _win.localScale = Vector3.one * 0.96f; if (_winGroup != null) _winGroup.alpha = 0f; }
+        _winWant = true;
         _winTab = tab;
         _win.gameObject.SetActive(true);
         _svcSig = "";
@@ -488,9 +535,9 @@ public class Hud : MonoBehaviour
 
     public void CloseWindow()
     {
-        if (_win == null || !_win.gameObject.activeSelf) return;
+        if (_win == null || !InvOpen) return;
         if (_dragPreview != null) { Destroy(_dragPreview.gameObject); _dragPreview = null; _dragging = null; }
-        _win.gameObject.SetActive(false);
+        _winWant = false;   // the ease out runs in TickWindow, then the window deactivates
         Audio.Play("ui_close");
     }
 
@@ -513,38 +560,53 @@ public class Hud : MonoBehaviour
     {
         if (tab == _winTab) return;
         Audio.Play("ui_tab");
+        _bodyK = 0f;
         _winTab = tab;
         _svcSig = "";
         RefreshWindow();
     }
 
-    /// One refit row (.up): name and pips, the description with the next level in bold, the price button on the right.
-    void RefitRow(Ui.Flow f, string name, int total, int have, string desc, float cost, bool maxed, Action fn, bool first, Action down = null)
+    /// One upgrade row: name and pips, the description with the next level in bold, the price button on the right (and
+    /// the test's minus). Built once per tab and kept in _rows; UpdateRows keeps it current, a purchase lights it.
+    void RefitRow(Ui.Flow f, string key, bool depot, string name, int total, bool first)
     {
         if (!first) { f.Rule(); f.Gap(13f); }
         float top = f.y;
+        var row = new UpRow { key = key, depot = depot, pips = new RectTransform[total] };
+        var bgRt = Ui.Rect("RowBg", f.parent, Ui.TL, Ui.TL, new Vector2(f.x - 12f, f.y + 8f), new Vector2(f.w + 24f, 10f));
+        row.bg = Ui.MakeBox(bgRt, Ui.A(Ui.AMBER, 0f), Ui.A(Ui.AMBER, 0f), 1f);
+        bgRt.SetAsFirstSibling();
         var n = Ui.Label(f.parent, name, "display", 16, Ui.TEXT);
         Ui.At(n.rectTransform, Ui.TL, Ui.TL, new Vector2(f.x, f.y), new Vector2(300f, 20f));
         float px = f.x + Ui.Measure(n) + 12f;
         for (int j = 0; j < total; j++)
         {
             var pip = Ui.Rect("Pip", f.parent, Ui.TL, Ui.TL, new Vector2(px + j * 13f, f.y - 5f), new Vector2(8f, 8f));
-            Ui.Fill(pip, j < have ? Ui.AMBER : Ui.LINE2);
+            Ui.Fill(pip, Ui.LINE2);
+            row.pips[j] = pip;
         }
         f.y -= 23f;
-        f.Para(desc, "body", 13, Ui.MUTED, 0f, TextAnchor.UpperLeft, 0f, f.w - 118f - 14f - (down != null ? 48f : 0f));
+        bool test = !depot && State.sandbox;
+        row.desc = f.Para(" ", "body", 13, Ui.MUTED, 0f, TextAnchor.UpperLeft, 0f, f.w - 118f - 14f - (test ? 48f : 0f));
+        row.desc.rectTransform.sizeDelta = new Vector2(row.desc.rectTransform.sizeDelta.x, 36f);   // two lines, whatever the text does
+        f.y = top - 23f - 36f;
         float rowH = top - f.y;
-        var b = Ui.Button(f.parent, maxed ? "Max" : Data.Fmt(cost) + " cr", fn, !maxed && State.credits >= cost, true, 118f, 14);
-        b.rt.anchoredPosition = new Vector2(f.x + f.w - 118f, top - (rowH - b.Height) * 0.5f);
-        if (maxed || State.credits < cost) b.interactable = false;
-        if (down != null)
+        var k2 = key;
+        row.buy = Ui.Button(f.parent, "0 cr", () => { if (depot) BuyDepot(k2); else Buy(k2); }, true, true, 118f, 14);
+        row.buy.rt.anchoredPosition = new Vector2(f.x + f.w - 118f, top - (rowH - row.buy.Height) * 0.5f);
+        if (test)
         {
-            // the test's minus: a level off
-            var m = Ui.Button(f.parent, "−", down, have > 1, true, 40f, 14);
-            m.rt.anchoredPosition = new Vector2(f.x + f.w - 118f - 48f, top - (rowH - m.Height) * 0.5f);
-            if (have <= 1) m.interactable = false;
+            row.minus = Ui.Button(f.parent, "−", () => Downgrade(k2), false, true, 40f, 14);
+            row.minus.rt.anchoredPosition = new Vector2(f.x + f.w - 118f - 48f, top - (rowH - row.minus.Height) * 0.5f);
         }
+        bgRt.sizeDelta = new Vector2(f.w + 24f, rowH + 16f);
+        _rows.Add(row);
         f.Gap(13f);
+    }
+
+    void LightRow(string key)
+    {
+        foreach (var r in _rows) if (r.key == key) r.flash = 1f;
     }
 
     Text H3(Ui.Flow f, string text, float gap = 12f)
@@ -563,20 +625,24 @@ public class Hud : MonoBehaviour
         bool atHub = ship.hold;
         var sb = new System.Text.StringBuilder();
         sb.Append(_winTab).Append('|').Append(docked).Append('|').Append(atHub).Append('|').Append(RefitsAvailable).Append('|').Append(zone.id).Append('|');
-        sb.Append(Mathf.RoundToInt(State.credits)).Append('|').Append(State.StoreUsed()).Append('|');   // not the fuel supply or the parts: they tick every frame on the pad and only their gauges follow
-        sb.Append(State.CargoTotal().ToString("0")).Append('|').Append(State.StoreTotal().ToString("0")).Append('|').Append(Mathf.RoundToInt(State.droneUnits)).Append('|').Append(State.CargoSlots());
-        foreach (var k in Data.UPGRADE_KEYS) sb.Append(State.up[k]);
-        foreach (var k in Data.DEPOT_KEYS) sb.Append(State.depot[k]);
-        foreach (var k in Data.ORE_KEYS) sb.Append(',').Append(State.cargo[k].ToString("0")).Append('/').Append(State.store[k].ToString("0")).Append('/').Append(State.market[k].ToString("0.00"));
+        if (_winTab == "inv")
+        {
+            // the inventory tab: its stacks and slots (not the fuel supply or the parts, which tick every frame on the pad
+            // and only move their gauges; and credits only at the Hub, where the market shows them)
+            sb.Append(State.StoreUsed()).Append('|').Append(State.CargoTotal().ToString("0")).Append('|').Append(State.StoreTotal().ToString("0")).Append('|').Append(State.CargoSlots()).Append('|');
+            if (atHub) sb.Append(Mathf.RoundToInt(State.credits)).Append('|').Append(Mathf.RoundToInt(State.droneUnits));
+            foreach (var k in Data.ORE_KEYS) sb.Append(',').Append(State.cargo[k].ToString("0")).Append('/').Append(State.store[k].ToString("0")).Append('/').Append(State.market[k].ToString("0.00"));
+        }
+        else if (_winTab == "depot") sb.Append(Mathf.RoundToInt(State.droneUnits));   // the note under the rows
         string sig = sb.ToString();
-        if (sig == _svcSig) return;
+        if (sig == _svcSig) { UpdateRows(); return; }
         _svcSig = sig;
         _invSig = sig;
+        _bodyK = 0f;
         // the header
         _winEyebrow.text = atHub ? "HOLDING STATION" : docked ? "DOCKED" : "IN FLIGHT";
         _winTitle.text = docked ? "CARGO SHIP" : "SHIP";
         _winSub.text = atHub ? "Off " + (zone.colony ?? "the colony") : docked ? CargoShip.BayName(ship.dockSide) : zone.name;
-        _winCredits.text = Data.Fmt(State.credits) + " cr";
         _departBtn.SetText(atHub ? "Nav map" : "Depart");
         _departBtn.rt.gameObject.SetActive(docked);
         _navBtn.rt.gameObject.SetActive(docked && !atHub);
@@ -593,7 +659,7 @@ public class Hud : MonoBehaviour
             b.rt.anchoredPosition = new Vector2(tx, 0f);
             tx += b.Width + 8f;
         }
-        var hint = Ui.Label(_tabBar, _winTab == "inv" ? (docked ? "Drag stacks between the grids or double-click one · E deposits all" : "Drag a stack out of the grid, or ✕, to jettison it") : "The price button buys the next level", "body", 12, Ui.DIM, TextAnchor.MiddleRight);
+        var hint = Ui.Label(_tabBar, _winTab == "inv" ? (docked ? "Drag stacks between the grids or double-click one · E deposits all" : "Drag a stack out of the grid, or ✕, to jettison it") : "The price button buys the next level · 1 / 2 / 3 pick the tabs", "body", 12, Ui.DIM, TextAnchor.MiddleRight);
         Ui.At(hint.rectTransform, Ui.TR, Ui.TR, Vector2.zero, new Vector2(520f, 36f));
         // the body, rebuilt where it stood: the scroll position is kept (a purchase must not throw the list to the top)
         var keep = _winScroll.content.anchoredPosition;
@@ -602,6 +668,8 @@ public class Hud : MonoBehaviour
         storeSlots.Clear();
         _depositBtn = null;
         _refitsBox = null;
+        _rows.Clear();
+        _rowSig = "";
         _gStoreW = _gFuelW = _gPartsW = null;
         float w = _winScroll.Width;
         var f = new Ui.Flow(_winScroll.content, 26f, 20f, w - 52f);
@@ -610,7 +678,38 @@ public class Hud : MonoBehaviour
         else DepotTab(f);
         _winScroll.SetHeight(f.Used + 10f);
         float maxY = Mathf.Max(0f, f.Used + 10f - _winScroll.viewport.rect.height);
-        _winScroll.content.anchoredPosition = new Vector2(keep.x, Mathf.Clamp(keep.y, 0f, maxY));
+        _winScroll.SetTarget(Mathf.Clamp(keep.y, 0f, maxY));
+        UpdateRows();
+    }
+
+    /// The upgrade rows follow the levels and the balance in place: the pips, the description, the price button (its
+    /// text and whether it can be pressed) and the test's minus.
+    void UpdateRows()
+    {
+        if (_rows.Count == 0) return;
+        var sb = new System.Text.StringBuilder();
+        sb.Append(Mathf.RoundToInt(State.credits));
+        foreach (var k in Data.UPGRADE_KEYS) sb.Append(State.up[k]);
+        foreach (var k in Data.DEPOT_KEYS) sb.Append(State.depot[k]);
+        string sig = sb.ToString();
+        if (sig == _rowSig) return;
+        _rowSig = sig;
+        foreach (var r in _rows)
+        {
+            int i = r.depot ? State.depot[r.key] : State.up[r.key];
+            int have = r.depot ? i : i + 1;
+            float[] costs = r.depot ? Data.DEPOT_UPGRADES[r.key].costs : Data.UPGRADES[r.key].costs;
+            bool maxed = i >= costs.Length;
+            string now = r.depot ? Data.DescribeDepot(r.key, i) : Data.Describe(r.key, i);
+            string next = maxed ? "" : (r.depot ? Data.DescribeDepot(r.key, i + 1) : Data.Describe(r.key, i + 1));
+            r.desc.text = maxed ? Ui.Col("<b>" + now + "</b>", Ui.TEXT) + " · Fully upgraded" : now + " → " + Ui.Col("<b>" + next + "</b>", Ui.TEXT);
+            for (int j = 0; j < r.pips.Length; j++) Ui.Fill(r.pips[j], j < have ? Ui.AMBER : Ui.LINE2);
+            float cost = maxed ? 0f : costs[i];
+            r.buy.SetText(maxed ? "Max" : Data.Fmt(cost) + " cr");
+            r.buy.SetPrimary(!maxed && State.credits >= cost);
+            r.buy.interactable = !maxed && State.credits >= cost;
+            if (r.minus != null) r.minus.interactable = have > 1;
+        }
     }
 
     /// Inventory: the hold's grid on the left and the cargo ship storage's on the right (in flight, the hold alone),
@@ -694,12 +793,7 @@ public class Hud : MonoBehaviour
         bool first = true;
         foreach (var key in Data.UPGRADE_KEYS)
         {
-            var u = Data.UPGRADES[key];
-            int i = State.up[key];
-            bool maxed = i >= u.costs.Length;
-            string desc = maxed ? Ui.Col("<b>" + Data.Describe(key, i) + "</b>", Ui.TEXT) + " · Fully upgraded" : Data.Describe(key, i) + " → " + Ui.Col("<b>" + Data.Describe(key, i + 1) + "</b>", Ui.TEXT);
-            var k2 = key;
-            RefitRow(f, u.name, u.levels.Length, i + 1, desc, maxed ? 0f : u.costs[i], maxed, () => Buy(k2), first, State.sandbox ? () => Downgrade(k2) : (Action)null);
+            RefitRow(f, key, false, Data.UPGRADES[key].name, Data.UPGRADES[key].levels.Length, first);
             first = false;
         }
         _refitsBox = Ui.Rect("RefitsBox", f.parent, Ui.TL, Ui.TL, new Vector2(f.x, refitsTop), new Vector2(f.w, refitsTop - f.y));
@@ -712,12 +806,7 @@ public class Hud : MonoBehaviour
         bool first = true;
         foreach (var key in Data.DEPOT_KEYS)
         {
-            var u = Data.DEPOT_UPGRADES[key];
-            int i = State.depot[key];
-            bool maxed = i >= u.costs.Length;
-            string desc = maxed ? Ui.Col("<b>" + Data.DescribeDepot(key, i) + "</b>", Ui.TEXT) + " · Fully upgraded" : Data.DescribeDepot(key, i) + " → " + Ui.Col("<b>" + Data.DescribeDepot(key, i + 1) + "</b>", Ui.TEXT);
-            var k2 = key;
-            RefitRow(f, u.name, u.costs.Length, i, desc, maxed ? 0f : u.costs[i], maxed, () => BuyDepot(k2), first);
+            RefitRow(f, key, true, Data.DEPOT_UPGRADES[key].name, Data.DEPOT_UPGRADES[key].costs.Length, first);
             first = false;
         }
         f.Para("The dish leaves the ore it frees adrift for you to pick up. Collector drones gather it and stow it in the cargo ship storage" + (State.droneUnits > 0.5f ? " · <b>" + Data.Fmt(State.droneUnits) + "</b> stowed so far" : "") + ".", "body", 12, Ui.DIM, 20f);
@@ -751,9 +840,8 @@ public class Hud : MonoBehaviour
         string msg;
         bool ok = State.BuyDepot(key, out msg);
         Toast(msg, !ok);
-        if (ok) Audio.Play("chime");
-        _svcSig = "";
-        RefreshServices();
+        if (ok) { Audio.Play("chime"); LightRow(key); }
+        UpdateRows();
     }
 
     void Buy(string key)
@@ -761,10 +849,9 @@ public class Hud : MonoBehaviour
         string msg;
         bool ok = State.Buy(key, out msg);
         Toast(msg, !ok);
-        if (ok) Audio.Play("chime");
+        if (ok) { Audio.Play("chime"); LightRow(key); }
         if (ok && ship != null) ship.ConfigureModel();   // the fitting on the hull changes with its tier
-        _svcSig = "";
-        RefreshServices();
+        UpdateRows();
     }
 
     void Downgrade(string key)
@@ -773,8 +860,7 @@ public class Hud : MonoBehaviour
         bool ok = State.Downgrade(key, out msg);
         Toast(msg, !ok);
         if (ok && ship != null) ship.ConfigureModel();
-        _svcSig = "";
-        RefreshServices();
+        UpdateRows();
     }
 
     static RectTransform Dot(RectTransform parent, Color c, Vector2 pos)
@@ -1597,7 +1683,7 @@ public class Hud : MonoBehaviour
             if (ship.warp != null) _caption.text = ("JUMP · " + ship.warp.z.name + " · " + Data.ZoneLy(zone, ship.warp.z) + " LY · SPACE SKIPS").ToUpperInvariant();
             else if (ship.cut.mode == "hold") _caption.text = ("ARRIVAL · " + (zone.colony ?? "the colony") + " · SPACE SKIPS").ToUpperInvariant();
             else _caption.text = ("APPROACH · " + CargoShip.BayName(ship.cut.side) + " · CARGO SHIP · SPACE SKIPS").ToUpperInvariant();
-            if (_win.gameObject.activeSelf) CloseWindow();
+            if (InvOpen) CloseWindow();
         }
         var fc = _fade.color;
         fc.a = ship.WarpFade();
@@ -1725,6 +1811,7 @@ public class Hud : MonoBehaviour
             new Vector2(ship.camYaw * 0.25f, ship.camPitch * 0.2f), -ship.camYaw * 14f - ship.camRoll * 7f);
         // side panels follow the window
         _win.sizeDelta = new Vector2(Mathf.Min(1100f, _canvasSize.x - 60f), Mathf.Min(760f, _canvasSize.y - 60f));
+        TickWindow(dt);
         if (InvOpen && Time.frameCount % 15 == 0) { RefreshWindow(); TickWindowGauges(); }
         // the tutorial's rings follow their targets
         _rings.rects.Clear();

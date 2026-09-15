@@ -459,14 +459,33 @@ public static class Ui
     }
 
     // ---- .btn: display type, uppercase, cut at the top-left and bottom-right corners; `primary` is the amber one
-    public class Face : MaskableGraphic, IPointerEnterHandler, IPointerExitHandler
+    public class Face : MaskableGraphic, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler
     {
         public Btn btn;
-        public bool hover;
+        public bool hover, pressed;
         public float cut = 6f;
+        // eased: the hover colour glides in and out, a press sinks the button a little, a click flashes it white
+        float _hoverK, _pressK, _flash;
 
-        public void OnPointerEnter(PointerEventData e) { hover = true; SetVerticesDirty(); if (btn != null && btn.interactable) Audio.Play("ui_hover"); }
-        public void OnPointerExit(PointerEventData e) { hover = false; SetVerticesDirty(); }
+        public void OnPointerEnter(PointerEventData e) { hover = true; if (btn != null && btn.interactable) Audio.Play("ui_hover"); }
+        public void OnPointerExit(PointerEventData e) { hover = false; pressed = false; }
+        public void OnPointerDown(PointerEventData e) { pressed = btn != null && btn.interactable; }
+        public void OnPointerUp(PointerEventData e) { pressed = false; }
+        public void Flash() { _flash = 1f; }
+
+        void Update()
+        {
+            float dt = Time.unscaledDeltaTime;
+            float h = Mathf.Lerp(_hoverK, hover ? 1f : 0f, 1f - Mathf.Exp(-16f * dt));
+            float p = Mathf.Lerp(_pressK, pressed ? 1f : 0f, 1f - Mathf.Exp(-28f * dt));
+            float f = _flash * Mathf.Exp(-7f * dt);
+            if (Mathf.Abs(h - _hoverK) > 0.002f || Mathf.Abs(p - _pressK) > 0.002f || Mathf.Abs(f - _flash) > 0.002f)
+            {
+                _hoverK = h; _pressK = p; _flash = f;
+                transform.localScale = Vector3.one * (1f - 0.035f * _pressK);
+                SetVerticesDirty();
+            }
+        }
 
         protected override void OnPopulateMesh(VertexHelper vh)
         {
@@ -474,9 +493,11 @@ public static class Ui
             if (btn == null) return;
             var r = GetPixelAdjustedRect();
             bool on = btn.interactable;
+            float k = on ? _hoverK : 0f;
             Color bg, border;
-            if (btn.primary) { bg = hover && on ? AMBER2 : AMBER; border = bg; }
-            else { bg = hover && on ? HOVER : PANEL2; border = LINE2; }
+            if (btn.primary) { bg = Color.Lerp(AMBER, AMBER2, k); border = bg; }
+            else { bg = Color.Lerp(PANEL2, HOVER, k); border = Color.Lerp(LINE2, A(CYAN, 0.7f), k * 0.6f); }
+            bg = Color.Lerp(bg, Color.white, _flash * 0.45f);
             if (!on) { bg.a *= 0.42f; border.a *= 0.42f; }
             var poly = Chamfer(r, cut, true);
             Poly(vh, poly, bg);
@@ -518,7 +539,7 @@ public static class Ui
         b.face.raycastTarget = true;
         b.button = b.rt.gameObject.AddComponent<Button>();
         b.button.transition = Selectable.Transition.None;
-        b.button.onClick.AddListener(() => { Audio.Play("ui_click"); onClick(); });
+        b.button.onClick.AddListener(() => { Audio.Play("ui_click"); b.face.Flash(); onClick(); });
         b.label = Label(b.rt, mono ? text : text.ToUpperInvariant(), mono ? "mono_med" : "display", fontSize, TEXT, TextAnchor.MiddleCenter);
         float w = Mathf.Max(minW, Mathf.Ceil(b.label.preferredWidth) + 2f * padX + 4f);
         float h = Mathf.Ceil(fontSize * 1.3f) + 2f * padY;
@@ -1062,10 +1083,33 @@ public static class Ui
             s.rect.horizontal = false;
             s.rect.vertical = true;
             s.rect.movementType = ScrollRect.MovementType.Clamped;
-            s.rect.scrollSensitivity = 30f;
+            s.rect.scrollSensitivity = 0f;   // the wheel is handled in Tick, eased
             s.rect.inertia = false;
             return s;
         }
+
+        float _target = -1f;
+
+        /// The wheel scrolls the content toward a target that the content glides to; a drag (which moves the content
+        /// under the ScrollRect) takes the target with it once the glide has settled.
+        public void Tick(float dt)
+        {
+            if (!viewport.gameObject.activeInHierarchy) return;
+            float maxY = Mathf.Max(0f, content.rect.height - viewport.rect.height);
+            float cur = content.anchoredPosition.y;
+            if (_target < 0f || Mathf.Abs(cur - _target) < 0.5f) _target = cur;
+            float wheel = Input.mouseScrollDelta.y;
+            if (wheel != 0f && RectTransformUtility.RectangleContainsScreenPoint(viewport, new Vector2(Input.mousePosition.x, Input.mousePosition.y), null))
+                _target = Mathf.Clamp(_target - wheel * 110f, 0f, maxY);
+            _target = Mathf.Clamp(_target, 0f, maxY);
+            if (Mathf.Abs(cur - _target) > 0.01f)
+            {
+                float y = Mathf.Lerp(cur, _target, 1f - Mathf.Exp(-16f * dt));
+                content.anchoredPosition = new Vector2(content.anchoredPosition.x, y);
+            }
+        }
+
+        public void SetTarget(float y) { _target = y; content.anchoredPosition = new Vector2(content.anchoredPosition.x, y); }
 
         public float Width { get { return viewport.rect.width; } }
 

@@ -188,6 +188,7 @@ namespace UnityEngine
     public static class Time
     {
         public static float deltaTime => 1f / 60f;
+        public static float unscaledDeltaTime => 0.016f;
         public static float smoothDeltaTime => 1f / 60f;
         public static float realtimeSinceStartup => (float)(DateTime.Now - _t0).TotalSeconds;
         public static float time => realtimeSinceStartup;
@@ -201,7 +202,7 @@ namespace UnityEngine
         public static int height => 720;
     }
 
-    public enum KeyCode { A, B, C, D, E, F, G, H, I, L, N, Q, R, S, T, W, X, Space, Escape, Return, Tab, F5, F8, F9, F10, UpArrow, DownArrow, LeftShift, RightShift }
+    public enum KeyCode { A, B, C, D, E, F, G, H, I, L, N, Q, R, S, T, W, X, Space, Escape, Return, Tab, F5, F8, F9, F10, Alpha1, Alpha2, Alpha3, UpArrow, DownArrow, LeftShift, RightShift }
 
     public static class Input
     {
@@ -305,6 +306,7 @@ namespace UnityEngine
         public void Rotate(Vector3 axis, float angle, Space s) { }
         public void Rotate(Vector3 axis, float angle) { }
         public void SetAsLastSibling() { }
+        public void SetAsFirstSibling() { }
     }
 
     public class RectTransform : Transform
@@ -547,6 +549,7 @@ namespace UnityEngine
         public static void CaptureScreenshot(string path) { }
     }
 
+    public class CanvasGroup : Behaviour { public float alpha { get; set; } public bool blocksRaycasts { get; set; } public bool interactable { get; set; } }
     public class Canvas : Behaviour
     {
         public RenderMode renderMode { get; set; }
@@ -566,6 +569,7 @@ namespace UnityEngine
     public static class RectTransformUtility
     {
         public static bool ScreenPointToLocalPointInRectangle(RectTransform rt, Vector2 p, Camera c, out Vector2 local) { local = p; return true; }
+        public static bool RectangleContainsScreenPoint(RectTransform rt, Vector2 p, Camera c) => true;
     }
 
     namespace Rendering
@@ -602,6 +606,8 @@ namespace UnityEngine
         public interface IPointerEnterHandler { void OnPointerEnter(PointerEventData e); }
         public interface IPointerExitHandler { void OnPointerExit(PointerEventData e); }
         public interface IPointerClickHandler { void OnPointerClick(PointerEventData e); }
+        public interface IPointerDownHandler { void OnPointerDown(PointerEventData e); }
+        public interface IPointerUpHandler { void OnPointerUp(PointerEventData e); }
         public interface IBeginDragHandler { void OnBeginDrag(PointerEventData e); }
         public interface IDragHandler { void OnDrag(PointerEventData e); }
         public interface IEndDragHandler { void OnEndDrag(PointerEventData e); }
