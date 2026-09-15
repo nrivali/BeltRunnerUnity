@@ -40,8 +40,8 @@ Shield is fixed at 50 for every fit (no refit yet).
 ## Player flight
 
 - Newtonian: thrust along the nose, velocity persists; the throttle sets the speed cap (half throttle holds half the top
-  speed). Drag 0.32/s while thrusting, 0.64/s at zero throttle (coasts about
-  1.5 × speed in distance).
+  speed). Drag 0.32/s while thrusting, 0.064/s at zero throttle (coasts about
+  15 × speed in distance: from top speed about 3,900 m; the retros and the drift brake do the stopping).
 - Retros (S at zero throttle): 0.4 × thrust. Drift brake (hold Space): engine cuts, retros at 2.0 × thrust, turn rate ×2 (60°/s), drag stays
   at the thrusting value, nose swings free.
 - Q lock on a raider steers the ship to keep the nose on it; the mouse still aims the gun. The LEAD pip marks where to
