@@ -71,19 +71,7 @@ Shader "BeltRunner/Sky"
             {
                 float3 d = normalize(i.dir);
                 float3 col = _BaseColor.rgb;
-                // the galaxy: a band across the sky, tilted off the belt plane, with cloud structure along it and dark
-                // dust lanes through its middle; warm white in the core, bluer at the edges
-                float3 gN = normalize(float3(0.32, 0.82, -0.47));   // the band's pole
-                float gl = dot(d, gN);
-                float3 gAlong = normalize(d - gN * gl + 1e-4);
-                float gw = exp(-gl * gl / 0.028);
-                float cloud = fbm(d * 3.6 + 21.0) * 0.6 + fbm(d * 9.0 + 5.0) * 0.4;
-                float lane = fbm(float3(gAlong.x * 7.0, gl * 26.0, gAlong.z * 7.0) + 40.0);
-                float lanes = 1.0 - 0.75 * smoothstep(0.45, 0.62, lane) * exp(-gl * gl / 0.006);
-                float galaxy = gw * (0.35 + 0.9 * smoothstep(0.35, 0.75, cloud)) * lanes;
-                float3 gCol = lerp(float3(0.55, 0.62, 0.85), float3(0.95, 0.88, 0.74), gw);
-                col += gCol * galaxy * 0.16;
-                // the nebulae: three coloured clouds in their own parts of the sky, domain-warped so they wisp
+                // the nebulae: three coloured clouds in their own parts of the sky, domain-warped so they wisp (no galaxy band: the user found it too much)
                 float3 warp = float3(fbm(d * 2.0 + 7.0), fbm(d * 2.0 + 19.0), fbm(d * 2.0 + 31.0)) - 0.5;
                 float3 dw = d + warp * 0.35;
                 float nb1 = fbm(dw * 2.4 + 3.0);
@@ -93,11 +81,11 @@ Shader "BeltRunner/Sky"
                 float c2 = smoothstep(0.55, 0.85, nb2) * smoothstep(0.5, 0.95, dot(d, normalize(float3(0.75, -0.25, 0.6))));
                 float c3 = smoothstep(0.55, 0.85, nb3) * smoothstep(0.5, 0.95, dot(d, normalize(float3(0.1, -0.6, -0.8))));
                 col += _NebulaA.rgb * c1 * 0.4 + _NebulaB.rgb * c2 * 0.4 + float3(0.55, 0.28, 0.12) * c3 * 0.3;
-                // stars: a hash over direction cells, denser in the galaxy band, a few bright and coloured among them
+                // stars: a hash over direction cells, a few bright and coloured among them
                 float3 sp = d * 260.0;
                 float3 cell = floor(sp);
                 float h = hash(cell);
-                float thresh = 0.993 - gw * 0.004;
+                float thresh = 0.993;
                 if (h > thresh)
                 {
                     float3 c = float3(hash(cell + 1.0), hash(cell + 2.0), hash(cell + 3.0));
