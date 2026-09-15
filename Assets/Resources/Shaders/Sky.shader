@@ -80,22 +80,51 @@ Shader "BeltRunner/Sky"
                 float c1 = smoothstep(0.55, 0.85, nb1) * smoothstep(0.55, 0.95, dot(d, normalize(float3(-0.7, 0.35, 0.6))));
                 float c2 = smoothstep(0.55, 0.85, nb2) * smoothstep(0.5, 0.95, dot(d, normalize(float3(0.75, -0.25, 0.6))));
                 float c3 = smoothstep(0.55, 0.85, nb3) * smoothstep(0.5, 0.95, dot(d, normalize(float3(0.1, -0.6, -0.8))));
-                col += (_NebulaA.rgb * c1 + _NebulaB.rgb * c2 + float3(0.55, 0.28, 0.12) * c3) * 0.05;   // a bare trace: the user's reference sky is black
-                // stars: a hash over direction cells, a few bright and coloured among them
-                float3 sp = d * 260.0;
-                float3 cell = floor(sp);
-                float h = hash(cell);
-                float thresh = 0.9905;   // dense, small, white
-                if (h > thresh)
+                col += (_NebulaA.rgb * c1 + _NebulaB.rgb * c2 + float3(0.55, 0.28, 0.12) * c3) * 0.02;   // a bare trace of colour
+                // the wisps, as the user's star-field reference has them: faint blue-grey nebulosity drifting across the whole sky
+                float wisp = smoothstep(0.42, 0.8, fbm(dw * 2.6 + 3.0)) * (0.6 + 0.4 * fbm(d * 6.0 + 9.0));
+                col += float3(0.30, 0.38, 0.50) * wisp * 0.2;
+                // stars, as the reference has them: a dense dust of tiny faint ones, a medium layer, and a few bright
+                // ones with four-point spikes; white with a hint of warm or cool
+                float3 u = normalize(cross(d, abs(d.y) < 0.9 ? float3(0, 1, 0) : float3(1, 0, 0)));
+                float3 w = cross(d, u);
+                // the fine layer
                 {
-                    float3 c = float3(hash(cell + 1.0), hash(cell + 2.0), hash(cell + 3.0));
-                    float dist = length(frac(sp) - 0.5 - (c - 0.5) * 0.5);
-                    float big = h > 0.9993 ? 1.0 : 0.0;
-                    float bright = lerp(0.8, 2.2, big);
-                    float s = smoothstep(0.1 + big * 0.05, 0.0, dist) * bright * _StarGain;
-                    float hue = hash(cell + 5.0);
-                    float3 sc = hue < 0.15 ? float3(0.98, 0.9, 0.8) : (hue > 0.85 ? float3(0.85, 0.9, 1.0) : float3(0.95, 0.96, 0.98));
-                    col += s * sc;
+                    float3 sp = d * 520.0;
+                    float3 cell = floor(sp);
+                    float h = hash(cell);
+                    if (h > 0.962)
+                    {
+                        float3 c = float3(hash(cell + 1.0), hash(cell + 2.0), hash(cell + 3.0));
+                        float dist = length(frac(sp) - 0.5 - (c - 0.5) * 0.5);
+                        float s = exp(-dist * dist * 16.0) * lerp(0.5, 1.3, hash(cell + 4.0)) * _StarGain;   // a gaussian a pixel or two wide, so no star falls between pixels
+                        col += s * float3(0.9, 0.93, 1.0);
+                    }
+                }
+                // the medium and bright layers
+                {
+                    float3 sp = d * 250.0;
+                    float3 cell = floor(sp);
+                    float h = hash(cell);
+                    if (h > 0.986)
+                    {
+                        float3 c = float3(hash(cell + 1.0), hash(cell + 2.0), hash(cell + 3.0));
+                        float3 off = frac(sp) - 0.5 - (c - 0.5) * 0.5;
+                        float dist = length(off);
+                        float big = h > 0.9985 ? 1.0 : 0.0;
+                        float bright = lerp(1.7, 3.2, big);
+                        float s = exp(-dist * dist * (big > 0.5 ? 9.0 : 14.0)) * bright;
+                        if (big > 0.5)
+                        {
+                            // the diffraction spikes: two thin crosses through the star, fading along their length
+                            float ox = dot(off, u), oy = dot(off, w);
+                            float spike = exp(-abs(ox) * 40.0) * exp(-abs(oy) * 7.0) + exp(-abs(oy) * 40.0) * exp(-abs(ox) * 7.0);
+                            s += spike * 0.9;
+                        }
+                        float hue = hash(cell + 5.0);
+                        float3 sc = hue < 0.15 ? float3(0.98, 0.9, 0.8) : (hue > 0.85 ? float3(0.85, 0.9, 1.0) : float3(0.95, 0.96, 0.98));
+                        col += s * sc * _StarGain;
+                    }
                 }
                 // the sun: a hard disc and a small optical glare, both in HDR
                 float cs = dot(d, normalize(_SunDir.xyz));
