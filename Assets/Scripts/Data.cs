@@ -93,7 +93,7 @@ public static class Data
     {
         { "laser", new Upgrade { name = "Mining laser", levels = new[] { L(rate: 3), L(rate: 5), L(rate: 8), L(rate: 12), L(rate: 18) }, costs = new float[] { 350, 1400, 5000, 16000 } } },
         { "cargo", new Upgrade { name = "Cargo hold", levels = new[] { L(slots: 4), L(slots: 6), L(slots: 8), L(slots: 11), L(slots: 14), L(slots: 18) }, costs = new float[] { 200, 700, 2400, 7500, 20000 } } },
-        { "engine", new Upgrade { name = "Engines", levels = new[] { L(thrust: 164, max: 250), L(thrust: 219, max: 320), L(thrust: 281, max: 400), L(thrust: 359, max: 490), L(thrust: 461, max: 610) }, costs = new float[] { 300, 1100, 3500, 10000 } } },
+        { "engine", new Upgrade { name = "Engines", levels = new[] { L(thrust: 328, max: 500), L(thrust: 438, max: 640), L(thrust: 562, max: 800), L(thrust: 718, max: 980), L(thrust: 922, max: 1220) }, costs = new float[] { 300, 1100, 3500, 10000 } } },
         { "tank", new Upgrade { name = "Fuel tank", levels = new[] { L(cap: 100), L(cap: 160), L(cap: 250), L(cap: 400), L(cap: 600) }, costs = new float[] { 150, 600, 2000, 6000 } } },
         { "scanner", new Upgrade { name = "Scanner", levels = new[] { L(range: 28000), L(range: 46000), L(range: 74000), L(range: 135000) }, costs = new float[] { 400, 1800, 6000 } } },
         { "range", new Upgrade { name = "Laser range", levels = new[] { L(reach: 2500), L(reach: 3500), L(reach: 5000), L(reach: 7000) }, costs = new float[] { 2500, 9000, 25000 } } },
