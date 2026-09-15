@@ -74,6 +74,13 @@ public class Raiders
     Material _hull, _trim, _boltRed, _boltCyan, _boltGlowPlayer, _boltGlowRaider;
     Mesh _boltMesh;
     readonly List<Transform> _boltPool = new List<Transform>();
+
+    // the wreckage: a destroyed raider's hull pieces, each flying on with the momentum the raider had plus a shove from
+    // the blast, tumbling, kept for DEBRIS_LIFE seconds (true coordinates, like everything here)
+    class Debris { public Transform node; public Vector3 pos, vel, axis; public float rate, life; }
+    readonly List<Debris> _debris = new List<Debris>();
+    public const float DEBRIS_LIFE = 60f;
+    const int DEBRIS_MAX = 80;
     bool _warned;
 
     public Raiders(Game g)
@@ -223,7 +230,7 @@ public class Raiders
         r.dead = true;
         raiders.Remove(r);
         if (respawn) _pending.Add(new Pending { pos = r.pos, home = r.home, t = 3f, frozen = r.frozen });
-        if (r.node != null) Object.Destroy(r.node.gameObject);
+        if (r.node != null) Shatter(r);
         Audio.Play("boom");
         if (game.sparks != null)
         {
@@ -325,6 +332,7 @@ public class Raiders
         }
         var carrier = game.carrier;
         var off = game.worldOffset;
+        TickDebris(dt, off);
         var sp = ship.TruePos;
         bool flying = game.started && !ship.docked && ship.warp == null && ship.cut == null;
         bool nearDepot = carrier != null && !carrier.hold && (sp - carrier.truePos).magnitude < SAFE_R;
@@ -509,6 +517,44 @@ public class Raiders
         if (axis.sqrMagnitude < 1e-8f) axis = Vector3.Cross(from, Mathf.Abs(from.y) < 0.9f ? Vector3.up : Vector3.right);
         return (Quaternion.AngleAxis(maxRad * Mathf.Rad2Deg, axis.normalized) * from).normalized;
     }
+
+    /// The raider comes apart: every hull piece becomes debris carrying the raider's velocity plus a shove outward from
+    /// the blast (40 to 120 u/s) and a tumble; the exhaust glow goes out. The oldest debris is dropped past DEBRIS_MAX.
+    void Shatter(Raider r)
+    {
+        var parts = new List<Transform>();
+        for (int i = 0; i < r.node.childCount; i++) parts.Add(r.node.GetChild(i));
+        foreach (var p in parts)
+        {
+            if (p.name == "Exhaust") { Object.Destroy(p.gameObject); continue; }
+            p.SetParent(_root, true);   // keeps the world position, rotation and scale
+            var outward = (p.position + game.worldOffset - r.pos);
+            outward = outward.sqrMagnitude > 1e-4f ? outward.normalized : Random.onUnitSphere;
+            var shove = outward * Random.Range(40f, 120f) + Random.insideUnitSphere * 30f;
+            _debris.Add(new Debris
+            {
+                node = p, pos = p.position + game.worldOffset, vel = r.vel + shove,
+                axis = Random.onUnitSphere, rate = Random.Range(40f, 220f), life = DEBRIS_LIFE
+            });
+        }
+        Object.Destroy(r.node.gameObject);
+        while (_debris.Count > DEBRIS_MAX) { Object.Destroy(_debris[0].node.gameObject); _debris.RemoveAt(0); }
+    }
+
+    void TickDebris(float dt, Vector3 off)
+    {
+        for (int i = _debris.Count - 1; i >= 0; i--)
+        {
+            var d = _debris[i];
+            d.life -= dt;
+            if (d.life <= 0f || d.node == null) { if (d.node != null) Object.Destroy(d.node.gameObject); _debris.RemoveAt(i); continue; }
+            d.pos += d.vel * dt;
+            d.node.position = d.pos - off;
+            d.node.Rotate(d.axis, d.rate * dt, Space.World);
+        }
+    }
+
+    public int DebrisCount { get { return _debris.Count; } }
 
     public string Stats()
     {

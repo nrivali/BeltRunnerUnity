@@ -303,6 +303,7 @@ namespace UnityEngine
         public Vector3 TransformDirection(Vector3 d) => d;
         public void SetParent(Transform t, bool keep) { }
         public void Rotate(Vector3 axis, float angle, Space s) { }
+        public void Rotate(Vector3 axis, float angle) { }
         public void SetAsLastSibling() { }
     }
 
