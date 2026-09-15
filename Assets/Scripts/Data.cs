@@ -151,7 +151,7 @@ public static class Data
         {
             case "laser": return L.rate + " dmg/s";
             case "cargo": return L.slots + " slots";
-            case "engine": return Mathf.RoundToInt(L.thrust * METRE) + " thrust · " + Mathf.RoundToInt(L.max * METRE) + " top speed";
+            case "engine": return Mathf.RoundToInt(L.max * METRE) + " m/s top speed";
             case "thrusters": return L.mult > 1 ? "×" + L.mult + " speed on Shift · ×" + BurnMult(L.mult) + " fuel burn" : "not fitted";
             case "gun": return L.reach > 0f ? Mathf.RoundToInt(L.mult) + " dmg × " + L.rate + " /s · " + Fm(L.reach) + " m range" : "not fitted";
             case "overcharge": return L.mult > 1f ? "×" + L.mult + " laser damage · " + (OVER_BURN * L.mult).ToString("0.0") + " fuel/s while cutting" : "not fitted";
