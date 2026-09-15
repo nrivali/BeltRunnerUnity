@@ -74,6 +74,7 @@ public class Game : MonoBehaviour
             State.fuel = State.Stat("tank").cap;
         }
         if (_smoke) { State.Reset(); State.controlsShown = true; State.hudScale = 1f; State.tut = 0; State.depot["laser"] = 1; State.depot["collectors"] = 1; }   // a fresh pilot every time, questline and all; the cargo ship upgrades, so the dish and a drone get exercised
+        if (_smokeOnly == "cockpit") { State.sandbox = true; QualitySettings.vSyncCount = 0; Application.targetFrameRate = 60; } // visual QA must never write the pilot save
         var t0 = Time.realtimeSinceStartup;
         SetupCamera();
         lighting = new Lighting();
@@ -664,6 +665,7 @@ public class Game : MonoBehaviour
         _frame++;
         _phaseFrame++;
         if (_smokeOnly == "menus") { SmokeMenus(); return; }
+        if (_smokeOnly == "cockpit") { SmokeCockpit(); return; }
         SmokeTutorial();
         switch (_phase)
         {
@@ -775,6 +777,7 @@ public class Game : MonoBehaviour
                     ship.throttle = 0f;
                     ship.UpdateCamera(1f);
                     ship.LockOnRaider(_smokeRaider);
+                    ship.weapon = "gun";   // the wheel selects it in play; holding fire alone uses the current tool
                     ship.autoFire = true;
                     _smokeCr = State.credits;
                     Debug.Log("smoke: combat · " + raiders.Stats() + " · raider hp " + _smokeRaider.hp.ToString("0") + " state " + _smokeRaider.state + " · gun " + Data.Describe("gun", State.up["gun"]) + " · hull " + State.hull.ToString("0"));
@@ -977,6 +980,61 @@ public class Game : MonoBehaviour
                 if (_phaseFrame > 4000) { Debug.Log("smoke: FAIL · never got home"); Quit(); }
                 break;
         }
+    }
+
+    void SmokeCommand(string name)
+    {
+        var go = GameObject.Find(name);
+        var button = go != null ? go.GetComponent<UnityEngine.UI.Button>() : null;
+        if (button == null || !button.interactable) { Debug.Log("smoke cockpit: FAIL · command unavailable: " + name); return; }
+        button.onClick.Invoke();
+    }
+
+    /// A short, save-free flight fixture for inspecting the physical console at any window size.
+    void SmokeCockpit()
+    {
+        int f = _phaseFrame;
+        if (f == 5)
+        {
+            tutorial.Skip();
+            if (State.controlsShown) hud.ToggleControls();
+            hud.CloseWindow(); ship.LeaveHangar(); ship.cut = null;
+            int nearest; float dist;
+            belt.Scan(ship.TruePos, 200000f, Data.OreIndex("copper"), 0f, out nearest, out dist);
+            _smokeRock = nearest;
+            if (nearest >= 0)
+            {
+                belt.SetFree(nearest, Vector3.zero);
+                var rp = belt.RockPos(nearest) - worldOffset;
+                var dir = (rp - ship.transform.position).normalized;
+                ship.transform.position = rp - dir * (belt.radius[nearest] + 950);
+                ship.transform.rotation = Quaternion.LookRotation(dir, Vector3.up);
+                ship.vel = Vector3.zero; ship.throttle = 0;
+                ship.UpdateCamera(1); ship.LockOnRock(nearest);
+                belt.hp[nearest] = belt.hpMax[nearest] = 300;
+            }
+            State.cargo["copper"] = 64; State.cargo["iron"] = 37;
+            State.fuel = State.Stat("tank").cap * .72f;
+        }
+        if (f == 360) { Shot("cockpit_flight"); Debug.Log("smoke cockpit: flight · lock=" + ship.lockKind + " · pointer over console=" + hud.PointerOverCockpit); }
+        if (f == 370) { ship.autoFire = true; ship.Radar(); }
+        if (f == 480) { Shot("cockpit_mining"); Debug.Log("smoke cockpit: laser=" + ship.laserOn + " · target=" + ship.target + " · cargo=" + State.CargoTotal()); }
+        if (f == 485) { ship.autoFire = false; SmokeCommand("LOCK [Q]"); Debug.Log("smoke cockpit: lock release=" + (ship.lockKind == "")); State.shield = 0; State.hull = State.Stat("hull").hp * .2f; State.sinceHit = 0; }
+        if (f == 500) { SmokeCommand("LOCK [Q]"); Debug.Log("smoke cockpit: lock acquire=" + (ship.lockKind == "rock")); }
+        if (f == 510) { State.up["overcharge"] = 1; SmokeCommand("OVERCHARGE [G]"); Debug.Log("smoke cockpit: overcharge=" + ship.overcharge); }
+        if (f == 515) Shot("cockpit_warning");
+        if (f == 520) SmokeCommand("OVERCHARGE [G]");
+        if (f == 540) { State.hull = State.Stat("hull").hp; State.shield = Data.SHIELD_MAX; SmokeCommand("INVENTORY [I]"); }
+        if (f == 580) { Shot("cockpit_inventory"); Debug.Log("smoke cockpit: inventory=" + hud.InvOpen); }
+        if (f == 590) hud.ToggleInventory();
+        if (f == 600) { SmokeCommand("NAV [N]"); Debug.Log("smoke cockpit: nav=" + hud.MapOpen); }
+        if (f == 610) hud.CloseMap();
+        if (f == 620) hud.SetScale(1.6f);
+        if (f == 660) Shot("cockpit_scale_large");
+        if (f == 700) hud.SetScale(.7f);
+        if (f == 740) Shot("cockpit_scale_small");
+        if (f == 750) { SmokeCommand("DOCK [E]"); Debug.Log("smoke cockpit: approach=" + (ship.cut != null)); }
+        if (f == 800) { Debug.Log("smoke cockpit: done · save suppressed=" + State.sandbox + " · fonts missing=" + Ui.fontsMissing); Quit(); }
     }
 
     /// `-smoke menus`: the hangar window's three tabs, the pause menu's three pages and the nav map, each shot where it

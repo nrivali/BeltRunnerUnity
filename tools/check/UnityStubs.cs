@@ -270,6 +270,7 @@ namespace UnityEngine
         public T[] GetComponentsInChildren<T>(bool inactive) => new T[0];
         public T GetComponentInChildren<T>() => default(T);
         public void SetActive(bool v) { }
+        public static GameObject Find(string name) => null;
         public static GameObject CreatePrimitive(PrimitiveType t) => null;
     }
 
@@ -372,6 +373,7 @@ namespace UnityEngine
 
     public static class QualitySettings
     {
+        public static int vSyncCount { get; set; }
         public static float shadowDistance { get; set; }
         public static int shadowCascades { get; set; }
         public static ShadowQuality shadows { get; set; }
@@ -501,6 +503,7 @@ namespace UnityEngine
 
     public static class Application
     {
+        public static int targetFrameRate { get; set; }
         public static string streamingAssetsPath => "";
         public static bool isFocused => true;
         public static string persistentDataPath => System.IO.Path.GetTempPath();
@@ -592,6 +595,7 @@ namespace UnityEngine
         public class UnityEvent
         {
             public void AddListener(Action a) { }
+            public void Invoke() { }
         }
         public class UnityEvent<T>
         {
@@ -650,6 +654,7 @@ namespace UnityEngine
             public void AddTriangle(int a, int b, int c) { }
         }
         public class Image : Graphic { }
+        public class RawImage : MaskableGraphic { public Texture texture { get; set; } }
         public class RectMask2D : Behaviour { }
         public class Text : Graphic
         {

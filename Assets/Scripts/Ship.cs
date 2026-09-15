@@ -135,6 +135,7 @@ public class Ship : MonoBehaviour
     public const float FOV = 62f;
     float _ctlYaw, _ctlPitch, _ctlRoll;
     float _fov = FOV;
+    float _consoleFrame;
     public float camYaw, camPitch, camRoll;   // the eased control deflections the camera swing uses (the HUD reads them too)
     float _lockT;      // seconds since the lock was set: the lock steering eases its authority in over the first 0.4 s
     bool _autoSteer;   // the lock is steering this frame: the camera swing takes only a quarter of that deflection
@@ -776,7 +777,7 @@ public class Ship : MonoBehaviour
     /// cursor wins. dist is measured from the nose to the surface, in the same units as laser reach.
     public HoverInfo HoverPick()
     {
-        if (docked || cut != null || warp != null || !CanFly || game.hud == null || game.hud.InvOpen || game.hud.MapOpen || game.hud.MenuVisible) return null;
+        if (docked || cut != null || warp != null || !CanFly || game.hud == null || game.hud.InvOpen || game.hud.MapOpen || game.hud.MenuVisible || game.hud.MouseOverFlightUi) return null;
         var m = Input.mousePosition;
         if (m.x < 0f || m.y < 0f || m.x > Screen.width || m.y > Screen.height) return null;
         float f = Mathf.Tan(cam.fieldOfView * Mathf.Deg2Rad * 0.5f);
@@ -1143,8 +1144,11 @@ public class Ship : MonoBehaviour
         bool flying = CanFly;   // nothing answers while disabled or being recovered: the ship drifts
         var mp = Input.mousePosition;
         float msx = Mathf.Clamp((mp.x - Screen.width * 0.5f) / (Screen.width * 0.5f), -1f, 1f);
-        float msy = Mathf.Clamp((mp.y - Screen.height * 0.5f) / (Screen.height * 0.5f), -1f, 1f);
-        rdown = mouseSteer && Input.GetMouseButton(1) && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible;
+        float deck = game.hud != null ? game.hud.FlightConsoleFraction : 0;
+        float viewHeight = Screen.height * (1 - deck);
+        float viewCenter = Screen.height * deck + viewHeight * .5f;
+        float msy = Mathf.Clamp((mp.y - viewCenter) / Mathf.Max(1, viewHeight * .5f), -1f, 1f);
+        rdown = mouseSteer && !game.hud.MouseOverFlightUi && Input.GetMouseButton(1) && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible;
         if (rdown)
         {
             // free look: the mouse swings the camera instead of the ship (the ship holds its heading)
@@ -1174,7 +1178,7 @@ public class Ship : MonoBehaviour
             yaw = Mathf.Clamp(ey * 5f, -1f, 1f) * auth;
             pitchUp = Mathf.Clamp(ep * 5f, -1f, 1f) * auth;
         }
-        else if (flying && mouseSteer && !rdown)
+        else if (flying && mouseSteer && !rdown && !game.hud.MouseOverFlightUi)
         {
             yaw = Shape(msx);
             pitchUp = Shape(msy);
@@ -1871,7 +1875,7 @@ public class Ship : MonoBehaviour
     // ---- the laser, radar, overcharge
     void TickLaser(float dt)
     {
-        firing = autoFire || Input.GetKey(KeyCode.L) || Input.GetMouseButton(0);   // Space is the drift brake now
+        firing = autoFire || Input.GetKey(KeyCode.L) || (Input.GetMouseButton(0) && !game.hud.MouseOverFlightUi && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible);   // Space is the drift brake now
         float reach = State.Stat("range").reach;
         var fwd = Forward;
         var origin = TruePos + fwd * 20f;
@@ -1880,7 +1884,7 @@ public class Ship : MonoBehaviour
         _laser.enabled = false;
         // the scroll wheel swaps the weapon
         float wheel = Input.mouseScrollDelta.y;
-        if (wheel != 0f && CanFly && !docked && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible)
+        if (wheel != 0f && !game.hud.MouseOverFlightUi && CanFly && !docked && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible)
         {
             weapon = weapon == "laser" ? "gun" : "laser";
             game.Toast(weapon == "gun" ? "Autocannon selected · the wheel goes back to the laser" : "Mining laser selected", false);
@@ -2047,7 +2051,7 @@ public class Ship : MonoBehaviour
         else game.Toast("Radar: " + scanCount + " ore rocks within " + Data.Fm(range) + " m · nearest " + belt.RockName(scanNearest) + " at " + Data.Fm(scanDist) + " m", false);
     }
 
-    void ToggleOvercharge()
+    public void ToggleOvercharge()
     {
         float m = State.Stat("overcharge").mult;
         if (m <= 1f)
@@ -2066,6 +2070,8 @@ public class Ship : MonoBehaviour
     public void UpdateCamera(float dt)
     {
         float s = Data.SHIP_SCALE;
+        float frameWant = game.hud != null ? game.hud.FlightConsoleFraction : 0;
+        _consoleFrame = Mathf.Lerp(_consoleFrame, frameWant, 1 - Mathf.Exp(-6 * dt));
         if (warp != null)
         {
             // the exterior shot: behind and beside the carrier as it jumps, ahead of it as it arrives
@@ -2129,7 +2135,8 @@ public class Ship : MonoBehaviour
         float bank = (-camYaw * 14f - camRoll * 7f) * Mathf.Deg2Rad;
         u = (Mathf.Cos(bank) * u + Mathf.Sin(bank) * r).normalized;   // the bank: tip the up vector about the view axis
         var camPos = transform.position - f * 88f * s + u * 30f * s - r * camYaw * 30f * s - u * camPitch * 18f * s;
-        var look = transform.position + f * 140f * s + u * 10f * s + r * camYaw * 60f * s + u * camPitch * 40f * s;
+        // Lower the chase look-point to lift the hull above the physical dashboard.
+        var look = transform.position + f * 140f * s + u * (10f - 165f * _consoleFrame) * s + r * camYaw * 60f * s + u * camPitch * 40f * s;
         if (shake > 0f)
         {
             shake = Mathf.Max(0f, shake - dt * 1.8f);
