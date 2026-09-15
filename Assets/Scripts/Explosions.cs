@@ -92,6 +92,13 @@ public class Explosions
             new Color(g * 1.3f, g * 1.1f, g, 0.6f), new Color(g, g, g, 0f), false, _soft, Random.Range(-40f, 40f), 2);
     }
 
+    /// A puff of jet exhaust off a boosting raider: pale blue-white, small, gone in a blink, so a stream of them reads as a trail.
+    public void Jet(Vector3 p, Vector3 v)
+    {
+        Add(p, v, 0f, Random.Range(0.18f, 0.3f), Random.Range(7f, 11f), Random.Range(14f, 22f),
+            new Color(0.7f, 0.85f, 1f, 0.8f), new Color(0.3f, 0.5f, 1f, 0f), true, _soft, Random.Range(-90f, 90f), 1);
+    }
+
     /// A small pop: a quick flash, for a hull coming apart in stages.
     public void Pop(Vector3 p, Vector3 v)
     {

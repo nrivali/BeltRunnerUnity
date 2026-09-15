@@ -30,6 +30,9 @@ public class Raiders
         public Vector3 pos, vel, home, wp;
         public Transform node;
         public Material exhaust;
+        public Transform exhaustNode;
+        public bool boosting;   // the throttle wide open: the exhaust flares, a jet trail streams, a quarter more speed
+        public float jetT;
         public float hp, maxHp, dmg, speed, bounty, a, fireCd;
         public float shield, maxShield, sinceHit = 99f;
         public float gunDmg, gunRate, gunReach;   // the same weapon as the player's base autocannon   // the shield soaks damage first and recharges after ten quiet seconds
@@ -176,12 +179,12 @@ public class Raiders
         eye.transform.localScale = Vector3.one * 2.8f;
         eye.GetComponent<MeshRenderer>().sharedMaterial = _trim;
         var ex = Ship.SoftMaterial(new Color(1f, 0.18f, 0.39f, 0.6f));
-        Ship.GlowQuad(go.transform, new Vector3(0f, 0f, -16f), 9f, ex, "Exhaust");
+        var exNode = Ship.GlowQuad(go.transform, new Vector3(0f, 0f, -16f), 9f, ex, "Exhaust");
         float hp = Mathf.Round(50f * Mathf.Max(1f, 0.5f + danger));       // 50 at Kessler's danger, more in a harder zone
         float shield = Mathf.Round(50f * Mathf.Max(1f, 0.5f + danger));
         raiders.Add(new Raider
         {
-            pos = pos, home = home, wp = home, node = go.transform, exhaust = ex, hp = hp, maxHp = hp, shield = shield, maxShield = shield, dmg = Mathf.Round(3f + 4f * danger),
+            pos = pos, home = home, wp = home, node = go.transform, exhaust = ex, exhaustNode = exNode, hp = hp, maxHp = hp, shield = shield, maxShield = shield, dmg = Mathf.Round(3f + 4f * danger),
             heading = Random.onUnitSphere, spd = 120f,
             gunDmg = RAIDER_DMG, gunRate = Data.UPGRADES["gun"].levels[0].rate, gunReach = RAIDER_REACH,   // the player's own base autocannon
             a = Random.value * 6f, fireCd = Random.Range(1f, 2f), speed = 820f + danger * 90f, bounty = Mathf.Round(120f * danger + 80f), frozen = frozen,
@@ -438,6 +441,7 @@ public class Raiders
             if (dist > 1f) want /= dist;
             if (r.frozen)
             {
+                SetBoost(r, false, d);
                 r.vel = Vector3.zero;
                 r.spd = 0f;
                 if (r.state == "attack" && d > 1f) r.heading = RotateTowards(r.heading, (sp - r.pos) / d, TURN_RATE * dt);
@@ -453,7 +457,17 @@ public class Raiders
                 if (r.state != "attack") wantSpd = Mathf.Min(wantSpd, Mathf.Max(60f, dist / 3f));   // ease up on the point (a long run is flown at full thrust)
                 float off2 = Vector3.Dot(r.heading, want);
                 if (off2 < 0.3f) wantSpd = Mathf.Min(wantSpd, 260f);   // pointing the wrong way: throttle back through the turn
-                r.spd = r.spd < wantSpd ? Mathf.Min(wantSpd, r.spd + ACCEL * dt) : Mathf.Max(wantSpd, r.spd - DECEL * dt);
+                // the boost: on a run in from far out or a long run out, nose on the mark, the throttle goes wide open
+                bool boost = r.state == "attack" && off2 > 0.8f && (r.move == "long" || (r.move == "run" && d > 900f));
+                if (boost) wantSpd *= BOOST_MULT;
+                SetBoost(r, boost, d);
+                r.spd = r.spd < wantSpd ? Mathf.Min(wantSpd, r.spd + ACCEL * (boost ? 1.6f : 1f) * dt) : Mathf.Max(wantSpd, r.spd - DECEL * dt);
+                if (boost && game.explosions != null)
+                {
+                    // the jet trail: pale puffs streaming off the exhaust
+                    r.jetT -= dt;
+                    while (r.jetT <= 0f) { r.jetT += 0.035f; game.explosions.Jet(r.pos - r.heading * Random.Range(16f, 26f) + Random.insideUnitSphere * 3f, r.vel - r.heading * 120f); }
+                }
                 r.vel = r.heading * r.spd;
                 r.pos += r.vel * dt;
                 r.node.rotation = Ship.LevelHeading(r.heading);
@@ -507,6 +521,23 @@ public class Raiders
                 b.node.gameObject.SetActive(false);
                 bolts.RemoveAt(i);
             }
+        }
+    }
+
+    public const float BOOST_MULT = 1.25f;
+
+    /// The boost on or off: the exhaust flares white-blue at twice the size while it is on (its normal pink glow
+    /// otherwise), and a whoosh and roar plays with distance the moment it kicks in.
+    void SetBoost(Raider r, bool on, float d)
+    {
+        if (on == r.boosting) return;
+        r.boosting = on;
+        if (r.exhaust != null) r.exhaust.SetColor("_Color", on ? new Color(0.75f, 0.88f, 1f, 0.95f) : new Color(1f, 0.18f, 0.39f, 0.6f));
+        if (r.exhaustNode != null) r.exhaustNode.localScale = Vector3.one * (on ? 18f : 9f);
+        if (on)
+        {
+            float att = d <= 300f ? 0f : -20f * Mathf.Log10(d / 300f);
+            if (att > -30f) Audio.Play("raider_boost", att);
         }
     }
 

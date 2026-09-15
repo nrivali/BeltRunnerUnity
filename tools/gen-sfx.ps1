@@ -16,6 +16,8 @@ $clips=@(
   # the hit marker: a punchy tick on a hit, a sting on the kill
   @{name='hit_marker';  dur=0.5; text='loud punchy arcade hit marker, a sharp bright metallic click with a hard short thump, instant attack, very short, satisfying, no music'},
   @{name='kill_marker'; dur=0.9; text='arcade kill confirmation, a deep punchy bass thump with a crisp high snap layered on top, one single hit, very short, satisfying, no melody, no music'},
+  # a raider opening the throttle: a whoosh and roar that passes
+  @{name='raider_boost'; dur=1.8; text='spaceship afterburner igniting and roaring past, a sharp whoosh into a deep rumbling roar that fades, no music'},
   @{name='shield_up';   dur=1.6; text='sci-fi spaceship energy shield recharging and snapping back on, a rising electric charge swell ending in a clean bright lock-in chime, no music'}
 )
 foreach ($c in $clips) {
