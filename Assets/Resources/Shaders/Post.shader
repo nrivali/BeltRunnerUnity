@@ -10,6 +10,8 @@ Shader "BeltRunner/Post"
         _Exposure ("Exposure", Float) = 1.05
         _Threshold ("Glow threshold", Float) = 1.15
         _Intensity ("Glow intensity", Float) = 0.55
+        _Burn ("Afterburner", Float) = 0
+        _BurnCenter ("Afterburner centre", Vector) = (0.5, 0.5, 0, 0)
     }
     SubShader
     {
@@ -20,7 +22,8 @@ Shader "BeltRunner/Post"
         sampler2D _MainTex;
         float4 _MainTex_TexelSize;
         sampler2D _Bloom;
-        float _Exposure, _Threshold, _Intensity;
+        float _Exposure, _Threshold, _Intensity, _Burn;
+        float4 _BurnCenter;
 
         struct v2f
         {
@@ -98,7 +101,32 @@ Shader "BeltRunner/Post"
             #pragma fragment frag
             float4 frag(v2f i) : SV_Target
             {
-                float3 c = tex2D(_MainTex, i.uv).rgb + tex2D(_Bloom, i.uv).rgb * _Intensity;
+                float3 c;
+                if (_Burn > 0.003)
+                {
+                    // the afterburner: a radial blur toward the centre (which leads into a turn), the red and blue
+                    // fringing apart along the same rays, and the edges pulled darker, all growing with the distance out
+                    float2 cen = _BurnCenter.xy;
+                    float2 d = i.uv - cen;
+                    float dist = length(d * float2(1.0, _MainTex_TexelSize.x / _MainTex_TexelSize.y));
+                    float s = _Burn * (0.045 + 0.06 * dist);
+                    float fr = _Burn * 0.0045 * dist;
+                    float3 acc = 0.0;
+                    for (int k = 0; k < 10; k++)
+                    {
+                        float t = k / 9.0;
+                        float2 uv = cen + d * (1.0 - s * t);
+                        float2 rd = normalize(d + 1e-5) * fr;
+                        float r = tex2D(_MainTex, uv + rd).r;
+                        float g = tex2D(_MainTex, uv).g;
+                        float b = tex2D(_MainTex, uv - rd).b;
+                        acc += float3(r, g, b);
+                    }
+                    c = acc / 10.0;
+                    c *= 1.0 - _Burn * 0.42 * dist * dist;
+                }
+                else c = tex2D(_MainTex, i.uv).rgb;
+                c += tex2D(_Bloom, i.uv).rgb * _Intensity;
                 return float4(aces(c * _Exposure), 1.0);
             }
             ENDCG

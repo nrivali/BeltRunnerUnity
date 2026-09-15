@@ -104,6 +104,8 @@ public class Post : MonoBehaviour
     public float exposure = 1.05f;
     public float threshold = 1.15f;
     public float intensity = 0.55f;
+    public float burn;                              // the afterburner: 0..1, the radial blur and the fringing
+    public Vector2 burnCenter = new Vector2(0.5f, 0.5f);   // its centre in uv, leading into a turn
     Material _mat;
 
     void OnRenderImage(RenderTexture src, RenderTexture dst)
@@ -117,6 +119,8 @@ public class Post : MonoBehaviour
         _mat.SetFloat("_Exposure", exposure);
         _mat.SetFloat("_Threshold", threshold);
         _mat.SetFloat("_Intensity", intensity);
+        _mat.SetFloat("_Burn", burn);
+        _mat.SetVector("_BurnCenter", new Vector4(burnCenter.x, burnCenter.y, 0f, 0f));
         int w = src.width / 4, h = src.height / 4;
         var a = RenderTexture.GetTemporary(w, h, 0, src.format);
         var b = RenderTexture.GetTemporary(w, h, 0, src.format);

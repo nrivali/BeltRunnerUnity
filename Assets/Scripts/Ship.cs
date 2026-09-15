@@ -136,6 +136,8 @@ public class Ship : MonoBehaviour
     float _ctlYaw, _ctlPitch, _ctlRoll;
     float _fov = FOV;
     public float camYaw, camPitch, camRoll;   // the eased control deflections the camera swing uses (the HUD reads them too)
+    public float burnK;      // the afterburner's intensity, eased: in over a third of a second, out over half
+    float _burnKick, _jetT;  // the kick at ignition (decays), the jet puff timer
     public bool rdown;
 
     // the beam's heat effect (the browser's heatFx): the spot on the stone takes 30 s to reach white heat and cools off
@@ -420,9 +422,24 @@ public class Ship : MonoBehaviour
         if (_exhaustMat != null)
         {
             float ex = thrusting ? 0.35f + 0.6f * throttle + Random.value * 0.1f : 0.15f;
-            float es = thrusting ? (afterburning ? 22f : 5f + 9f * throttle) + Random.value * 4f : 5f;
-            _exhaustMat.SetColor("_Color", new Color(0.37f, 0.83f, 0.94f, ex));
+            float es = thrusting ? (afterburning ? 30f : 5f + 9f * throttle) + Random.value * (afterburning ? 10f : 4f) : 5f;
+            // on the burner the glow goes white-blue and flickers hard
+            _exhaustMat.SetColor("_Color", afterburning ? new Color(0.78f, 0.9f, 1f, 0.7f + Random.value * 0.3f) : new Color(0.37f, 0.83f, 0.94f, ex));
             foreach (var q in _exhausts) q.localScale = Vector3.one * es;
+            // the plume: puffs of pale jet streaming off every engine while the burner is lit
+            if (afterburning && game.explosions != null)
+            {
+                _jetT -= Time.deltaTime;
+                while (_jetT <= 0f)
+                {
+                    _jetT += 0.025f;
+                    foreach (var q in _exhausts)
+                    {
+                        var p = q.position + game.worldOffset - Forward * Random.Range(2f, 9f) + Random.insideUnitSphere * 1.5f;
+                        game.explosions.Jet(p, vel - Forward * Random.Range(160f, 260f) + Random.insideUnitSphere * 12f);
+                    }
+                }
+            }
         }
         bool blink = Mathf.Repeat(State.time, 1.2f) < 0.12f;
         foreach (var l in _navLights) if (l.activeSelf != blink) l.SetActive(blink);
@@ -2061,7 +2078,12 @@ public class Ship : MonoBehaviour
         var eng = State.Stat("engine");
         float spFrac = eng.max > 0f ? Mathf.Clamp01(vel.magnitude / eng.max) : 0f;
         float fovWant = FOV + 4f * spFrac;
-        if (afterburning) fovWant = FOV + 14f + 3f * State.Stat("thrusters").mult;
+        // the burner's intensity, and a kick in the field of view the instant it lights
+        bool wasBurning = burnK > 0.5f;
+        burnK = Mathf.Lerp(burnK, afterburning ? 1f : 0f, 1f - Mathf.Exp(-(afterburning ? 3f : 2f) * dt));
+        if (afterburning && !wasBurning && burnK > 0.5f) _burnKick = 1f;
+        _burnKick *= Mathf.Exp(-5f * dt);
+        if (afterburning) fovWant = FOV + 14f + 3f * State.Stat("thrusters").mult + 7f * _burnKick;
         else if (drifting) fovWant = FOV - 9f;
         _fov = Mathf.Lerp(_fov, fovWant, 1f - Mathf.Exp(-(fovWant > _fov ? 3f : 4f) * dt));
         cam.fieldOfView = _fov;
@@ -2085,6 +2107,12 @@ public class Ship : MonoBehaviour
             shake = Mathf.Max(0f, shake - dt * 1.8f);
             float sh = shake * shake * 6f;
             camPos += new Vector3(Random.Range(-sh, sh), Random.Range(-sh, sh), Random.Range(-sh, sh));
+        }
+        // the burner's rumble: a low jitter, harder with the bigger refits
+        if (burnK > 0.02f)
+        {
+            float rb = burnK * (0.35f + 0.12f * State.Stat("thrusters").mult) * s;
+            camPos += new Vector3(Random.Range(-rb, rb), Random.Range(-rb, rb), Random.Range(-rb, rb));
         }
         cam.transform.position = camPos;
         cam.transform.rotation = Quaternion.LookRotation(look - camPos, u);

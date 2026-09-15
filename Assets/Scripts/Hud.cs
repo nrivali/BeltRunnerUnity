@@ -1664,6 +1664,12 @@ public class Hud : MonoBehaviour
         // the afterburner's speed streaks: in over a third of a second when it lights, out over half a second after
         bool burning = ship.afterburning && !docked && ship.cut == null && ship.warp == null;
         _speedK = Mathf.Lerp(_speedK, burning ? 1f : 0f, 1f - Mathf.Exp(-(burning ? 3f : 2f) * dt));
+        // ... and the post pass: the radial blur and the fringing, centred where the streaks vanish
+        if (game.lighting != null && game.lighting.post != null)
+        {
+            game.lighting.post.burn = _speedK * (0.75f + 0.08f * State.Stat("thrusters").mult);
+            game.lighting.post.burnCenter = new Vector2(0.5f + ship.camYaw * 0.125f, 0.5f + ship.camPitch * 0.1f);
+        }
         var engS = State.Stat("engine");
         // the streaks react to the turn: the vanishing point leads into it (a quarter of the half-width at full yaw, a
         // fifth of the half-height at full pitch) and the field tips with the bank

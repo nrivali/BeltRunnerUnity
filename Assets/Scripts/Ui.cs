@@ -811,7 +811,7 @@ public static class Ui
                 // faint near the centre, brightest two thirds out, gone at the edge
                 float mid = (r0 + r1) * 0.5f;
                 float bright = Mathf.Clamp01((mid - 0.1f) / 0.45f) * Mathf.Clamp01((1.05f - mid) / 0.3f);
-                var col = new Color(0.8f, 0.9f, 1f, 0.55f * _k * bright);
+                var col = new Color(0.8f, 0.9f, 1f, 0.3f * _k * bright);   // faint: the post pass's blur carries the effect
                 // tapered: a sliver at the near end, the full width at the far end
                 var n = new Vector2(-d.y, d.x);
                 float w = _w[i] * (0.6f + 0.6f * mid);
