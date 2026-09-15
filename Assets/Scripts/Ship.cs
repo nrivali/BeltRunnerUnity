@@ -1235,7 +1235,9 @@ public class Ship : MonoBehaviour
         float dragK = throttle > 0f || drifting ? 0.32f : 0.64f;   // the drift keeps the momentum: the retros do the slowing; at zero throttle the ship coasts twice as far as it did (drag halved from 1.28)
         vel *= Mathf.Exp(-dragK * dt);
         float sp2 = vel.magnitude;
-        float lim = Mathf.Max(eng.max * mult, spBefore * Mathf.Exp(-dragK * dt));
+        // the throttle sets the speed: the cap is the engine's top speed times the throttle (the burner multiplies it), so half
+        // throttle holds half speed; anything above the cap only falls away on drag
+        float lim = Mathf.Max(eng.max * mult * throttle, spBefore * Mathf.Exp(-dragK * dt));
         if (sp2 > lim) vel *= lim / sp2;
         transform.position += vel * dt;
         // the zone edge bounces you back; the planet stops you

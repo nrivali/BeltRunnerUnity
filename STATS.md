@@ -39,7 +39,8 @@ Shield is fixed at 50 for every fit (no refit yet).
 
 ## Player flight
 
-- Newtonian: thrust along the nose, velocity persists. Drag 0.32/s while thrusting, 0.64/s at zero throttle (coasts about
+- Newtonian: thrust along the nose, velocity persists; the throttle sets the speed cap (half throttle holds half the top
+  speed). Drag 0.32/s while thrusting, 0.64/s at zero throttle (coasts about
   1.5 × speed in distance).
 - Retros (S at zero throttle): 0.4 × thrust. Drift brake (hold Space): engine cuts, retros at 2.0 × thrust, turn rate ×2 (60°/s), drag stays
   at the thrusting value, nose swings free.
