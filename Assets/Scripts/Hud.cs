@@ -1717,12 +1717,24 @@ public class Hud : MonoBehaviour
         // the gunnery crosshair: where a bolt goes, at gun range; and the lead pip: where to put it for the locked raider
         if (showFlight && !docked && ship.cut == null && ship.CanFly)
         {
-            // the crosshair rides the mouse: that is where the gun points
-            var mp = Input.mousePosition;
-            var cp = new Vector2(mp.x, mp.y) / _canvas.scaleFactor;
-            _crosshairRt.gameObject.SetActive(OnScreen(cp) && ship.weapon == "gun");
+            // the crosshair: on the mouse with the gun (that is where the bolts go); on the nose ray at the laser's reach with
+            // the laser (that is where the beam goes: the mouse steers the ship, so the nose is the aim)
+            Vector2 cp;
+            bool cOn;
+            if (ship.weapon == "gun")
+            {
+                var mp = Input.mousePosition;
+                cp = new Vector2(mp.x, mp.y) / _canvas.scaleFactor;
+                cOn = OnScreen(cp);
+            }
+            else
+            {
+                bool cBehind = Project(ship.LaserOrigin() + ship.Forward * State.Stat("range").reach - game.worldOffset, out cp);
+                cOn = !cBehind && OnScreen(cp);
+            }
+            _crosshairRt.gameObject.SetActive(cOn);
             _crosshairRt.anchoredPosition = cp;
-            _crosshair.Set(ship.gunFiring);
+            _crosshair.Set(ship.gunFiring || ship.laserOn);
             // the crosshair stands in for the mouse: the pointer hides while it shows and no panel wants clicks
             Cursor.visible = !(_crosshairRt.gameObject.activeSelf && !InvOpen && !MapOpen && !MenuVisible);
             _crosshair.SetHit(game.raiders != null ? game.raiders.hitFlash : 0f, game.raiders != null && game.raiders.hitKill);
