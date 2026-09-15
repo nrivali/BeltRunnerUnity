@@ -1721,11 +1721,9 @@ public class Hud : MonoBehaviour
         // the gunnery crosshair: where a bolt goes, at gun range; and the lead pip: where to put it for the locked raider
         if (showFlight && !docked && ship.cut == null && ship.CanFly)
         {
-            // the crosshair sits on the nose ray with either weapon (the mouse steers the ship; the nose is the aim): at the
-            // distance of the raider in the sights, so it meets the LEAD pip when the aim is right, else at the weapon's reach
+            // the crosshair sits on the nose ray at the weapon's reach, with either weapon (the mouse steers the ship; the
+            // nose is the aim); it never moves to a target: no assist of any kind
             float cDist = ship.weapon == "gun" ? ship.GunReach : State.Stat("range").reach;
-            var cRaider = ship.lockKind == "raider" && ship.lockRaider != null && !ship.lockRaider.dead ? ship.lockRaider : ship.raiderTarget;
-            if (cRaider != null && !cRaider.dead) cDist = Mathf.Max(60f, (ship.LeadPoint(cRaider) - ship.LaserOrigin()).magnitude);
             Vector2 cp;
             bool cBehind = Project(ship.LaserOrigin() + ship.Forward * cDist - game.worldOffset, out cp);
             _crosshairRt.gameObject.SetActive(!cBehind && OnScreen(cp));
@@ -1743,7 +1741,10 @@ public class Hud : MonoBehaviour
                 {
                     if (r.dead || (r.pos - ship.LaserOrigin()).magnitude > gunReach) continue;
                     Vector2 lp;
-                    bool lBehind = Project(ship.LeadPoint(r) - game.worldOffset, out lp);   // the lead point itself: fly the nose onto it
+                    // drawn at the crosshair's own distance along the line to the lead point, so crosshair-on-pip means the nose
+                    // is on the lead point exactly (the dish sits off the camera: the lead point itself would draw a little off)
+                    var toLead = (ship.LeadPoint(r) - ship.LaserOrigin()).normalized;
+                    bool lBehind = Project(ship.LaserOrigin() + toLead * cDist - game.worldOffset, out lp);
                     if (lBehind || !OnScreen(lp)) continue;
                     if (li >= _leadPips.Count) _leadPips.Add(Ui.Marker.Make(_root, Ui.AMBER2, true));
                     _leadPips[li++].Place(lp - new Vector2(0f, 38f), false, 0f, "LEAD");
