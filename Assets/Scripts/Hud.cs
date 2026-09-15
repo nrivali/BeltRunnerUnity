@@ -73,7 +73,7 @@ public class Hud : MonoBehaviour
     public bool instantUi;   // the smoke run: the window shows at once, no ease, so its screenshots catch it
     float _winK, _bodyK, _credShown = -1f;
     // the upgrade rows, kept and updated in place (a purchase lights its row instead of rebuilding the tab)
-    class UpRow { public string key; public bool depot; public RectTransform[] pips; public Text desc; public Ui.Btn buy, minus; public Ui.Box bg; public float flash; }
+    class UpRow { public string key; public bool depot; public Image[] pips; public Text desc; public Ui.Btn buy, minus; public Ui.Box bg; public float flash; }
     readonly List<UpRow> _rows = new List<UpRow>();
     string _rowSig = "";
     public readonly List<Slot> holdSlots = new List<Slot>();
@@ -575,7 +575,7 @@ public class Hud : MonoBehaviour
     {
         if (!first) { f.Rule(); f.Gap(13f); }
         float top = f.y;
-        var row = new UpRow { key = key, depot = depot, pips = new RectTransform[total] };
+        var row = new UpRow { key = key, depot = depot, pips = new Image[total] };
         var bgRt = Ui.Rect("RowBg", f.parent, Ui.TL, Ui.TL, new Vector2(f.x - 12f, f.y + 8f), new Vector2(f.w + 24f, 10f));
         row.bg = Ui.MakeBox(bgRt, Ui.A(Ui.AMBER, 0f), Ui.A(Ui.AMBER, 0f), 1f);
         bgRt.SetAsFirstSibling();
@@ -585,8 +585,7 @@ public class Hud : MonoBehaviour
         for (int j = 0; j < total; j++)
         {
             var pip = Ui.Rect("Pip", f.parent, Ui.TL, Ui.TL, new Vector2(px + j * 13f, f.y - 5f), new Vector2(8f, 8f));
-            Ui.Fill(pip, Ui.LINE2);
-            row.pips[j] = pip;
+            row.pips[j] = Ui.Fill(pip, Ui.LINE2);
         }
         f.y -= 23f;
         bool test = !depot && State.sandbox;
@@ -706,7 +705,7 @@ public class Hud : MonoBehaviour
             string now = r.depot ? Data.DescribeDepot(r.key, i) : Data.Describe(r.key, i);
             string next = maxed ? "" : (r.depot ? Data.DescribeDepot(r.key, i + 1) : Data.Describe(r.key, i + 1));
             r.desc.text = maxed ? Ui.Col("<b>" + now + "</b>", Ui.TEXT) + " · Fully upgraded" : now + " → " + Ui.Col("<b>" + next + "</b>", Ui.TEXT);
-            for (int j = 0; j < r.pips.Length; j++) Ui.Fill(r.pips[j], j < have ? Ui.AMBER : Ui.LINE2);
+            for (int j = 0; j < r.pips.Length; j++) r.pips[j].color = j < have ? Ui.AMBER : Ui.LINE2;   // recoloured, never re-added
             float cost = maxed ? 0f : costs[i];
             r.buy.SetText(maxed ? "Max" : Data.Fmt(cost) + " cr");
             r.buy.SetPrimary(!maxed && State.credits >= cost);

@@ -51,9 +51,14 @@ public class Game : MonoBehaviour
     {
         State.Init();
         var args = Environment.GetCommandLineArgs();
-        foreach (var a in args) if (a == "-smoke" || a == "--smoke") _smoke = true;
         for (int i = 0; i < args.Length; i++)
         {
+            if (args[i] == "-smoke" || args[i] == "--smoke")
+            {
+                _smoke = true;
+                // a chapter on its own: `-smoke menus` (the next token names it)
+                if (i + 1 < args.Length && !args[i + 1].StartsWith("-")) _smokeOnly = args[i + 1];
+            }
             if (args[i] == "-combat" || args[i] == "--combat") _combat = true;
             if ((args[i] == "-gun" || args[i] == "--gun") && i + 1 < args.Length) int.TryParse(args[i + 1], out _combatGun);
         }
@@ -594,6 +599,7 @@ public class Game : MonoBehaviour
     // persistentDataPath: off the pad, cut the nearest copper rock, collect the ore, back to the carrier under
     // approach control, dock, deposit, depart again
     bool _smoke;
+    string _smokeOnly = "";   // "" for the whole run, or one chapter: "menus"
     int _frame;
     int _smokeRock = -1;
     float _smokeHp;
@@ -638,6 +644,7 @@ public class Game : MonoBehaviour
     {
         _frame++;
         _phaseFrame++;
+        if (_smokeOnly == "menus") { SmokeMenus(); return; }
         SmokeTutorial();
         switch (_phase)
         {
@@ -950,6 +957,35 @@ public class Game : MonoBehaviour
                 }
                 if (_phaseFrame > 4000) { Debug.Log("smoke: FAIL · never got home"); Quit(); }
                 break;
+        }
+    }
+
+    /// `-smoke menus`: the hangar window's three tabs, the pause menu's three pages and the nav map, each shot where it
+    /// stands, from the pad the game starts on; some credits so the upgrade rows show as buyable. Nothing is saved.
+    void SmokeMenus()
+    {
+        int f = _phaseFrame;
+        if (f == 5) { State.credits = 5000f; hud.ShowWindow("inv"); }
+        if (f == 30) { Shot("menus_inventory"); Debug.Log("smoke menus: inventory · open=" + hud.InvOpen + " · hold slots " + hud.holdSlots.Count + " · store slots " + hud.storeSlots.Count); }
+        if (f == 31) hud.ShowWindow("ship");
+        if (f == 50) { Shot("menus_ship_upgrades"); Debug.Log("smoke menus: ship upgrades · credits " + State.credits); }
+        if (f == 51) hud.ShowWindow("depot");
+        if (f == 70) Shot("menus_cargo_upgrades");
+        if (f == 71) hud.CloseWindow();
+        if (f == 75) Pause();
+        if (f == 95) Shot("menus_pause");
+        if (f == 96) hud.menu.ShowPage("settings");
+        if (f == 115) Shot("menus_settings");
+        if (f == 116) hud.menu.ShowPage("controls");
+        if (f == 135) Shot("menus_controls");
+        if (f == 136) { hud.menu.ShowPage("main"); Resume(); }
+        if (f == 140) hud.ToggleMap();
+        if (f == 160) { Shot("menus_navmap"); Debug.Log("smoke menus: nav map · open=" + hud.MapOpen); }
+        if (f == 161) hud.CloseMap();
+        if (f == 170)
+        {
+            Debug.Log("smoke menus: done · screenshots menus_*.png in " + Application.persistentDataPath + " · fonts missing " + Ui.fontsMissing);
+            Quit();
         }
     }
 

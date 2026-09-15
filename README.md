@@ -51,7 +51,7 @@ They prove syntax, types and the pure logic, not the rendering or the feel. The 
 
 ### The smoke run
 
-With `-smoke` on the command line the player starts without the menu, cuts the nearest copper rock through, waits for
+A chapter on its own: `-smoke menus` (or `smoke-menus.bat`) starts on the pad, walks the hangar window's three tabs, the pause menu's three pages and the nav map, shoots each as `menus_*.png` in the same folder, and quits in about ten seconds; nothing is saved. With `-smoke` alone the player starts without the menu, cuts the nearest copper rock through, waits for
 the ore, flies, saves, and quits, printing `smoke:` lines to the log and saving `smoke_launch.png`, `smoke_mine.png`,
 `smoke_broken.png`, `smoke_flight.png`, `smoke_taxi.png`, `smoke_approach.png`, `smoke_dock.png` and `smoke_pad.png` under `Application.persistentDataPath`
 (`%USERPROFILE%AppDataocallow
