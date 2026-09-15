@@ -150,6 +150,7 @@ namespace UnityEngine
         public static float Asin(float x) => (float)Math.Asin(x);
         public static float Acos(float x) => (float)Math.Acos(x);
         public static float Sqrt(float x) => (float)Math.Sqrt(x);
+        public static float Log10(float x) => (float)System.Math.Log10(x);
         public static float Pow(float a, float b) => (float)Math.Pow(a, b);
         public static float Exp(float x) => (float)Math.Exp(x);
         public static float Abs(float x) => Math.Abs(x);

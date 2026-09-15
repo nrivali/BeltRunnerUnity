@@ -251,7 +251,7 @@ public class Raiders
     }
 
     /// A bolt: a root (pointed along the flight), a core cylinder under it and a glow quad that faces the camera.
-    /// The player's is 26 long, 1.6 across, with a 14 u glow; a raider's 14 long, 0.6 across, with an 8 u glow.
+    /// 26 long, 1.6 across, with a 14 u glow; the player's and the raiders' look the same.
     Transform BoltNode(bool player)
     {
         Transform t = null;
@@ -270,12 +270,13 @@ public class Raiders
             _boltPool.Add(t);
         }
         t.gameObject.SetActive(true);
+        // the same bolt for everyone: a hot red core with a glow
         var c = t.GetChild(0);
-        c.localScale = player ? new Vector3(3.2f, 13f, 3.2f) : new Vector3(1.2f, 7f, 1.2f);
-        c.GetComponent<MeshRenderer>().sharedMaterial = player ? _boltCyan : _boltRed;
+        c.localScale = new Vector3(3.2f, 13f, 3.2f);
+        c.GetComponent<MeshRenderer>().sharedMaterial = _boltCyan;
         var g = t.GetChild(1);
-        g.localScale = Vector3.one * (player ? 14f : 8f);
-        g.GetComponent<MeshRenderer>().sharedMaterial = player ? _boltGlowPlayer : _boltGlowRaider;
+        g.localScale = Vector3.one * 14f;
+        g.GetComponent<MeshRenderer>().sharedMaterial = _boltGlowPlayer;
         return t;
     }
 
@@ -407,7 +408,9 @@ public class Raiders
                     float spread = 0.05f;
                     var dir = (sp + ship.vel * (d / BOLT_SPEED) - r.pos).normalized + new Vector3(Random.Range(-spread, spread), Random.Range(-spread, spread), Random.Range(-spread, spread));
                     Fire(r.pos, dir.normalized, r.gunDmg, false);
-                    Audio.Play("zap", -6f * Mathf.Clamp01(d / 1200f));
+                    // the same blaster as the player's, quieter with distance: 6 dB a doubling beyond 300 u, silent past 30 dB down
+                    float att = d <= 300f ? 0f : -20f * Mathf.Log10(d / 300f);
+                    if (att > -30f) Audio.Shot("blaster", att);
                 }
             }
             else
