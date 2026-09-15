@@ -772,8 +772,8 @@ public class Ship : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.R)) Radar();
         if (Input.GetKeyDown(KeyCode.G)) ToggleOvercharge();
         if (Input.GetKeyDown(KeyCode.F)) ToggleTorch();
-        if (Input.GetKeyDown(KeyCode.E)) StartApproach();
-        if (Input.GetKeyDown(KeyCode.Q) || Input.GetMouseButtonDown(2)) ToggleLock();   // Q or the middle mouse button
+        if (Input.GetKeyDown(KeyCode.H)) StartApproach();   // H: E is yaw now
+        if (Input.GetKeyDown(KeyCode.Z) || Input.GetMouseButtonDown(2)) ToggleLock();   // Z or the middle mouse button (Q is yaw now)
         if (Input.GetKeyDown(KeyCode.T)) CallRecovery();
     }
 
@@ -1151,7 +1151,7 @@ public class Ship : MonoBehaviour
         var mp = Input.mousePosition;
         float msx = Mathf.Clamp((mp.x - Screen.width * 0.5f) / (Screen.width * 0.5f), -1f, 1f);
         float msy = Mathf.Clamp((mp.y - Screen.height * 0.5f) / (Screen.height * 0.5f), -1f, 1f);
-        rdown = mouseSteer && Input.GetMouseButton(1) && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible;
+        rdown = mouseSteer && (Input.GetMouseButton(1) || Input.GetKey(KeyCode.C)) && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible;   // free look: hold C (or the right button)
         if (rdown)
         {
             // free look: the mouse swings the camera instead of the ship (the ship holds its heading)
@@ -1190,10 +1190,13 @@ public class Ship : MonoBehaviour
         }
         if (flying)
         {
+            // the user's flight scheme (2026-09-15): A and D roll, S pulls up and W pushes down, Q and E yaw, on top of the mouse aim
             if (Input.GetKey(KeyCode.A)) roll += 1f;
             if (Input.GetKey(KeyCode.D)) roll -= 1f;
-            if (Input.GetKey(KeyCode.UpArrow)) pitchUp += 1f;
-            if (Input.GetKey(KeyCode.DownArrow)) pitchUp -= 1f;
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.UpArrow)) pitchUp += 1f;
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.DownArrow)) pitchUp -= 1f;
+            if (Input.GetKey(KeyCode.Q)) yaw -= 1f;
+            if (Input.GetKey(KeyCode.E)) yaw += 1f;
         }
         yaw = Mathf.Clamp(yaw, -1f, 1f);
         pitchUp = Mathf.Clamp(pitchUp, -1f, 1f);
@@ -1206,18 +1209,20 @@ public class Ship : MonoBehaviour
         // target and back as the nose arrived and the deflection dropped away
         _ctlYaw = _autoSteer ? yaw * 0.25f : yaw; _ctlPitch = _autoSteer ? pitchUp * 0.25f : pitchUp; _ctlRoll = Mathf.Clamp(roll, -1f, 1f);
 
-        // throttle: W raises, S lowers, X cuts; holding S at zero fires the retros
+        // throttle: Shift raises, Ctrl lowers (the wheel too, a tenth a notch), X cuts; holding Ctrl at zero fires the retros
         if (flying)
         {
-            if (Input.GetKey(KeyCode.W)) throttle = Mathf.Min(1f, throttle + 0.7f * dt);
-            if (Input.GetKey(KeyCode.S)) throttle = Mathf.Max(0f, throttle - 0.9f * dt);
+            if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) throttle = Mathf.Min(1f, throttle + 0.7f * dt);
+            if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) throttle = Mathf.Max(0f, throttle - 0.9f * dt);
             if (Input.GetKey(KeyCode.X)) throttle = 0f;
+            float wheel = Input.mouseScrollDelta.y;
+            if (wheel != 0f && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible) throttle = Mathf.Clamp01(throttle + Mathf.Sign(wheel) * 0.1f);
         }
         // the drift: hold Space and the engine cuts (the throttle setting is kept for the release) and the ship coasts on
         // along its momentum while the nose swings at 50° a second, against the usual 30; it is for turning round, not for stopping
         drifting = flying && Input.GetKey(KeyCode.Space);
         float abMult = State.Stat("thrusters").mult;
-        afterburning = flying && throttle > 0f && !drifting && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && abMult > 1f && State.fuel > 0f;
+        afterburning = flying && throttle > 0f && !drifting && (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)) && abMult > 1f && State.fuel > 0f;   // Alt: Shift is the throttle now
         float mult = afterburning ? abMult : 1f;
         thrusting = false;
         braking = false;
@@ -1231,7 +1236,7 @@ public class Ship : MonoBehaviour
                 State.fuel = Mathf.Max(0f, State.fuel - Data.FUEL_BURN * throttle * Data.BurnMult(mult) * dt);
                 thrusting = true;
             }
-            else if (flying && Input.GetKey(KeyCode.S) && !drifting)
+            else if (flying && (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) && !drifting)
             {
                 float sp = vel.magnitude;
                 if (sp > 1f)
@@ -1480,7 +1485,7 @@ public class Ship : MonoBehaviour
         game.Toast("Approach control has the ship · " + CargoShip.BayName(far) + " · Space skips", false);
     }
 
-    /// W on the pad or the Depart button: approach control taxis the ship off the pad and straight out of its own
+    /// Shift on the pad or the Depart button: approach control taxis the ship off the pad and straight out of its own
     /// mouth, then hands it over already under way.
     public void StartDeparture()
     {
@@ -1674,14 +1679,14 @@ public class Ship : MonoBehaviour
                 game.Toast("No repair parts left · restock at the Hub", true);
             }
         }
-        // W departs, once it has been released since docking; E deposits the hold into the storage
-        if (!Input.GetKey(KeyCode.W)) depWait = false;
+        // Shift (throttle up) departs, once it has been released since docking; H deposits the hold into the storage
+        if (!(Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))) depWait = false;
         else if (!depWait)
         {
             depWait = true;
             StartDeparture();
         }
-        if (Input.GetKeyDown(KeyCode.E)) DepositAll();
+        if (Input.GetKeyDown(KeyCode.H)) DepositAll();
     }
 
     /// Holding station off the colony: the carrier is parked, you are aboard, and the market and services are open.
@@ -1891,14 +1896,7 @@ public class Ship : MonoBehaviour
         target = belt.RayHit(origin, fwd, reach);
         laserOn = false;
         _laser.enabled = false;
-        // the scroll wheel swaps the weapon
-        float wheel = Input.mouseScrollDelta.y;
-        if (wheel != 0f && CanFly && !docked && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible)
-        {
-            weapon = weapon == "laser" ? "gun" : weapon == "gun" ? "rocket" : "laser";
-            game.Toast(WeaponName(weapon) + " selected", false);
-        }
-        // 1, 2 and 3 pick them outright
+        // 1, 2 and 3 pick the weapon (the wheel is the throttle now)
         if (CanFly && !docked && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible)
         {
             if (Input.GetKeyDown(KeyCode.Alpha1) && weapon != "laser") { weapon = "laser"; game.Toast("Mining laser selected", false); }

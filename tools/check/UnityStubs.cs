@@ -207,7 +207,7 @@ namespace UnityEngine
         public static void SetResolution(int w, int h, FullScreenMode m) { }
     }
 
-    public enum KeyCode { A, B, C, D, E, F, G, H, I, L, N, Q, R, S, T, V, W, X, Space, Escape, Return, Tab, F5, F8, F9, F10, Alpha1, Alpha2, Alpha3, UpArrow, DownArrow, LeftShift, RightShift }
+    public enum KeyCode { A, B, C, D, E, F, G, H, I, L, N, Q, R, S, T, V, W, X, Z, Space, Escape, Return, Tab, F1, F5, F8, F9, F10, LeftControl, RightControl, LeftAlt, RightAlt, Alpha1, Alpha2, Alpha3, UpArrow, DownArrow, LeftShift, RightShift }
 
     public static class Input
     {

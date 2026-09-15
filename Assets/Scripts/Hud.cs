@@ -321,25 +321,27 @@ public class Hud : MonoBehaviour
     // ---- bottom left: the flight controls list (.hud-bl .controls), C hides it
     static readonly object[][] CONTROL_ROWS =
     {
-        new object[] { "Mouse", "Yaw · pitch" },
-        new object[] { new[] { "W", "S" }, "Throttle up · down" },
-        new object[] { new[] { "X" }, "Cut throttle · S at zero fires retros" },
-        new object[] { new[] { "Space" }, "Hold · drift: engine cuts, you coast on, the nose swings twice as fast" },
+        new object[] { "Mouse", "Aim · the ship turns toward the crosshair" },
         new object[] { new[] { "A", "D" }, "Roll left · right" },
-        new object[] { new[] { "Shift" }, "Afterburner while throttled up (×2 speed from the start, ×5 with the upgrades · burns fuel fast)" },
+        new object[] { new[] { "S", "W" }, "Pitch · pull up · push down (↑ ↓ too)" },
+        new object[] { new[] { "Q", "E" }, "Yaw left · right" },
+        new object[] { new[] { "Shift", "Ctrl" }, "Throttle up · down (the wheel too)" },
+        new object[] { new[] { "X" }, "Cut throttle · Ctrl at zero fires retros" },
+        new object[] { new[] { "Space" }, "Hold · drift: engine cuts, you coast on, the nose swings twice as fast" },
+        new object[] { new[] { "Alt" }, "Afterburner while throttled up (×2 speed from the start, ×5 with the upgrades · burns fuel fast)" },
+        new object[] { new[] { "C", "RMB" }, "Hold · free look" },
         new object[] { new[] { "G" }, "Laser overcharge on · off (needs the upgrade · up to ×3 damage · the beam draws fuel while it cuts)" },
-        new object[] { new[] { "↑", "↓" }, "Pitch" },
         new object[] { new[] { "LMB" }, "Hold to fire the selected weapon (L too). The laser cuts only what the crosshair is on: aim the nose at a rock" },
-        new object[] { new[] { "1", "2", "3" }, "Mining laser · autocannon · seeker rockets (the wheel cycles too)" },
+        new object[] { new[] { "1", "2", "3" }, "Mining laser · autocannon · seeker rockets" },
         new object[] { new[] { "R" }, "Radar pulse" },
-        new object[] { new[] { "Q", "MMB" }, "Lock the crosshair on whatever the mouse is over · hover another target and press Q to switch · otherwise press Q to release" },
+        new object[] { new[] { "Z", "MMB" }, "Lock the crosshair on whatever the mouse is over · hover another target and press Z to switch · otherwise press Z to release" },
         new object[] { new[] { "F" }, "Flashlight on · off in flight · the upgrade tabs when docked" },
         new object[] { new[] { "V" }, "Volumetric dust on · off" },
         new object[] { new[] { "T" }, "Out of fuel · recovery to the cargo ship (15% of credits)" },
-        new object[] { new[] { "E" }, "Approach control within 2,250 m of the cargo ship · deposit ore on the pad" },
+        new object[] { new[] { "H" }, "Approach control within 2,250 m of the cargo ship · deposit ore on the pad" },
         new object[] { new[] { "Tab", "I" }, "The hangar window · inventory, and the upgrade tabs when docked" },
         new object[] { new[] { "N" }, "Nav map · warp (docked in the cargo ship)" },
-        new object[] { new[] { "C" }, "Hide · show this list" },
+        new object[] { new[] { "F1" }, "Hide · show this list" },
         new object[] { new[] { "F5" }, "Quick-save" },
         new object[] { new[] { "F9" }, "Test · spawn 3 raiders 2,000 to 4,000 m out" },
         new object[] { new[] { "F10" }, "Test · raiders hold their fire · again to let them fire" },
@@ -400,7 +402,7 @@ public class Hud : MonoBehaviour
         box.edgeW = 4f;
         var b = Ui.Label(_notice, "CARGO HOLD FULL", "display", 13, Ui.AMBER2, TextAnchor.UpperCenter);
         Ui.At(b.rectTransform, Ui.TC, Ui.TC, new Vector2(0f, -8f), new Vector2(400f, 16f));
-        var t = Ui.Label(_notice, "Return to the cargo ship to stow it · press " + Kbd("E") + " within " + Data.Fm(Data.DOCK_RANGE) + " to auto-dock", "body", 12, Ui.TEXT, TextAnchor.UpperCenter);
+        var t = Ui.Label(_notice, "Return to the cargo ship to stow it · press " + Kbd("H") + " within " + Data.Fm(Data.DOCK_RANGE) + " to auto-dock", "body", 12, Ui.TEXT, TextAnchor.UpperCenter);
         Ui.At(t.rectTransform, Ui.TC, Ui.TC, new Vector2(0f, -28f), new Vector2(420f, 16f));
         _notice.gameObject.SetActive(false);
     }
@@ -514,7 +516,7 @@ public class Hud : MonoBehaviour
         float x = 26f;
         _departBtn = Ui.Button(foot, "Depart", () => DepartPressed(), true);
         _departBtn.rt.anchoredPosition = new Vector2(x, -14f); x += _departBtn.Width + 10f;
-        var wchip = Ui.Chip(foot, "W", false, new Vector2(x, -14f - (36f - 19f) * 0.5f)); x += wchip.sizeDelta.x + 10f;
+        var wchip = Ui.Chip(foot, "Shift", false, new Vector2(x, -14f - (36f - 19f) * 0.5f)); x += wchip.sizeDelta.x + 10f;
         _navBtn = Ui.Button(foot, "Warp to the Hub", () => { if (ship != null && ship.docked && !zone.hub) ship.StartWarp(Data.ZONE_HUB); });
         _navBtn.rt.anchoredPosition = new Vector2(x, -14f); x += _navBtn.Width + 10f;
         _closeBtn = Ui.Button(foot, "Close", () => CloseWindow());
@@ -836,7 +838,7 @@ public class Hud : MonoBehaviour
         bool canDeposit = docked && State.CargoTotal() > 0.5f;
         _depositBtn = Ui.Button(row, "Deposit all", () => { if (ship != null) ship.DepositAll(); _svcSig = ""; RefreshWindow(); }, canDeposit);
         _depositBtn.interactable = canDeposit;
-        Ui.Chip(row, "E", false, new Vector2(_depositBtn.Width + 10f, -(36f - 19f) * 0.5f));
+        Ui.Chip(row, "H", false, new Vector2(_depositBtn.Width + 10f, -(36f - 19f) * 0.5f));
         L.Gap(12f);
         if (us > 0) TotalRow(L, "Hold value at Hub prices", Data.Fmt(State.ValueOf(State.cargo)) + " cr");
         else L.Para("The hold is empty. Break a rock and fly through the ore it drops.", "body", 13, Ui.DIM, 10f);
@@ -1723,7 +1725,7 @@ public class Hud : MonoBehaviour
         if (!showTarget)
         {
             _tName.text = "No target";
-            _tRows.text = Ui.Col("Q or MMB locks what the mouse is over", Ui.HUD_DIM);
+            _tRows.text = Ui.Col("Z or MMB locks what the mouse is over", Ui.HUD_DIM);
             _tHpRow.gameObject.SetActive(false);
             _tWarn.gameObject.SetActive(false);
         }
@@ -1755,7 +1757,7 @@ public class Hud : MonoBehaviour
                 else if (ship.cut.mode == "dock") segs.Add("Approach control has the ship · " + CargoShip.BayName(ship.cut.side));
                 if (ship.cut.mode != "depart") segs.Add(Kbd("Space") + " Skip");
             }
-            else if (carrier != null && toCarrier < Data.DOCK_RANGE && !hold) segs.Add(Kbd("E") + " Auto-dock with the cargo ship · or fly in through either hangar mouth");
+            else if (carrier != null && toCarrier < Data.DOCK_RANGE && !hold) segs.Add(Kbd("H") + " Auto-dock with the cargo ship · or fly in through either hangar mouth");
             else if (State.fuel <= 0.5f && ship.cut == null) segs.Add(Kbd("T") + " Out of fuel · recovery to the cargo ship (15% of credits)");
             if (ship.cut == null && ship.CanFly)
             {
@@ -1771,11 +1773,11 @@ public class Hud : MonoBehaviour
                 else segs.Add((ship.laserOn ? "Cutting " : "Aiming at ") + Data.ORES[belt.ore[i]].name);
             }
         }
-        else if (started && State.CargoTotal() > 0.5f && !hold) segs.Add(Kbd("E") + " Deposit all ore into the cargo ship");
+        else if (started && State.CargoTotal() > 0.5f && !hold) segs.Add(Kbd("H") + " Deposit all ore into the cargo ship");
         if (started && !docked && ship.cut == null && ship.CanFly)
         {
-            if (hv != null && !ship.HoverIsLock(hv)) segs.Add(Kbd("Q") + " " + (locked ? "Switch lock to " : "Lock on ") + hv.name);
-            else if (locked) segs.Add(Kbd("Q") + " Release lock");
+            if (hv != null && !ship.HoverIsLock(hv)) segs.Add(Kbd("Z") + " " + (locked ? "Switch lock to " : "Lock on ") + hv.name);
+            else if (locked) segs.Add(Kbd("Z") + " Release lock");
         }
         string ptext = string.Join(Ui.Col("  ·  ", Ui.DIM), segs.ToArray());
         if (ptext != _promptText.text)

@@ -637,7 +637,7 @@ public class Game : MonoBehaviour
             lighting.post.volumetric = !lighting.post.volumetric;
             hud.Toast(lighting.post.volumetric ? "Volumetric dust on" : "Volumetric dust off", false);
         }
-        if (Input.GetKeyDown(KeyCode.C)) hud.ToggleControls();
+        if (Input.GetKeyDown(KeyCode.F1)) hud.ToggleControls();   // F1: C is free look now
         if (Input.GetKeyDown(KeyCode.F) && ship.docked) hud.ToggleServices();
         if (Input.GetKeyDown(KeyCode.F8) && _combat) hud.ToggleServices();   // the test: the refits anywhere (F is the torch in flight)
         if (Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.I)) hud.ToggleInventory();
