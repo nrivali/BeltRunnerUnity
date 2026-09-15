@@ -626,6 +626,8 @@ namespace UnityEngine
         public class GraphicRaycaster : Behaviour { }
         public class Graphic : Behaviour
         {
+            protected virtual void OnDisable() { }
+            protected virtual void OnEnable() { }
             public Color color { get; set; }
             public bool raycastTarget { get; set; }
             public RectTransform rectTransform => null;

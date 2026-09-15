@@ -455,15 +455,17 @@ public class Hud : MonoBehaviour
     {
         if (_win == null || !_win.gameObject.activeSelf) return;
         _winK = Mathf.Lerp(_winK, _winWant ? 1f : 0f, 1f - Mathf.Exp(-(_winWant ? 14f : 18f) * dt));
+        if (_winWant && _winK > 0.995f) _winK = 1f;   // snapped: an ease that never quite lands keeps the whole window shimmering
         if (!_winWant && (_winK < 0.02f || instantUi)) { _win.gameObject.SetActive(false); return; }
         float e = 1f - (1f - _winK) * (1f - _winK);
         _winGroup.alpha = _winK;
         _winGroup.blocksRaycasts = _winWant;
         _winGroup.interactable = _winWant;
-        _win.localScale = Vector3.one * (0.96f + 0.04f * e);
+        _win.localScale = _winK >= 1f ? Vector3.one : Vector3.one * (0.96f + 0.04f * e);
         _bodyK = instantUi ? 1f : Mathf.Lerp(_bodyK, 1f, 1f - Mathf.Exp(-13f * dt));
+        if (_bodyK > 0.995f) _bodyK = 1f;
         _bodyGroup.alpha = _bodyK;
-        _winScroll.viewport.anchoredPosition = new Vector2(0f, -(1f - _bodyK) * 14f);
+        _winScroll.viewport.anchoredPosition = new Vector2(0f, _bodyK >= 1f ? 0f : -Mathf.Round((1f - _bodyK) * 14f));
         if (_credShown < 0f) _credShown = State.credits;
         _credShown = Mathf.Lerp(_credShown, State.credits, 1f - Mathf.Exp(-9f * dt));
         if (Mathf.Abs(_credShown - State.credits) < 0.6f) _credShown = State.credits;
@@ -1818,8 +1820,12 @@ public class Hud : MonoBehaviour
         var wantSize = new Vector2(Mathf.Min(1100f, _canvasSize.x - 60f), winH);
         var wantPos = new Vector2(0f, (bottomInset - topInset) * 0.5f);
         float ek = instantUi || !_win.gameObject.activeSelf ? 1f : 1f - Mathf.Exp(-14f * dt);   // eased in play, so the card coming or going never snaps it
-        _win.sizeDelta = Vector2.Lerp(_win.sizeDelta, wantSize, ek);
-        _win.anchoredPosition = Vector2.Lerp(_win.anchoredPosition, wantPos, ek);
+        var winSz = Vector2.Lerp(_win.sizeDelta, wantSize, ek);
+        var winPos = Vector2.Lerp(_win.anchoredPosition, wantPos, ek);
+        if ((winSz - wantSize).sqrMagnitude < 1f) winSz = wantSize;   // snapped to whole pixels once it is there, or the text shimmers
+        if ((winPos - wantPos).sqrMagnitude < 1f) winPos = wantPos;
+        _win.sizeDelta = new Vector2(Mathf.Round(winSz.x), Mathf.Round(winSz.y));
+        _win.anchoredPosition = new Vector2(Mathf.Round(winPos.x), Mathf.Round(winPos.y));
         TickWindow(dt);
         if (InvOpen && Time.frameCount % 15 == 0) { RefreshWindow(); TickWindowGauges(); }
         // the tutorial's rings follow their targets

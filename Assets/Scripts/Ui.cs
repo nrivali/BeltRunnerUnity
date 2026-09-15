@@ -472,6 +472,8 @@ public static class Ui
         public void OnPointerDown(PointerEventData e) { pressed = btn != null && btn.interactable; }
         public void OnPointerUp(PointerEventData e) { pressed = false; }
         public void Flash() { _flash = 1f; }
+        // a button hidden while the pointer was on it must not come back lit
+        protected override void OnDisable() { base.OnDisable(); hover = false; pressed = false; _hoverK = 0f; _pressK = 0f; _flash = 0f; transform.localScale = Vector3.one; }
 
         void Update()
         {
@@ -479,10 +481,14 @@ public static class Ui
             float h = Mathf.Lerp(_hoverK, hover ? 1f : 0f, 1f - Mathf.Exp(-16f * dt));
             float p = Mathf.Lerp(_pressK, pressed ? 1f : 0f, 1f - Mathf.Exp(-28f * dt));
             float f = _flash * Mathf.Exp(-7f * dt);
-            if (Mathf.Abs(h - _hoverK) > 0.002f || Mathf.Abs(p - _pressK) > 0.002f || Mathf.Abs(f - _flash) > 0.002f)
+            // snapped at the ends, so a settled button is never redrawn frame after frame
+            if (Mathf.Abs(h - (hover ? 1f : 0f)) < 0.01f) h = hover ? 1f : 0f;
+            if (Mathf.Abs(p - (pressed ? 1f : 0f)) < 0.01f) p = pressed ? 1f : 0f;
+            if (f < 0.01f) f = 0f;
+            if (h != _hoverK || p != _pressK || f != _flash)
             {
                 _hoverK = h; _pressK = p; _flash = f;
-                transform.localScale = Vector3.one * (1f - 0.035f * _pressK);
+                transform.localScale = _pressK <= 0f ? Vector3.one : Vector3.one * (1f - 0.035f * _pressK);
                 SetVerticesDirty();
             }
         }
