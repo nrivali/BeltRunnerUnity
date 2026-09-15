@@ -725,6 +725,7 @@ namespace UnityEngine
         public bool isPlaying => false;
         public void Play() { }
         public void PlayDelayed(float s) { }
+        public void PlayOneShot(AudioClip c, float v = 1f) { }
         public void Stop() { }
     }
     public class AudioHighPassFilter : Behaviour { public float cutoffFrequency { get; set; } }

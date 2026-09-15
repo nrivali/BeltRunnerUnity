@@ -351,7 +351,7 @@ public class Audio : MonoBehaviour
 
     // ---- static conveniences
     public static void Play(string name, float extraDb = 0f) { if (I != null) I.Sfx(name, extraDb); }
-    /// A gun shot: its own source, restarted on every shot so the sound lands on the shot however fast the gun fires.
+    /// A gun shot: its own source, one-shot voices, so every shot plays through and lands on the shot however fast the gun fires.
     public static void Shot(string name, float extraDb = 0f) { if (I != null) I.GunShot(name, extraDb); }
 
     AudioSource _gun;
@@ -368,14 +368,13 @@ public class Audio : MonoBehaviour
             raw.LoadAudioData();
         }
         // the trimmed copy, once the data is in: an mp3 opens on a run of encoder silence, which is the lag
-        if (_gunClip == null && raw.loadState == AudioDataLoadState.Loaded) _gunClip = TrimHead(raw, name == "blaster" ? 0.2f : 0f);
+        if (_gunClip == null && raw.loadState == AudioDataLoadState.Loaded) _gunClip = TrimHead(raw, name == "blaster" ? 0.4f : 0f);
         float db;
         if (!GAIN_DB.TryGetValue(name, out db)) db = -5f;
-        _gun.Stop();
-        _gun.clip = _gunClip != null ? _gunClip : raw;
-        _gun.volume = Lin(db + extraDb);
+        // one-shot: each shot plays through to its end, overlapping the next
+        _gun.volume = 1f;
         _gun.pitch = 1f;
-        _gun.Play();
+        _gun.PlayOneShot(_gunClip != null ? _gunClip : raw, Lin(db + extraDb));
         Count(name);
     }
 
@@ -386,7 +385,7 @@ public class Audio : MonoBehaviour
         var d = new float[n * ch];
         if (!c.GetData(d, 0)) return null;
         const float floor = 0.01f;
-        int a = Mathf.Min(n - 1, Mathf.RoundToInt(cutSec * rate)), b = n - 1;   // a fixed cut first (the blaster: 200 ms of build-up), then the silence
+        int a = Mathf.Min(n - 1, Mathf.RoundToInt(cutSec * rate)), b = n - 1;   // a fixed cut first (the blaster: 400 ms of build-up), then the silence
         while (a < n) { bool any = false; for (int k = 0; k < ch; k++) if (Mathf.Abs(d[a * ch + k]) > floor) { any = true; break; } if (any) break; a++; }
         while (b > a) { bool any = false; for (int k = 0; k < ch; k++) if (Mathf.Abs(d[b * ch + k]) > floor) { any = true; break; } if (any) break; b--; }
         int len = b - a + 1;
