@@ -55,6 +55,9 @@ public class Hud : MonoBehaviour
 
     // the hangar window: one centred window with tabs (Inventory · Ship refits · Cargo ship refits)
     RectTransform _win, _tabBar;
+    static readonly string[] TAB_IDS = { "inv", "ship", "depot" };
+    readonly Ui.Btn[] _tabBtns = new Ui.Btn[3];
+    Text _tabHint;
     Text _winEyebrow, _winTitle, _winSub, _winCredits;
     Ui.Scroll _winScroll;
     Ui.Btn _departBtn, _navBtn, _depositBtn, _closeBtn;
@@ -422,6 +425,19 @@ public class Hud : MonoBehaviour
         _tabBar.anchorMax = new Vector2(1f, 1f);
         _tabBar.offsetMin = new Vector2(26f, -128f);
         _tabBar.offsetMax = new Vector2(-26f, -92f);
+        // the tabs, built once: they only ever switch which one is lit (and the upgrade tabs hide in flight)
+        string[] names = { "Inventory", "Ship upgrades", "Cargo ship upgrades" };
+        float tx = 0f;
+        for (int i = 0; i < 3; i++)
+        {
+            var id = TAB_IDS[i];
+            var b = Ui.Button(_tabBar, names[i], () => PickTab(id), i == 0, false, 150f, 13);
+            b.rt.anchoredPosition = new Vector2(tx, 0f);
+            tx += b.Width + 8f;
+            _tabBtns[i] = b;
+        }
+        _tabHint = Ui.Label(_tabBar, "", "body", 12, Ui.DIM, TextAnchor.MiddleRight);
+        Ui.At(_tabHint.rectTransform, Ui.TR, Ui.TR, Vector2.zero, new Vector2(520f, 36f));
         var rule = Ui.Rect("Rule", _win, Ui.TL, Ui.TL, new Vector2(0f, -136f), new Vector2(0f, 1f));
         rule.anchorMax = new Vector2(1f, 1f);
         Ui.Fill(rule, Ui.LINE);
@@ -634,7 +650,7 @@ public class Hud : MonoBehaviour
             // and only move their gauges; and credits only at the Hub, where the market shows them)
             sb.Append(State.StoreUsed()).Append('|').Append(State.CargoTotal().ToString("0")).Append('|').Append(State.StoreTotal().ToString("0")).Append('|').Append(State.CargoSlots()).Append('|');
             if (atHub) sb.Append(Mathf.RoundToInt(State.credits)).Append('|').Append(Mathf.RoundToInt(State.droneUnits));
-            foreach (var k in Data.ORE_KEYS) sb.Append(',').Append(State.cargo[k].ToString("0")).Append('/').Append(State.store[k].ToString("0")).Append('/').Append(State.market[k].ToString("0.00"));
+            foreach (var k in Data.ORE_KEYS) sb.Append(',').Append(State.cargo[k].ToString("0")).Append('/').Append(State.store[k].ToString("0")).Append('/').Append(State.marketNext[k].ToString("0.00"));   // the targets, not the drifting prices: a rebuild every quarter second pulled the tabs out from under the mouse
         }
         else if (_winTab == "depot") sb.Append(Mathf.RoundToInt(State.droneUnits));   // the note under the rows
         string sig = sb.ToString();
@@ -650,20 +666,14 @@ public class Hud : MonoBehaviour
         _departBtn.rt.gameObject.SetActive(docked);
         _navBtn.rt.gameObject.SetActive(docked && !atHub);
         _resetLink.gameObject.SetActive(docked);
-        // the tabs
-        foreach (Transform t in _tabBar) Destroy(t.gameObject);
-        float tx = 0f;
-        string[] ids = RefitsAvailable ? new[] { "inv", "ship", "depot" } : new[] { "inv" };
-        string[] names = RefitsAvailable ? new[] { "Inventory", "Ship upgrades", "Cargo ship upgrades" } : new[] { "Inventory" };
-        for (int i = 0; i < ids.Length; i++)
+        // the tabs: the lit one follows the tab, the upgrade tabs show only where upgrades can be bought
+        for (int i = 0; i < 3; i++)
         {
-            var id = ids[i];
-            var b = Ui.Button(_tabBar, names[i], () => PickTab(id), id == _winTab, false, 150f, 13);
-            b.rt.anchoredPosition = new Vector2(tx, 0f);
-            tx += b.Width + 8f;
+            bool show = i == 0 || RefitsAvailable;
+            if (_tabBtns[i].rt.gameObject.activeSelf != show) _tabBtns[i].rt.gameObject.SetActive(show);
+            if (_tabBtns[i].primary != (TAB_IDS[i] == _winTab)) _tabBtns[i].SetPrimary(TAB_IDS[i] == _winTab);
         }
-        var hint = Ui.Label(_tabBar, _winTab == "inv" ? (docked ? "Drag stacks between the grids or double-click one · E deposits all" : "Drag a stack out of the grid, or ✕, to jettison it") : "The price button buys the next level · 1 / 2 / 3 pick the tabs", "body", 12, Ui.DIM, TextAnchor.MiddleRight);
-        Ui.At(hint.rectTransform, Ui.TR, Ui.TR, Vector2.zero, new Vector2(520f, 36f));
+        _tabHint.text = _winTab == "inv" ? (docked ? "Drag stacks between the grids or double-click one · E deposits all" : "Drag a stack out of the grid, or ✕, to jettison it") : "The price button buys the next level · 1 / 2 / 3 pick the tabs";
         // the body, rebuilt where it stood: the scroll position is kept (a purchase must not throw the list to the top)
         var keep = _winScroll.content.anchoredPosition;
         _winScroll.Clear();
