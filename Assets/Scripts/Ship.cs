@@ -1187,20 +1187,10 @@ public class Ship : MonoBehaviour
         }
         else if (flying && mouseSteer && !rdown)
         {
-            // the mouse aim (2026-09-15, the user's call): the nose turns onto the cursor's direction in the world, at
-            // the full rate beyond about five degrees off, so the crosshair (the nose's aim) sits on the cursor whenever
-            // the ship can turn fast enough, and trails it when it cannot; the chase camera follows with a lag, which
-            // is what lets the nose visibly move to the cursor before the view swings after it
-            if (Mathf.Abs(msx) < 0.012f && Mathf.Abs(msy) < 0.012f) { yaw = 0f; pitchUp = 0f; }
-            else
-            {
-                var ray = cam.ScreenPointToRay(mp);
-                var L = transform.InverseTransformDirection(ray.direction);
-                float ey = Mathf.Atan2(L.x, L.z);
-                float ep = Mathf.Atan2(L.y, Mathf.Sqrt(L.x * L.x + L.z * L.z));
-                yaw = Mathf.Clamp(ey * 12f, -1f, 1f);
-                pitchUp = Mathf.Clamp(ep * 12f, -1f, 1f);
-            }
+            // the mouse steers: the offset from the centre is the turn rate (Shape), full a quarter of the way to the
+            // edge (an aim-at-the-cursor scheme was tried on 2026-09-15 and felt jerky; the crosshair rides the cursor instead)
+            yaw = Shape(msx);
+            pitchUp = Shape(msy);
         }
         if (flying)
         {
@@ -2167,7 +2157,7 @@ public class Ship : MonoBehaviour
             HangarCamera(dt);
             return;
         }
-        _camQ = Quaternion.Slerp(_camQ, transform.rotation, 1f - Mathf.Exp(-4.5f * dt));   // a beat behind the hull (7 before the mouse aim of 2026-09-15), so the nose is seen to move to the cursor
+        _camQ = Quaternion.Slerp(_camQ, transform.rotation, 1f - Mathf.Exp(-7f * dt));
         // the field of view: out on the afterburner (further with the bigger refits), in on the drift,
         // a touch out with speed otherwise
         var eng = State.Stat("engine");
