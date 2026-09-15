@@ -365,7 +365,7 @@ public class Game : MonoBehaviour
         if (ship.InCinematic || ship.recovery != null) { hud.Toast("Not during a cutscene", true); return; }
         if (raiders == null) return;
         if (ship.docked) ship.LeaveHangar();
-        raiders.respawn = true;  // a raider killed comes back three seconds on
+        raiders.respawn = true;  // ten seconds after the last raider dies, a fresh wave
         ship.weapon = "gun";
         ship.ReleaseLock();
         raiders.Clear();

@@ -72,4 +72,4 @@ Shield is fixed at 50 for every fit (no refit yet).
 
 - Sandbox: nothing reaches the save. Autocannon fitted (`-gun N` for level N), fuel and credits topped up every frame.
 - F9 clear the raiders and spawn three fresh 2,000–4,000 m out · F10 raiders hold their fire · F8 the refit panel anywhere, with a − on each row to
-  take a level off. Killed raiders respawn where they died after 3 s.
+  take a level off. A fresh wave of three spawns 10 s after the last raider dies.

@@ -72,7 +72,9 @@ public class Raiders
     public const float HIT_FLASH = 0.28f;
     public float danger;
     public bool frozen;   // the combat test: raiders made while this is set hold their place
-    public bool respawn;  // the combat test: a raider killed comes back where it stood, three seconds on
+    public bool respawn;  // the combat test: ten seconds after the last raider dies, a fresh wave is spawned
+    public const float WAVE_WAIT = 10f;
+    float _waveT;
     public bool holdFire; // testing (F10): raiders fly and chase but never fire
     class Pending { public Vector3 pos, home; public float t; public bool frozen; }
     readonly List<Pending> _pending = new List<Pending>();
@@ -241,7 +243,6 @@ public class Raiders
     {
         r.dead = true;
         raiders.Remove(r);
-        if (respawn) _pending.Add(new Pending { pos = r.pos, home = r.home, t = 3f, frozen = r.frozen });
         if (r.node != null)
         {
             if (Random.value < BLAST_CHANCE) Explode(r.node, r.pos, r.vel);
@@ -331,6 +332,13 @@ public class Raiders
     public void Tick(float dt)
     {
         var ship = game.ship;
+        // the combat test: ten seconds after the last raider dies, a fresh wave
+        if (respawn && raiders.Count == 0)
+        {
+            _waveT += dt;
+            if (_waveT >= WAVE_WAIT) { _waveT = 0f; game.JumpToHold(); }
+        }
+        else _waveT = 0f;
         for (int i = _pending.Count - 1; i >= 0; i--)
         {
             var p = _pending[i];
