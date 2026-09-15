@@ -147,6 +147,7 @@ public class Raiders
         go.transform.SetParent(_root, false);
         go.transform.localScale = Vector3.one * 2f;   // twice the size it was drawn at
         var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+        body.name = "Body";
         Object.Destroy(body.GetComponent<Collider>());
         body.transform.SetParent(go.transform, false);
         body.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
@@ -168,6 +169,7 @@ public class Raiders
             tip.GetComponent<MeshRenderer>().sharedMaterial = _trim;
         }
         var eye = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        eye.name = "Eye";
         Object.Destroy(eye.GetComponent<Collider>());
         eye.transform.SetParent(go.transform, false);
         eye.transform.localPosition = new Vector3(0f, 2.5f, 4f);
@@ -236,8 +238,8 @@ public class Raiders
         if (respawn) _pending.Add(new Pending { pos = r.pos, home = r.home, t = 3f, frozen = r.frozen });
         if (r.node != null)
         {
-            if (Random.value < BURN_CHANCE) StartBurn(r);   // it catches fire and tumbles on, out of control, and goes up later
-            else Explode(r.node, r.pos, r.vel);
+            if (Random.value < BLAST_CHANCE) Explode(r.node, r.pos, r.vel);
+            else StartWreck(r);   // one of five slower ends: burn, chain, runaway, shed or dead
         }
         if (byPlayer)
         {
@@ -533,19 +535,45 @@ public class Raiders
         Shatter(node, pos, vel);
     }
 
-    // ---- the burning wreck: a killed raider that caught fire instead of blowing up. Out of control: it flies on with
-    // the momentum it had while a tumble builds, trailing flame, smoke and sparks, until the fuse runs out and it goes up.
-    public const float BURN_CHANCE = 0.45f;
-    class Hulk { public Transform node; public Vector3 pos, vel, axis; public float spin, fuse, flameT, smokeT, sparkT; public Material exhaust; }
+    // ---- the wreck: a killed raider that did not blow up on the spot. Every kind flies on with the momentum it had,
+    // out of control, and ends in the blast (or, for the dead hull, a quiet break-up):
+    //   burn     catches fire and tumbles, trailing flame, smoke and sparks, for 3.5 to 8 s
+    //   chain    a run of small pops along the hull over about a second, then the blast
+    //   runaway  the engine jams open: it flares and the hulk accelerates hard along its nose, corkscrewing, for 1.5 to 3 s
+    //   shed     pieces tear off one by one every 0.3 to 0.6 s with a puff and sparks; the last of it goes up small
+    //   dead     everything goes dark; it spins flat and silent for 10 to 18 s with arcs crawling over it, then breaks up
+    public const float BLAST_CHANCE = 0.3f;   // the rest is split between the kinds below
+    class Hulk
+    {
+        public string kind;
+        public Transform node; public Vector3 pos, vel, axis; public float spin, fuse, flameT, smokeT, sparkT, popT, shedT, arcT;
+        public Material exhaust; public Transform exhaustNode;
+    }
     readonly List<Hulk> _hulks = new List<Hulk>();
 
-    void StartBurn(Raider r)
+    void StartWreck(Raider r)
     {
+        float roll = Random.value;
+        string kind = roll < 0.28f ? "burn" : roll < 0.5f ? "chain" : roll < 0.68f ? "runaway" : roll < 0.86f ? "shed" : "dead";
         var h = new Hulk
         {
-            node = r.node, pos = r.pos, vel = r.vel + Random.insideUnitSphere * 20f, axis = Random.onUnitSphere,
-            spin = Random.Range(10f, 30f), fuse = Random.Range(3.5f, 8f), exhaust = r.exhaust
+            kind = kind, node = r.node, pos = r.pos, vel = r.vel + Random.insideUnitSphere * 20f, axis = Random.onUnitSphere,
+            spin = Random.Range(10f, 30f), exhaust = r.exhaust
         };
+        for (int i = 0; i < r.node.childCount; i++) if (r.node.GetChild(i).name == "Exhaust") h.exhaustNode = r.node.GetChild(i);
+        switch (kind)
+        {
+            case "burn": h.fuse = Random.Range(3.5f, 8f); break;
+            case "chain": h.fuse = Random.Range(0.8f, 1.3f); h.spin = Random.Range(5f, 15f); break;
+            case "runaway": h.fuse = Random.Range(1.5f, 3f); h.spin = Random.Range(30f, 80f); h.axis = (r.node.forward * 0.6f + Random.insideUnitSphere).normalized; break;
+            case "shed": h.fuse = 99f; h.shedT = Random.Range(0.2f, 0.5f); break;
+            case "dead":
+                h.fuse = Random.Range(10f, 18f);
+                h.spin = Random.Range(60f, 110f);
+                if (h.exhaustNode != null) h.exhaustNode.gameObject.SetActive(false);   // the lights go out
+                for (int i = 0; i < r.node.childCount; i++) if (r.node.GetChild(i).name == "Eye") r.node.GetChild(i).gameObject.SetActive(false);
+                break;
+        }
         _hulks.Add(h);
         float bd = (r.pos - game.ship.TruePos).magnitude;
         Audio.Play("hit", Mathf.Max(-24f, bd <= 600f ? 0f : -20f * Mathf.Log10(bd / 600f)));   // the hit that did it: a metallic thud
@@ -559,26 +587,129 @@ public class Raiders
             var h = _hulks[i];
             h.fuse -= dt;
             if (h.node == null) { _hulks.RemoveAt(i); continue; }
-            if (h.fuse <= 0f) { Explode(h.node, h.pos, h.vel); _hulks.RemoveAt(i); continue; }
-            // out of control: the tumble builds, the path drifts a little, the exhaust dies away
-            h.spin = Mathf.Min(220f, h.spin + 45f * dt);
-            h.axis = (h.axis + Random.insideUnitSphere * 0.4f * dt).normalized;
-            h.vel += Random.insideUnitSphere * 12f * dt;
+            if (h.fuse <= 0f)
+            {
+                if (h.kind == "dead") { QuietBreak(h); }
+                else Explode(h.node, h.pos, h.vel);
+                _hulks.RemoveAt(i);
+                continue;
+            }
+            // the tumble and the drift: every kind is out of control, each in its own way
+            switch (h.kind)
+            {
+                case "burn":
+                    h.spin = Mathf.Min(220f, h.spin + 45f * dt);
+                    h.axis = (h.axis + Random.insideUnitSphere * 0.4f * dt).normalized;
+                    h.vel += Random.insideUnitSphere * 12f * dt;
+                    break;
+                case "chain":
+                    h.spin = Mathf.Min(60f, h.spin + 20f * dt);
+                    break;
+                case "runaway":
+                    // the engine jammed open: full thrust along the nose while the nose wanders, so it corkscrews away
+                    h.vel += h.node.forward * 420f * dt;
+                    h.spin = Mathf.Min(140f, h.spin + 30f * dt);
+                    break;
+                case "shed":
+                    h.spin = Mathf.Min(120f, h.spin + 25f * dt);
+                    h.vel += Random.insideUnitSphere * 8f * dt;
+                    break;
+                case "dead":
+                    break;   // a steady flat spin, nothing else
+            }
             h.pos += h.vel * dt;
             h.node.position = h.pos - off;
             h.node.Rotate(h.axis, h.spin * dt, Space.World);
-            if (h.exhaust != null) h.exhaust.SetColor("_Color", new Color(1f, 0.5f, 0.2f, Random.value < 0.5f ? 0.5f : 0.1f));
-            // the fire: flame puffs off the hull at a steady rate, smoke a little slower, sparks now and then
-            if (game.explosions != null)
+            // the exhaust: guttering on the burn, blazing white-blue on the runaway, out on the dead hull
+            if (h.exhaust != null)
             {
-                h.flameT -= dt;
-                while (h.flameT <= 0f) { h.flameT += 0.045f; game.explosions.Flame(h.pos + Random.insideUnitSphere * 12f, h.vel + Random.insideUnitSphere * 12f); }
-                h.smokeT -= dt;
-                while (h.smokeT <= 0f) { h.smokeT += 0.11f; game.explosions.Smoke(h.pos + Random.insideUnitSphere * 10f, h.vel + Random.insideUnitSphere * 8f); }
+                if (h.kind == "runaway") { h.exhaust.SetColor("_Color", new Color(0.8f, 0.9f, 1f, 0.95f)); if (h.exhaustNode != null) h.exhaustNode.localScale = Vector3.one * Random.Range(14f, 20f); }
+                else if (h.kind != "dead") h.exhaust.SetColor("_Color", new Color(1f, 0.5f, 0.2f, Random.value < 0.5f ? 0.5f : 0.1f));
             }
-            h.sparkT -= dt;
-            if (h.sparkT <= 0f && game.sparks != null) { h.sparkT = Random.Range(0.08f, 0.3f); game.sparks.Burst(h.pos + Random.insideUnitSphere * 10f, Random.Range(3, 9), 120f, Data.Hex("#ffc070"), 1.2f, h.vel); }
+            if (game.explosions == null) continue;
+            switch (h.kind)
+            {
+                case "burn":
+                    // the fire: flame puffs off the hull at a steady rate, smoke a little slower, sparks now and then
+                    h.flameT -= dt;
+                    while (h.flameT <= 0f) { h.flameT += 0.045f; game.explosions.Flame(h.pos + Random.insideUnitSphere * 12f, h.vel + Random.insideUnitSphere * 12f); }
+                    h.smokeT -= dt;
+                    while (h.smokeT <= 0f) { h.smokeT += 0.11f; game.explosions.Smoke(h.pos + Random.insideUnitSphere * 10f, h.vel + Random.insideUnitSphere * 8f); }
+                    h.sparkT -= dt;
+                    if (h.sparkT <= 0f && game.sparks != null) { h.sparkT = Random.Range(0.08f, 0.3f); game.sparks.Burst(h.pos + Random.insideUnitSphere * 10f, Random.Range(3, 9), 120f, Data.Hex("#ffc070"), 1.2f, h.vel); }
+                    break;
+                case "chain":
+                    // pops running along the hull, each with a puff of smoke and a few sparks
+                    h.popT -= dt;
+                    if (h.popT <= 0f)
+                    {
+                        h.popT = Random.Range(0.08f, 0.16f);
+                        var at = h.pos + h.node.right * Random.Range(-28f, 28f) + h.node.forward * Random.Range(-14f, 10f);
+                        game.explosions.Pop(at, h.vel);
+                        game.explosions.Smoke(at, h.vel + Random.insideUnitSphere * 10f);
+                        if (game.sparks != null) game.sparks.Burst(at, 12, 160f, Data.Hex("#ffb060"), 1.3f, h.vel);
+                        Pop(at, -4f);
+                    }
+                    break;
+                case "runaway":
+                    // a torch of flame and a thick smoke trail off the engine
+                    h.flameT -= dt;
+                    while (h.flameT <= 0f) { h.flameT += 0.03f; game.explosions.Flame(h.pos - h.node.forward * Random.Range(14f, 30f) + Random.insideUnitSphere * 5f, h.vel - h.node.forward * 60f); }
+                    h.smokeT -= dt;
+                    while (h.smokeT <= 0f) { h.smokeT += 0.07f; game.explosions.Smoke(h.pos - h.node.forward * 26f + Random.insideUnitSphere * 6f, h.vel - h.node.forward * 40f); }
+                    break;
+                case "shed":
+                    // a piece tears off with a puff and sparks; when only the body is left, the last of it goes up small
+                    h.shedT -= dt;
+                    if (h.shedT <= 0f)
+                    {
+                        h.shedT = Random.Range(0.3f, 0.6f);
+                        Transform piece = null;
+                        for (int c = h.node.childCount - 1; c >= 0; c--) { var t = h.node.GetChild(c); if (t.name != "Exhaust" && t.name != "Core" && t.name != "Body") { piece = t; break; } }
+                        if (piece == null) { h.fuse = 0.01f; break; }
+                        var ppos = piece.position + game.worldOffset;
+                        piece.SetParent(_root, true);
+                        var shove = (ppos - h.pos).normalized * Random.Range(20f, 60f) + Random.insideUnitSphere * 15f;
+                        _debris.Add(new Debris { node = piece, pos = ppos, vel = h.vel + shove, axis = Random.onUnitSphere, rate = Random.Range(60f, 240f), life = DEBRIS_LIFE });
+                        game.explosions.Smoke(ppos, h.vel + shove * 0.3f);
+                        game.explosions.Pop(ppos, h.vel);
+                        if (game.sparks != null) game.sparks.Burst(ppos, 20, 140f, Data.Hex("#ffb060"), 1.3f, h.vel);
+                        Pop(ppos, -8f);
+                    }
+                    h.smokeT -= dt;
+                    while (h.smokeT <= 0f) { h.smokeT += 0.2f; game.explosions.Smoke(h.pos + Random.insideUnitSphere * 8f, h.vel + Random.insideUnitSphere * 6f); }
+                    break;
+                case "dead":
+                    // arcs crawl over the dark hull now and then: a blue-white flash, a spray of sparks, a crackle
+                    h.arcT -= dt;
+                    if (h.arcT <= 0f)
+                    {
+                        h.arcT = Random.Range(0.3f, 1.4f);
+                        var at = h.pos + Random.insideUnitSphere * 22f;
+                        game.explosions.Arc(at, h.vel);
+                        if (game.sparks != null) game.sparks.Burst(at, Random.Range(6, 16), 90f, Data.Hex("#bfe8ff"), 1.1f, h.vel);
+                        float bd = (h.pos - game.ship.TruePos).magnitude;
+                        Audio.Play("zap", Mathf.Max(-30f, -6f + (bd <= 300f ? 0f : -20f * Mathf.Log10(bd / 300f))));
+                    }
+                    break;
+            }
         }
+    }
+
+    /// A small bang with distance (the pops of the chain and the shed): the hit clip, a few dB under the blast.
+    void Pop(Vector3 at, float db)
+    {
+        float bd = (at - game.ship.TruePos).magnitude;
+        Audio.Play("hit", Mathf.Max(-30f, db + (bd <= 600f ? 0f : -20f * Mathf.Log10(bd / 600f))));
+    }
+
+    /// The dead hull's end: no blast, just the pieces parting with a last crackle of arcs.
+    void QuietBreak(Hulk h)
+    {
+        if (game.explosions != null) { game.explosions.Arc(h.pos, h.vel); game.explosions.Arc(h.pos + Random.insideUnitSphere * 15f, h.vel); }
+        if (game.sparks != null) game.sparks.Burst(h.pos, 40, 100f, Data.Hex("#bfe8ff"), 1.2f, h.vel);
+        Pop(h.pos, -10f);
+        Shatter(h.node, h.pos, h.vel);
     }
 
     public int HulkCount { get { return _hulks.Count; } }

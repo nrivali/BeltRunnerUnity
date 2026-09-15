@@ -92,6 +92,18 @@ public class Explosions
             new Color(g * 1.3f, g * 1.1f, g, 0.6f), new Color(g, g, g, 0f), false, _soft, Random.Range(-40f, 40f), 2);
     }
 
+    /// A small pop: a quick flash, for a hull coming apart in stages.
+    public void Pop(Vector3 p, Vector3 v)
+    {
+        Add(p, v, 0f, 0.16f, 8f, Random.Range(30f, 50f), new Color(1f, 0.9f, 0.7f, 1f), new Color(1f, 0.45f, 0.15f, 0f), true, _soft, 0f, 1);
+    }
+
+    /// An electrical arc: a blue-white flash that is there and gone.
+    public void Arc(Vector3 p, Vector3 v)
+    {
+        Add(p, v, 0f, Random.Range(0.06f, 0.12f), 6f, Random.Range(18f, 34f), new Color(0.85f, 0.95f, 1f, 1f), new Color(0.4f, 0.7f, 1f, 0f), true, _soft, Random.Range(-90f, 90f), 1);
+    }
+
     void Add(Vector3 pos, Vector3 vel, float delay, float life, float s0, float s1, Color c0, Color c1, bool additive, Texture2D tex, float roll, int ease)
     {
         if (_fx.Count >= MAX) Kill(0);
