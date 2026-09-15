@@ -1,0 +1,11 @@
+{
+  "Assets\\Resources\\Models\\asteroids_lod0.glb": "a66586c4ae14e9b55e92274ebf1dca21ccd9b7478212b2db11cbdbf1dfb49bdf",
+  "Assets\\Resources\\Models\\asteroids_lod1.glb": "9f273a7f9b8aed166e5b651ef4cd225bb4f6a6476896b38aff8bdd92bbb7a11b",
+  "Assets\\Resources\\Models\\asteroids_lod2.glb": "82ee0837747dd3645d2d980155f105b21facc720925d68e68196d7bbfaff9e25",
+  "Assets\\Resources\\Asteroids\\ore_albedo.png": "32b621fa01c0ed0970c49aa949cf5b68a224e007114e7bf7860224f637d71ee4",
+  "Assets\\Resources\\Asteroids\\ore_metalrough.png": "773f4b6178303d4734f1ae38f58411a5d09881611aba24884cf6b465f116fb9b",
+  "Assets\\Resources\\Asteroids\\ore_normal.png": "45b7c2c26a0121f04ade26470866882640e4549fe82e84ca24bf96ba0ca84422",
+  "Assets\\Resources\\Asteroids\\regolith_albedo.png": "55ee3cfd1399559c2b9a72bda2e5109fa56f0bd23d1263eb232bb9cb2d998725",
+  "Assets\\Resources\\Asteroids\\regolith_metalrough.png": "cc0f65ad482bf073104b592e0ab80239b2cf818fd03d5d46c05a0d63136f8e50",
+  "Assets\\Resources\\Asteroids\\regolith_normal.png": "898f380c221dd2b799c37164b2291aaec63431c7c280e7b77d5cfbfd4eb00666"
+}

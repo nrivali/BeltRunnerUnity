@@ -1,0 +1,1265 @@
+{
+  "generator": "5.2.1 LTS",
+  "models": [
+    {
+      "name": "lumpy_A_LOD0",
+      "concept": "fractured",
+      "lod": 0,
+      "triangles": 42138,
+      "vertices": 21071,
+      "nonmanifold_edges": 0,
+      "volume": 3.7181483549567154,
+      "dimensions": [
+        2.2693300247192383,
+        2.112781047821045,
+        2.0682876110076904
+      ],
+      "ore_fraction": 0.2417840348789175
+    },
+    {
+      "name": "lumpy_A_LOD1",
+      "concept": "fractured",
+      "lod": 1,
+      "triangles": 2492,
+      "vertices": 1248,
+      "nonmanifold_edges": 0,
+      "volume": 3.699994771848461,
+      "dimensions": [
+        2.2477431297302246,
+        2.1101789474487305,
+        2.070828676223755
+      ],
+      "ore_fraction": 0.21091706138837882
+    },
+    {
+      "name": "lumpy_A_LOD2",
+      "concept": "fractured",
+      "lod": 2,
+      "triangles": 664,
+      "vertices": 334,
+      "nonmanifold_edges": 0,
+      "volume": 3.6363608131996568,
+      "dimensions": [
+        2.178295612335205,
+        2.048595905303955,
+        2.0213875770568848
+      ],
+      "ore_fraction": 0.214187906992125
+    },
+    {
+      "name": "lumpy_B_LOD0",
+      "concept": "fractured",
+      "lod": 0,
+      "triangles": 42184,
+      "vertices": 21094,
+      "nonmanifold_edges": 0,
+      "volume": 3.6212190455252684,
+      "dimensions": [
+        2.052034378051758,
+        2.019038200378418,
+        2.257817029953003
+      ],
+      "ore_fraction": 0.2400914764261835
+    },
+    {
+      "name": "lumpy_B_LOD1",
+      "concept": "fractured",
+      "lod": 1,
+      "triangles": 2484,
+      "vertices": 1244,
+      "nonmanifold_edges": 0,
+      "volume": 3.6040588047256525,
+      "dimensions": [
+        2.0415468215942383,
+        2.0168240070343018,
+        2.265869379043579
+      ],
+      "ore_fraction": 0.17453659979871522
+    },
+    {
+      "name": "lumpy_B_LOD2",
+      "concept": "fractured",
+      "lod": 2,
+      "triangles": 662,
+      "vertices": 333,
+      "nonmanifold_edges": 0,
+      "volume": 3.5361419084959307,
+      "dimensions": [
+        2.0092759132385254,
+        1.9732030630111694,
+        2.293323278427124
+      ],
+      "ore_fraction": 0.18724500228203372
+    },
+    {
+      "name": "chunk_A_LOD0",
+      "concept": "fractured",
+      "lod": 0,
+      "triangles": 42454,
+      "vertices": 21229,
+      "nonmanifold_edges": 0,
+      "volume": 3.7805235593842124,
+      "dimensions": [
+        2.494335174560547,
+        2.185526132583618,
+        2.019707202911377
+      ],
+      "ore_fraction": 0.24200394445903395
+    },
+    {
+      "name": "chunk_A_LOD1",
+      "concept": "fractured",
+      "lod": 1,
+      "triangles": 2530,
+      "vertices": 1267,
+      "nonmanifold_edges": 0,
+      "volume": 3.7598772634995776,
+      "dimensions": [
+        2.5059380531311035,
+        2.193532943725586,
+        2.0360186100006104
+      ],
+      "ore_fraction": 0.18809808048420543
+    },
+    {
+      "name": "chunk_A_LOD2",
+      "concept": "fractured",
+      "lod": 2,
+      "triangles": 698,
+      "vertices": 351,
+      "nonmanifold_edges": 0,
+      "volume": 3.688952674080588,
+      "dimensions": [
+        2.4404702186584473,
+        2.1620755195617676,
+        1.9516401290893555
+      ],
+      "ore_fraction": 0.1896251563559933
+    },
+    {
+      "name": "chunk_B_LOD0",
+      "concept": "fractured",
+      "lod": 0,
+      "triangles": 42490,
+      "vertices": 21247,
+      "nonmanifold_edges": 0,
+      "volume": 3.9401444304119253,
+      "dimensions": [
+        2.4266116619110107,
+        2.257195472717285,
+        1.913057804107666
+      ],
+      "ore_fraction": 0.24320622030916011
+    },
+    {
+      "name": "chunk_B_LOD1",
+      "concept": "fractured",
+      "lod": 1,
+      "triangles": 2580,
+      "vertices": 1292,
+      "nonmanifold_edges": 0,
+      "volume": 3.9221033090320017,
+      "dimensions": [
+        2.4425578117370605,
+        2.2720541954040527,
+        1.8900911808013916
+      ],
+      "ore_fraction": 0.1892450692220069
+    },
+    {
+      "name": "chunk_B_LOD2",
+      "concept": "fractured",
+      "lod": 2,
+      "triangles": 624,
+      "vertices": 314,
+      "nonmanifold_edges": 0,
+      "volume": 3.8628785122326366,
+      "dimensions": [
+        2.2935738563537598,
+        2.2368311882019043,
+        1.913177251815796
+      ],
+      "ore_fraction": 0.1624205201734733
+    },
+    {
+      "name": "potato_A_LOD0",
+      "concept": "weathered",
+      "lod": 0,
+      "triangles": 41866,
+      "vertices": 20935,
+      "nonmanifold_edges": 0,
+      "volume": 4.005246730856062,
+      "dimensions": [
+        2.8110122680664062,
+        2.123873233795166,
+        1.6713154315948486
+      ],
+      "ore_fraction": 0.24476968342338534
+    },
+    {
+      "name": "potato_A_LOD1",
+      "concept": "weathered",
+      "lod": 1,
+      "triangles": 2550,
+      "vertices": 1277,
+      "nonmanifold_edges": 0,
+      "volume": 3.9802902441869867,
+      "dimensions": [
+        2.8028597831726074,
+        2.1426732540130615,
+        1.6700050830841064
+      ],
+      "ore_fraction": 0.21267591706698882
+    },
+    {
+      "name": "potato_A_LOD2",
+      "concept": "weathered",
+      "lod": 2,
+      "triangles": 676,
+      "vertices": 340,
+      "nonmanifold_edges": 0,
+      "volume": 3.911178582259797,
+      "dimensions": [
+        2.7281951904296875,
+        2.0989551544189453,
+        1.6136126518249512
+      ],
+      "ore_fraction": 0.22229168002569513
+    },
+    {
+      "name": "potato_B_LOD0",
+      "concept": "weathered",
+      "lod": 0,
+      "triangles": 42090,
+      "vertices": 21047,
+      "nonmanifold_edges": 0,
+      "volume": 3.9203234801986833,
+      "dimensions": [
+        2.846461772918701,
+        2.101985216140747,
+        1.6671617031097412
+      ],
+      "ore_fraction": 0.24323883840227858
+    },
+    {
+      "name": "potato_B_LOD1",
+      "concept": "weathered",
+      "lod": 1,
+      "triangles": 2560,
+      "vertices": 1282,
+      "nonmanifold_edges": 0,
+      "volume": 3.901878070111802,
+      "dimensions": [
+        2.8601808547973633,
+        2.114079236984253,
+        1.654844045639038
+      ],
+      "ore_fraction": 0.2104234671296061
+    },
+    {
+      "name": "potato_B_LOD2",
+      "concept": "weathered",
+      "lod": 2,
+      "triangles": 662,
+      "vertices": 333,
+      "nonmanifold_edges": 0,
+      "volume": 3.827100509409735,
+      "dimensions": [
+        2.8334736824035645,
+        2.1128644943237305,
+        1.656855583190918
+      ],
+      "ore_fraction": 0.19218190947660221
+    },
+    {
+      "name": "shard_A_LOD0",
+      "concept": "layered",
+      "lod": 0,
+      "triangles": 42444,
+      "vertices": 21224,
+      "nonmanifold_edges": 0,
+      "volume": 1.865414159788964,
+      "dimensions": [
+        1.0119003057479858,
+        3.9817802906036377,
+        1.1811087131500244
+      ],
+      "ore_fraction": 0.24083616133250674
+    },
+    {
+      "name": "shard_A_LOD1",
+      "concept": "layered",
+      "lod": 1,
+      "triangles": 2456,
+      "vertices": 1230,
+      "nonmanifold_edges": 0,
+      "volume": 1.8526162523143301,
+      "dimensions": [
+        1.0117558240890503,
+        3.9752919673919678,
+        1.1756969690322876
+      ],
+      "ore_fraction": 0.18473053147697507
+    },
+    {
+      "name": "shard_A_LOD2",
+      "concept": "layered",
+      "lod": 2,
+      "triangles": 590,
+      "vertices": 297,
+      "nonmanifold_edges": 0,
+      "volume": 1.80735779169344,
+      "dimensions": [
+        1.0031557083129883,
+        3.7863659858703613,
+        1.131972312927246
+      ],
+      "ore_fraction": 0.12670491331431274
+    },
+    {
+      "name": "shard_B_LOD0",
+      "concept": "layered",
+      "lod": 0,
+      "triangles": 42574,
+      "vertices": 21289,
+      "nonmanifold_edges": 0,
+      "volume": 2.052856578066857,
+      "dimensions": [
+        1.1710941791534424,
+        4.376887321472168,
+        1.151289939880371
+      ],
+      "ore_fraction": 0.24273412002402328
+    },
+    {
+      "name": "shard_B_LOD1",
+      "concept": "layered",
+      "lod": 1,
+      "triangles": 2618,
+      "vertices": 1311,
+      "nonmanifold_edges": 0,
+      "volume": 2.038281283042108,
+      "dimensions": [
+        1.17499577999115,
+        4.395509243011475,
+        1.1335020065307617
+      ],
+      "ore_fraction": 0.19679627708369912
+    },
+    {
+      "name": "shard_B_LOD2",
+      "concept": "layered",
+      "lod": 2,
+      "triangles": 680,
+      "vertices": 342,
+      "nonmanifold_edges": 0,
+      "volume": 1.9832980053674119,
+      "dimensions": [
+        1.176011085510254,
+        4.267228603363037,
+        1.1247050762176514
+      ],
+      "ore_fraction": 0.15907055081150503
+    },
+    {
+      "name": "pancake_A_LOD0",
+      "concept": "layered",
+      "lod": 0,
+      "triangles": 43082,
+      "vertices": 21543,
+      "nonmanifold_edges": 0,
+      "volume": 2.484215771875781,
+      "dimensions": [
+        2.929894208908081,
+        2.5210025310516357,
+        0.9069812297821045
+      ],
+      "ore_fraction": 0.24277460436308043
+    },
+    {
+      "name": "pancake_A_LOD1",
+      "concept": "layered",
+      "lod": 1,
+      "triangles": 2688,
+      "vertices": 1346,
+      "nonmanifold_edges": 0,
+      "volume": 2.4696029367915413,
+      "dimensions": [
+        2.917027473449707,
+        2.517047882080078,
+        0.8892903923988342
+      ],
+      "ore_fraction": 0.20153201960881043
+    },
+    {
+      "name": "pancake_A_LOD2",
+      "concept": "layered",
+      "lod": 2,
+      "triangles": 646,
+      "vertices": 325,
+      "nonmanifold_edges": 0,
+      "volume": 2.411536782455387,
+      "dimensions": [
+        2.891474962234497,
+        2.462486743927002,
+        0.8631064891815186
+      ],
+      "ore_fraction": 0.15470346051326053
+    },
+    {
+      "name": "pancake_B_LOD0",
+      "concept": "layered",
+      "lod": 0,
+      "triangles": 43042,
+      "vertices": 21523,
+      "nonmanifold_edges": 0,
+      "volume": 2.1556996694300543,
+      "dimensions": [
+        2.8291337490081787,
+        2.2693979740142822,
+        0.9208132028579712
+      ],
+      "ore_fraction": 0.2416584464030205
+    },
+    {
+      "name": "pancake_B_LOD1",
+      "concept": "layered",
+      "lod": 1,
+      "triangles": 2568,
+      "vertices": 1286,
+      "nonmanifold_edges": 0,
+      "volume": 2.1371673534817486,
+      "dimensions": [
+        2.8267884254455566,
+        2.2597813606262207,
+        0.9063591957092285
+      ],
+      "ore_fraction": 0.17061776554774785
+    },
+    {
+      "name": "pancake_B_LOD2",
+      "concept": "layered",
+      "lod": 2,
+      "triangles": 640,
+      "vertices": 322,
+      "nonmanifold_edges": 0,
+      "volume": 2.075190062332377,
+      "dimensions": [
+        2.7641451358795166,
+        2.2248103618621826,
+        0.9008981585502625
+      ],
+      "ore_fraction": 0.14396410013600325
+    },
+    {
+      "name": "cratered_A_LOD0",
+      "concept": "weathered",
+      "lod": 0,
+      "triangles": 41720,
+      "vertices": 20862,
+      "nonmanifold_edges": 0,
+      "volume": 3.5604811658308235,
+      "dimensions": [
+        2.1149086952209473,
+        2.046022891998291,
+        2.0923144817352295
+      ],
+      "ore_fraction": 0.243302026732739
+    },
+    {
+      "name": "cratered_A_LOD1",
+      "concept": "weathered",
+      "lod": 1,
+      "triangles": 2458,
+      "vertices": 1231,
+      "nonmanifold_edges": 0,
+      "volume": 3.5424848592357634,
+      "dimensions": [
+        2.1121997833251953,
+        2.0211005210876465,
+        2.0856881141662598
+      ],
+      "ore_fraction": 0.22062760049772315
+    },
+    {
+      "name": "cratered_A_LOD2",
+      "concept": "weathered",
+      "lod": 2,
+      "triangles": 630,
+      "vertices": 317,
+      "nonmanifold_edges": 0,
+      "volume": 3.478326730689191,
+      "dimensions": [
+        2.112269878387451,
+        2.0010294914245605,
+        2.070016622543335
+      ],
+      "ore_fraction": 0.17909728192502503
+    },
+    {
+      "name": "cratered_B_LOD0",
+      "concept": "weathered",
+      "lod": 0,
+      "triangles": 42004,
+      "vertices": 21004,
+      "nonmanifold_edges": 0,
+      "volume": 3.1377089589159457,
+      "dimensions": [
+        1.9212476015090942,
+        1.8984875679016113,
+        2.009948492050171
+      ],
+      "ore_fraction": 0.24363091127859887
+    },
+    {
+      "name": "cratered_B_LOD1",
+      "concept": "weathered",
+      "lod": 1,
+      "triangles": 2490,
+      "vertices": 1247,
+      "nonmanifold_edges": 0,
+      "volume": 3.1208390115811606,
+      "dimensions": [
+        1.8874590396881104,
+        1.8860582113265991,
+        2.0083465576171875
+      ],
+      "ore_fraction": 0.19933561014354856
+    },
+    {
+      "name": "cratered_B_LOD2",
+      "concept": "weathered",
+      "lod": 2,
+      "triangles": 632,
+      "vertices": 318,
+      "nonmanifold_edges": 0,
+      "volume": 3.047468592251593,
+      "dimensions": [
+        1.8593313694000244,
+        1.8922960758209229,
+        1.9675081968307495
+      ],
+      "ore_fraction": 0.15553348283595012
+    },
+    {
+      "name": "cluster_A_LOD0",
+      "concept": "weathered",
+      "lod": 0,
+      "triangles": 41094,
+      "vertices": 20549,
+      "nonmanifold_edges": 0,
+      "volume": 3.090985828214818,
+      "dimensions": [
+        1.9328149557113647,
+        2.1422648429870605,
+        2.009319305419922
+      ],
+      "ore_fraction": 0.24483042561398416
+    },
+    {
+      "name": "cluster_A_LOD1",
+      "concept": "weathered",
+      "lod": 1,
+      "triangles": 2514,
+      "vertices": 1259,
+      "nonmanifold_edges": 0,
+      "volume": 3.0722244657546685,
+      "dimensions": [
+        1.9338650703430176,
+        2.1367852687835693,
+        2.0048513412475586
+      ],
+      "ore_fraction": 0.20897166761123587
+    },
+    {
+      "name": "cluster_A_LOD2",
+      "concept": "weathered",
+      "lod": 2,
+      "triangles": 674,
+      "vertices": 339,
+      "nonmanifold_edges": 0,
+      "volume": 3.021283590172925,
+      "dimensions": [
+        1.937645435333252,
+        2.069344997406006,
+        1.9628490209579468
+      ],
+      "ore_fraction": 0.22062597622072574
+    },
+    {
+      "name": "cluster_B_LOD0",
+      "concept": "weathered",
+      "lod": 0,
+      "triangles": 42012,
+      "vertices": 21008,
+      "nonmanifold_edges": 0,
+      "volume": 3.4279115332620904,
+      "dimensions": [
+        2.1494393348693848,
+        2.0803184509277344,
+        1.957881212234497
+      ],
+      "ore_fraction": 0.24221284735558482
+    },
+    {
+      "name": "cluster_B_LOD1",
+      "concept": "weathered",
+      "lod": 1,
+      "triangles": 2516,
+      "vertices": 1260,
+      "nonmanifold_edges": 0,
+      "volume": 3.4149737432830407,
+      "dimensions": [
+        2.1324853897094727,
+        2.087899684906006,
+        1.9701776504516602
+      ],
+      "ore_fraction": 0.1993922750950974
+    },
+    {
+      "name": "cluster_B_LOD2",
+      "concept": "weathered",
+      "lod": 2,
+      "triangles": 618,
+      "vertices": 311,
+      "nonmanifold_edges": 0,
+      "volume": 3.3624464746203357,
+      "dimensions": [
+        2.1293764114379883,
+        2.0555050373077393,
+        1.946592092514038
+      ],
+      "ore_fraction": 0.17114391040682272
+    },
+    {
+      "name": "slab_A_LOD0",
+      "concept": "layered",
+      "lod": 0,
+      "triangles": 43194,
+      "vertices": 21599,
+      "nonmanifold_edges": 0,
+      "volume": 2.490018061232276,
+      "dimensions": [
+        3.496674060821533,
+        2.4978036880493164,
+        0.7718136310577393
+      ],
+      "ore_fraction": 0.2423771009928531
+    },
+    {
+      "name": "slab_A_LOD1",
+      "concept": "layered",
+      "lod": 1,
+      "triangles": 2688,
+      "vertices": 1346,
+      "nonmanifold_edges": 0,
+      "volume": 2.474880578643013,
+      "dimensions": [
+        3.492917537689209,
+        2.4644079208374023,
+        0.767288088798523
+      ],
+      "ore_fraction": 0.194506289754542
+    },
+    {
+      "name": "slab_A_LOD2",
+      "concept": "layered",
+      "lod": 2,
+      "triangles": 678,
+      "vertices": 341,
+      "nonmanifold_edges": 0,
+      "volume": 2.401619033951422,
+      "dimensions": [
+        3.4622650146484375,
+        2.4288229942321777,
+        0.7512600421905518
+      ],
+      "ore_fraction": 0.17259709417301705
+    },
+    {
+      "name": "slab_B_LOD0",
+      "concept": "layered",
+      "lod": 0,
+      "triangles": 43034,
+      "vertices": 21519,
+      "nonmanifold_edges": 0,
+      "volume": 2.5874599532344775,
+      "dimensions": [
+        3.2753384113311768,
+        2.5192348957061768,
+        0.8023332953453064
+      ],
+      "ore_fraction": 0.24360025205368213
+    },
+    {
+      "name": "slab_B_LOD1",
+      "concept": "layered",
+      "lod": 1,
+      "triangles": 2540,
+      "vertices": 1272,
+      "nonmanifold_edges": 0,
+      "volume": 2.568566960878762,
+      "dimensions": [
+        3.258087158203125,
+        2.528611183166504,
+        0.7887201309204102
+      ],
+      "ore_fraction": 0.19753036930399873
+    },
+    {
+      "name": "slab_B_LOD2",
+      "concept": "layered",
+      "lod": 2,
+      "triangles": 662,
+      "vertices": 333,
+      "nonmanifold_edges": 0,
+      "volume": 2.501644681687154,
+      "dimensions": [
+        3.280881643295288,
+        2.385981559753418,
+        0.7666423916816711
+      ],
+      "ore_fraction": 0.1860013368783537
+    },
+    {
+      "name": "spindle_A_LOD0",
+      "concept": "layered",
+      "lod": 0,
+      "triangles": 42396,
+      "vertices": 21200,
+      "nonmanifold_edges": 0,
+      "volume": 1.7314078605579426,
+      "dimensions": [
+        0.8930174708366394,
+        5.804086685180664,
+        0.9198876023292542
+      ],
+      "ore_fraction": 0.2444158705500587
+    },
+    {
+      "name": "spindle_A_LOD1",
+      "concept": "layered",
+      "lod": 1,
+      "triangles": 2482,
+      "vertices": 1243,
+      "nonmanifold_edges": 0,
+      "volume": 1.717440285344995,
+      "dimensions": [
+        0.8843861818313599,
+        5.764578819274902,
+        0.9206124544143677
+      ],
+      "ore_fraction": 0.1886772329634911
+    },
+    {
+      "name": "spindle_A_LOD2",
+      "concept": "layered",
+      "lod": 2,
+      "triangles": 614,
+      "vertices": 309,
+      "nonmanifold_edges": 0,
+      "volume": 1.668041387725841,
+      "dimensions": [
+        0.8544687032699585,
+        5.6504034996032715,
+        0.903601348400116
+      ],
+      "ore_fraction": 0.1309571759109523
+    },
+    {
+      "name": "spindle_B_LOD0",
+      "concept": "layered",
+      "lod": 0,
+      "triangles": 42376,
+      "vertices": 21190,
+      "nonmanifold_edges": 0,
+      "volume": 1.8198915316143716,
+      "dimensions": [
+        0.9426853656768799,
+        5.788628578186035,
+        0.9438523650169373
+      ],
+      "ore_fraction": 0.2403274153307743
+    },
+    {
+      "name": "spindle_B_LOD1",
+      "concept": "layered",
+      "lod": 1,
+      "triangles": 2524,
+      "vertices": 1264,
+      "nonmanifold_edges": 0,
+      "volume": 1.8070966343888708,
+      "dimensions": [
+        0.9476216435432434,
+        5.747903347015381,
+        0.9357339143753052
+      ],
+      "ore_fraction": 0.17621998696427385
+    },
+    {
+      "name": "spindle_B_LOD2",
+      "concept": "layered",
+      "lod": 2,
+      "triangles": 634,
+      "vertices": 319,
+      "nonmanifold_edges": 0,
+      "volume": 1.757601375465588,
+      "dimensions": [
+        0.912649393081665,
+        5.655722618103027,
+        0.9448668956756592
+      ],
+      "ore_fraction": 0.17331615318236093
+    },
+    {
+      "name": "bean_A_LOD0",
+      "concept": "weathered",
+      "lod": 0,
+      "triangles": 43114,
+      "vertices": 21559,
+      "nonmanifold_edges": 0,
+      "volume": 3.563499893388313,
+      "dimensions": [
+        1.5480036735534668,
+        4.0457377433776855,
+        1.4347889423370361
+      ],
+      "ore_fraction": 0.24240555605883643
+    },
+    {
+      "name": "bean_A_LOD1",
+      "concept": "weathered",
+      "lod": 1,
+      "triangles": 2336,
+      "vertices": 1170,
+      "nonmanifold_edges": 0,
+      "volume": 3.542761804551824,
+      "dimensions": [
+        1.5487077236175537,
+        4.032806873321533,
+        1.4306539297103882
+      ],
+      "ore_fraction": 0.19702282698289755
+    },
+    {
+      "name": "bean_A_LOD2",
+      "concept": "weathered",
+      "lod": 2,
+      "triangles": 600,
+      "vertices": 302,
+      "nonmanifold_edges": 0,
+      "volume": 3.4733768944736325,
+      "dimensions": [
+        1.529831051826477,
+        3.9553327560424805,
+        1.44306218624115
+      ],
+      "ore_fraction": 0.17751657532029358
+    },
+    {
+      "name": "bean_B_LOD0",
+      "concept": "weathered",
+      "lod": 0,
+      "triangles": 42318,
+      "vertices": 21161,
+      "nonmanifold_edges": 0,
+      "volume": 3.512670752071684,
+      "dimensions": [
+        1.4416615962982178,
+        4.005635738372803,
+        1.5019052028656006
+      ],
+      "ore_fraction": 0.2435488242472216
+    },
+    {
+      "name": "bean_B_LOD1",
+      "concept": "weathered",
+      "lod": 1,
+      "triangles": 2428,
+      "vertices": 1216,
+      "nonmanifold_edges": 0,
+      "volume": 3.4909711512644326,
+      "dimensions": [
+        1.4419775009155273,
+        4.003783702850342,
+        1.4974122047424316
+      ],
+      "ore_fraction": 0.20139048069411805
+    },
+    {
+      "name": "bean_B_LOD2",
+      "concept": "weathered",
+      "lod": 2,
+      "triangles": 642,
+      "vertices": 323,
+      "nonmanifold_edges": 0,
+      "volume": 3.4162644363959553,
+      "dimensions": [
+        1.4159212112426758,
+        3.9602246284484863,
+        1.446836233139038
+      ],
+      "ore_fraction": 0.20870591770880137
+    },
+    {
+      "name": "boulder_A_LOD0",
+      "concept": "fractured",
+      "lod": 0,
+      "triangles": 42220,
+      "vertices": 21112,
+      "nonmanifold_edges": 0,
+      "volume": 3.8809748977657117,
+      "dimensions": [
+        2.270961046218872,
+        2.036374092102051,
+        2.069549798965454
+      ],
+      "ore_fraction": 0.24076003200019822
+    },
+    {
+      "name": "boulder_A_LOD1",
+      "concept": "fractured",
+      "lod": 1,
+      "triangles": 2508,
+      "vertices": 1256,
+      "nonmanifold_edges": 0,
+      "volume": 3.859153326362468,
+      "dimensions": [
+        2.275038480758667,
+        2.0381019115448,
+        2.0668599605560303
+      ],
+      "ore_fraction": 0.18734413408212147
+    },
+    {
+      "name": "boulder_A_LOD2",
+      "concept": "fractured",
+      "lod": 2,
+      "triangles": 646,
+      "vertices": 325,
+      "nonmanifold_edges": 0,
+      "volume": 3.7983749290251594,
+      "dimensions": [
+        2.208987236022949,
+        2.0389411449432373,
+        2.0699501037597656
+      ],
+      "ore_fraction": 0.14185060414457748
+    },
+    {
+      "name": "boulder_B_LOD0",
+      "concept": "fractured",
+      "lod": 0,
+      "triangles": 41060,
+      "vertices": 20532,
+      "nonmanifold_edges": 0,
+      "volume": 3.8830004149074866,
+      "dimensions": [
+        2.4506146907806396,
+        2.2597618103027344,
+        1.950042486190796
+      ],
+      "ore_fraction": 0.2439723407131317
+    },
+    {
+      "name": "boulder_B_LOD1",
+      "concept": "fractured",
+      "lod": 1,
+      "triangles": 2400,
+      "vertices": 1202,
+      "nonmanifold_edges": 0,
+      "volume": 3.8667998291625323,
+      "dimensions": [
+        2.4444689750671387,
+        2.2538552284240723,
+        1.9754161834716797
+      ],
+      "ore_fraction": 0.20315309814919205
+    },
+    {
+      "name": "boulder_B_LOD2",
+      "concept": "fractured",
+      "lod": 2,
+      "triangles": 604,
+      "vertices": 304,
+      "nonmanifold_edges": 0,
+      "volume": 3.8008936621678155,
+      "dimensions": [
+        2.4147703647613525,
+        2.164022445678711,
+        1.9360644817352295
+      ],
+      "ore_fraction": 0.14822387763780737
+    },
+    {
+      "name": "jagged_A_LOD0",
+      "concept": "fractured",
+      "lod": 0,
+      "triangles": 42184,
+      "vertices": 21094,
+      "nonmanifold_edges": 0,
+      "volume": 4.064293903924109,
+      "dimensions": [
+        2.2127914428710938,
+        1.9978739023208618,
+        2.498178243637085
+      ],
+      "ore_fraction": 0.2428734050940434
+    },
+    {
+      "name": "jagged_A_LOD1",
+      "concept": "fractured",
+      "lod": 1,
+      "triangles": 2616,
+      "vertices": 1310,
+      "nonmanifold_edges": 0,
+      "volume": 4.046270583133572,
+      "dimensions": [
+        2.2063655853271484,
+        2.0043270587921143,
+        2.497451066970825
+      ],
+      "ore_fraction": 0.19863123564450008
+    },
+    {
+      "name": "jagged_A_LOD2",
+      "concept": "fractured",
+      "lod": 2,
+      "triangles": 600,
+      "vertices": 302,
+      "nonmanifold_edges": 0,
+      "volume": 3.97286072644391,
+      "dimensions": [
+        2.164836883544922,
+        1.9745533466339111,
+        2.415847063064575
+      ],
+      "ore_fraction": 0.14352341261136226
+    },
+    {
+      "name": "jagged_B_LOD0",
+      "concept": "fractured",
+      "lod": 0,
+      "triangles": 42078,
+      "vertices": 21041,
+      "nonmanifold_edges": 0,
+      "volume": 4.066301492634042,
+      "dimensions": [
+        2.0418944358825684,
+        1.8596076965332031,
+        2.647632360458374
+      ],
+      "ore_fraction": 0.24319203947320103
+    },
+    {
+      "name": "jagged_B_LOD1",
+      "concept": "fractured",
+      "lod": 1,
+      "triangles": 2486,
+      "vertices": 1245,
+      "nonmanifold_edges": 0,
+      "volume": 4.04169525853143,
+      "dimensions": [
+        2.034022092819214,
+        1.8569011688232422,
+        2.67608904838562
+      ],
+      "ore_fraction": 0.19747098562328616
+    },
+    {
+      "name": "jagged_B_LOD2",
+      "concept": "fractured",
+      "lod": 2,
+      "triangles": 624,
+      "vertices": 314,
+      "nonmanifold_edges": 0,
+      "volume": 3.9631467125230726,
+      "dimensions": [
+        2.01914644241333,
+        1.8656755685806274,
+        2.596653699874878
+      ],
+      "ore_fraction": 0.1712323786514912
+    },
+    {
+      "name": "wedge_A_LOD0",
+      "concept": "fractured",
+      "lod": 0,
+      "triangles": 41692,
+      "vertices": 20848,
+      "nonmanifold_edges": 0,
+      "volume": 2.6955534808479387,
+      "dimensions": [
+        2.469813823699951,
+        1.8729612827301025,
+        1.4579994678497314
+      ],
+      "ore_fraction": 0.24185251831748533
+    },
+    {
+      "name": "wedge_A_LOD1",
+      "concept": "fractured",
+      "lod": 1,
+      "triangles": 2458,
+      "vertices": 1231,
+      "nonmanifold_edges": 0,
+      "volume": 2.680938750962972,
+      "dimensions": [
+        2.4591734409332275,
+        1.8519978523254395,
+        1.4460177421569824
+      ],
+      "ore_fraction": 0.20943598006547262
+    },
+    {
+      "name": "wedge_A_LOD2",
+      "concept": "fractured",
+      "lod": 2,
+      "triangles": 620,
+      "vertices": 312,
+      "nonmanifold_edges": 0,
+      "volume": 2.6342932794107443,
+      "dimensions": [
+        2.386758804321289,
+        1.8386412858963013,
+        1.4607099294662476
+      ],
+      "ore_fraction": 0.20182731988498379
+    },
+    {
+      "name": "wedge_B_LOD0",
+      "concept": "fractured",
+      "lod": 0,
+      "triangles": 41552,
+      "vertices": 20778,
+      "nonmanifold_edges": 0,
+      "volume": 2.5002444319504633,
+      "dimensions": [
+        2.4253897666931152,
+        1.6433639526367188,
+        1.4334850311279297
+      ],
+      "ore_fraction": 0.2411290830094711
+    },
+    {
+      "name": "wedge_B_LOD1",
+      "concept": "fractured",
+      "lod": 1,
+      "triangles": 2442,
+      "vertices": 1223,
+      "nonmanifold_edges": 0,
+      "volume": 2.4870847409281005,
+      "dimensions": [
+        2.442755699157715,
+        1.6275745630264282,
+        1.4097843170166016
+      ],
+      "ore_fraction": 0.18274922487403752
+    },
+    {
+      "name": "wedge_B_LOD2",
+      "concept": "fractured",
+      "lod": 2,
+      "triangles": 656,
+      "vertices": 330,
+      "nonmanifold_edges": 0,
+      "volume": 2.4403228613841397,
+      "dimensions": [
+        2.335437297821045,
+        1.6381804943084717,
+        1.3811063766479492
+      ],
+      "ore_fraction": 0.21994622202986713
+    },
+    {
+      "name": "hollow_A_LOD0",
+      "concept": "weathered",
+      "lod": 0,
+      "triangles": 42990,
+      "vertices": 21493,
+      "nonmanifold_edges": 0,
+      "volume": 3.03531600901533,
+      "dimensions": [
+        2.123274326324463,
+        2.0883874893188477,
+        1.9630898237228394
+      ],
+      "ore_fraction": 0.2443441045921066
+    },
+    {
+      "name": "hollow_A_LOD1",
+      "concept": "weathered",
+      "lod": 1,
+      "triangles": 2550,
+      "vertices": 1273,
+      "nonmanifold_edges": 0,
+      "volume": 3.027047936409105,
+      "dimensions": [
+        2.134112596511841,
+        2.077916145324707,
+        1.9315931797027588
+      ],
+      "ore_fraction": 0.20594065084794408
+    },
+    {
+      "name": "hollow_A_LOD2",
+      "concept": "weathered",
+      "lod": 2,
+      "triangles": 618,
+      "vertices": 307,
+      "nonmanifold_edges": 0,
+      "volume": 2.996903626061768,
+      "dimensions": [
+        2.091738700866699,
+        2.0877933502197266,
+        1.9483336210250854
+      ],
+      "ore_fraction": 0.16138196385673956
+    },
+    {
+      "name": "hollow_B_LOD0",
+      "concept": "weathered",
+      "lod": 0,
+      "triangles": 43734,
+      "vertices": 21867,
+      "nonmanifold_edges": 0,
+      "volume": 2.260511149025872,
+      "dimensions": [
+        1.8926112651824951,
+        2.0004684925079346,
+        2.0347392559051514
+      ],
+      "ore_fraction": 0.2390308303088027
+    },
+    {
+      "name": "hollow_B_LOD1",
+      "concept": "weathered",
+      "lod": 1,
+      "triangles": 2506,
+      "vertices": 1251,
+      "nonmanifold_edges": 0,
+      "volume": 2.2472118886630192,
+      "dimensions": [
+        1.9021217823028564,
+        2.0291666984558105,
+        2.0098588466644287
+      ],
+      "ore_fraction": 0.19084742029338939
+    },
+    {
+      "name": "hollow_B_LOD2",
+      "concept": "weathered",
+      "lod": 2,
+      "triangles": 636,
+      "vertices": 316,
+      "nonmanifold_edges": 0,
+      "volume": 2.225596953884235,
+      "dimensions": [
+        1.8771425485610962,
+        1.9624897241592407,
+        2.013838291168213
+      ],
+      "ore_fraction": 0.1739918105892133
+    }
+  ]
+}

@@ -16,7 +16,7 @@ public static class RockLookPreview
     static string output;
     static int frame;
     static int shot;
-    static readonly string[] shots = { "ores", "copper", "barren", "distance", "unlit", "shapes", "mining-heat", "shapes-2" };
+    static readonly string[] shots = { "ores", "copper", "barren", "distance", "unlit", "shapes", "mining-heat", "shapes-2", "sun-right" };
     static readonly string[] shapes = { "lumpy", "chunk", "boulder", "cratered", "jagged", "potato", "shard", "slab" };
     static MethodInfo colorMethod;
     static ShadowQuality savedShadows;
@@ -89,7 +89,7 @@ public static class RockLookPreview
             for (int i = 0; i < 8; i++)
                 Draw("lumpy", i == 7 ? -1 : i, new Vector3((i % 4 - 1.5f) * 385, (0.5f - i / 4) * 420, 0), 170, 0, Quaternion.Euler(15, 28, 10));
         }
-        else if (shot == 1 || shot == 2 || shot == 4 || shot == 6)
+        else if (shot == 1 || shot == 2 || shot == 4 || shot == 6 || shot == 8)
             Draw("boulder", shot == 2 ? -1 : 1, Vector3.zero, 400, 0, Quaternion.Euler(25, -30, 14));
         else if (shot == 3)
         {
@@ -115,6 +115,7 @@ public static class RockLookPreview
         try
         {
             lighting.sun.enabled = shot != 4;
+            lighting.sun.transform.rotation = Quaternion.LookRotation(shot == 8 ? new Vector3(-0.7f, -0.15f, 0.65f) : new Vector3(0.65f, -0.35f, 0.65f));
             var rt = new RenderTexture(1600, 1000, 24, RenderTextureFormat.ARGBHalf);
             rt.antiAliasing = 4;
             cam.targetTexture = rt;
@@ -159,15 +160,15 @@ public static class RockLookPreview
     static void PrepareTextures()
     {
         AssetDatabase.Refresh();
-        foreach (var suffix in new[] { "albedo", "normal", "metalrough" })
+        foreach (var textureName in new[] { "regolith_albedo", "regolith_normal", "regolith_metalrough", "ore_albedo", "ore_normal", "ore_metalrough" })
         {
-            var path = "Assets/Resources/Asteroids/regolith_" + suffix + ".png";
+            var path = "Assets/Resources/Asteroids/" + textureName + ".png";
             var importer = AssetImporter.GetAtPath(path) as TextureImporter;
             if (importer == null) continue;
             // RGB glTF-style normal maps are sampled explicitly in Rock.shader, so keep them as linear data.
-            if (importer.mipmapEnabled && importer.sRGBTexture == (suffix == "albedo") && importer.anisoLevel == 4 && importer.filterMode == FilterMode.Trilinear && importer.textureCompression == TextureImporterCompression.CompressedHQ) continue;
+            if (importer.mipmapEnabled && importer.sRGBTexture == (textureName.EndsWith("_albedo")) && importer.anisoLevel == 4 && importer.filterMode == FilterMode.Trilinear && importer.textureCompression == TextureImporterCompression.CompressedHQ) continue;
             importer.textureType = TextureImporterType.Default;
-            importer.sRGBTexture = suffix == "albedo";
+            importer.sRGBTexture = textureName.EndsWith("_albedo");
             importer.mipmapEnabled = true;
             importer.wrapMode = TextureWrapMode.Repeat;
             importer.filterMode = FilterMode.Trilinear;
@@ -214,7 +215,7 @@ public static class RockLookPreview
                 lines.AppendLine(p + "=" + (t != null ? t.name + " " + t.width + "x" + t.height + " " + t.format + " mips=" + t.mipmapCount + " linear=" + !t.isDataSRGB : "null") + " scale=" + m.GetTextureScale(p) + " offset=" + m.GetTextureOffset(p));
             }
         }
-        foreach (var name in new[] { "regolith_albedo", "regolith_normal", "regolith_metalrough" })
+        foreach (var name in new[] { "regolith_albedo", "regolith_normal", "regolith_metalrough", "ore_albedo", "ore_normal", "ore_metalrough" })
         {
             var tex = Resources.Load<Texture2D>("Asteroids/" + name);
             if (tex != null) lines.AppendLine("Override " + name + " " + tex.width + "x" + tex.height + " mips=" + tex.mipmapCount + " format=" + tex.format + " sRGB=" + tex.isDataSRGB + " filter=" + tex.filterMode + " anisotropy=" + tex.anisoLevel);

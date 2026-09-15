@@ -265,7 +265,7 @@ public class Belt
         for (int i = 0; i < Data.ORE_KEYS.Length; i++)
         {
             string key = Data.ORE_KEYS[i];
-            float roughness = key == "gold" || key == "platinum" ? 0.24f : key == "beryl" ? 0.30f : key == "crystal" || key == "cobalt" ? 0.28f : 0.29f;
+            float roughness = key == "gold" || key == "platinum" ? 0.30f : key == "beryl" ? 0.36f : key == "crystal" || key == "cobalt" ? 0.34f : 0.38f;
             float metallic = key == "gold" ? 0.97f : key == "copper" ? 0.95f : key == "crystal" ? 0.82f : key == "beryl" ? 0.83f : key == "cobalt" ? 0.92f : 0.94f;
             result[i + 1] = new Vector4(roughness, metallic, 0f, 0f);
         }
@@ -318,9 +318,17 @@ public class Belt
             string bodySlot = suffix == "albedo" ? "_MainTex" : suffix == "normal" ? "_BumpMap" : "_MetalRough";
             m.SetTexture(stoneSlot, texture);
             if (!vein) m.SetTexture(bodySlot, texture);
+            else
+            {
+                // Full-resolution concept metal maps override the compact GLB fallback textures.
+                var metal = Resources.Load<Texture2D>("Asteroids/ore_" + suffix);
+                if (metal != null) m.SetTexture(bodySlot, metal);
+            }
         }
-        m.SetColor("_BaseColor", vein ? Color.white : sm.GetColor("baseColorFactor"));
-        m.SetColor("_StoneColor", stoneSource != null ? stoneSource.GetColor("baseColorFactor") : Color.white);
+        m.SetColor("_BaseColor", vein ? Color.white : sm.GetColor("baseColorFactor") * 0.50f);
+        m.SetColor("_StoneColor", (stoneSource != null ? stoneSource.GetColor("baseColorFactor") : Color.white) * 0.50f);
+        // Larger surface grains and dark basalt reflectance for the approved asteroid concepts.
+        m.SetTextureScale("_MainTex", Vector2.one * 0.60f);
         m.SetFloat("_Library", 1f);
         m.SetFloat("_Tint", vein ? 1f : 0f);
         m.SetFloat("_BumpScale", sm.HasProperty("normalTexture_scale") ? sm.GetFloat("normalTexture_scale") : 1f);

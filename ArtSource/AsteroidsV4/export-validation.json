@@ -1,0 +1,32 @@
+[
+  {
+    "file": "asteroids_lod0.glb",
+    "bytes": 51346224,
+    "sha256": "a66586c4ae14e9b55e92274ebf1dca21ccd9b7478212b2db11cbdbf1dfb49bdf",
+    "previous_sha256": "96c281cf223e102f57a989889e73c19944bb1c5b7c66df737fdab12b53ed5f65",
+    "models": 28,
+    "triangles_min": 41060,
+    "triangles_max": 43734,
+    "triangles_total": 1185136
+  },
+  {
+    "file": "asteroids_lod1.glb",
+    "bytes": 6111592,
+    "sha256": "9f273a7f9b8aed166e5b651ef4cd225bb4f6a6476896b38aff8bdd92bbb7a11b",
+    "previous_sha256": "26ba1d69b1ec11a648ca6208fdc137e59f002ed774cea47a2158097a448c0555",
+    "models": 28,
+    "triangles_min": 2336,
+    "triangles_max": 2688,
+    "triangles_total": 70468
+  },
+  {
+    "file": "asteroids_lod2.glb",
+    "bytes": 3012324,
+    "sha256": "82ee0837747dd3645d2d980155f105b21facc720925d68e68196d7bbfaff9e25",
+    "previous_sha256": "c199f9c9f75625d717201a708888ee5ba338f3395ee8a2024df24171d140115c",
+    "models": 28,
+    "triangles_min": 590,
+    "triangles_max": 698,
+    "triangles_total": 17930
+  }
+]

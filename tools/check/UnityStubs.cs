@@ -410,6 +410,7 @@ namespace UnityEngine
         public bool HasProperty(string n) => false;
         public Texture GetTexture(string n) => null;
         public void SetTexture(string n, Texture t) { }
+        public void SetTextureScale(string n, Vector2 scale) { }
         public void SetVector(string n, Vector4 v) { }
         public void SetVectorArray(string n, Vector4[] v) { }
         public Color GetColor(string n) => new Color();
