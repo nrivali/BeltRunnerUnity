@@ -13,7 +13,7 @@ The numbers as the code has them today. World units (u) are what the code uses; 
 | Bolt speed | 5,000 u/s (dies after 2.2 s, 11,000 u) | 2,600 u/s (dies after 2.6 s, 6,760 u) |
 | Fires when | Trigger held (LMB or L), at the crosshair (the mouse); the dish turret covers the forward half | Nose within 25° of the ship and inside gun reach; rough aim: 0.09 spread (~5°) and the lead over- or under-estimated by 55–115% shot by shot |
 | Hit box | Ship radius (SHIP_R) × 0.8 | 60 u for bolts (hull is 28 u for the reticle and ranges; the model is drawn at twice its original size) |
-| Top speed | 250 u/s (125 m/s), ×2 to ×5 on the afterburner refit | 865 u/s, ×1.25 (1,081) on the boost (runs in from beyond 900 u and long runs out), capped on a strafe to hold the circle |
+| Top speed | 250 u/s (125 m/s), ×2 on the afterburner from the start, up to ×5 with the refits | 865 u/s, ×1.25 (1,081) on the boost (runs in from beyond 900 u and long runs out), capped on a strafe to hold the circle |
 | Thrust | 164 u/s² | 220 u/s² accel (352 on the boost), 320 u/s² braking |
 | Turn rate | 30°/s yaw and pitch | 30°/s |
 | Damage per second landed | 48 | 24 |
@@ -27,7 +27,7 @@ The numbers as the code has them today. World units (u) are what the code uses; 
 | Autocannon | 8 dmg · 6/s → 12 · 7/s → 18 · 8/s → 26 · 10/s, 5,000 m at every level | 900, 3,200, 9,000 |
 | Hull plating | 50 → 80 → 125 → 200 → 300 | 250, 900, 3,000, 9,000 |
 | Engines (thrust · top speed, u) | 164 · 250 → 219 · 320 → 281 · 400 → 359 · 490 → 461 · 610 | 300, 1,100, 3,500, 10,000 |
-| Afterburner | ×1 → ×2 → ×3 → ×4 → ×5 speed on Shift, heavy fuel burn | 800, 3,000, 9,000, 24,000 |
+| Afterburner | ×2 (fitted from the start) → ×3 → ×4 → ×5 speed on Shift, heavy fuel burn | 3,000, 9,000, 24,000 |
 | Fuel tank | 100 → 160 → 250 → 400 → 600 | 150, 600, 2,000, 6,000 |
 | Mining laser | 3 → 5 → 8 → 12 → 18 | 350, 1,400, 5,000, 16,000 |
 | Laser range | 2,500 → 3,500 → 5,000 → 7,000 u | 2,500, 9,000, 25,000 |

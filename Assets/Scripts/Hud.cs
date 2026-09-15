@@ -254,7 +254,7 @@ public class Hud : MonoBehaviour
         new object[] { new[] { "X" }, "Cut throttle · S at zero fires retros" },
         new object[] { new[] { "Space" }, "Hold · drift brake: engine cuts, retros slow you, nose swings free" },
         new object[] { new[] { "A", "D" }, "Roll left · right" },
-        new object[] { new[] { "Shift" }, "Afterburner while throttled up (needs the refit · ×2 to ×5 speed · burns fuel fast)" },
+        new object[] { new[] { "Shift" }, "Afterburner while throttled up (×2 speed from the start, ×5 with the refits · burns fuel fast)" },
         new object[] { new[] { "G" }, "Laser overcharge on · off (needs the refit · up to ×3 damage · the beam draws fuel while it cuts)" },
         new object[] { new[] { "↑", "↓" }, "Pitch" },
         new object[] { new[] { "LMB" }, "Hold to fire the selected weapon (L too). The laser cuts only what the crosshair is on: aim the nose at a rock" },

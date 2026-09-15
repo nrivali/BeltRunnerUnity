@@ -98,7 +98,7 @@ public static class Data
         { "scanner", new Upgrade { name = "Scanner", levels = new[] { L(range: 28000), L(range: 46000), L(range: 74000), L(range: 135000) }, costs = new float[] { 400, 1800, 6000 } } },
         { "range", new Upgrade { name = "Laser range", levels = new[] { L(reach: 2500), L(reach: 3500), L(reach: 5000), L(reach: 7000) }, costs = new float[] { 2500, 9000, 25000 } } },
         { "hull", new Upgrade { name = "Hull plating", levels = new[] { L(hp: 50), L(hp: 80), L(hp: 125), L(hp: 200), L(hp: 300) }, costs = new float[] { 250, 900, 3000, 9000 } } },
-        { "thrusters", new Upgrade { name = "Afterburner", levels = new[] { L(mult: 1), L(mult: 2), L(mult: 3), L(mult: 4), L(mult: 5) }, costs = new float[] { 800, 3000, 9000, 24000 } } },
+        { "thrusters", new Upgrade { name = "Afterburner", levels = new[] { L(mult: 2), L(mult: 3), L(mult: 4), L(mult: 5) }, costs = new float[] { 3000, 9000, 24000 } } },
         { "overcharge", new Upgrade { name = "Laser overcharge", levels = new[] { L(mult: 1f), L(mult: 1.5f), L(mult: 2f), L(mult: 2.5f), L(mult: 3f) }, costs = new float[] { 600, 2200, 7000, 18000 } } },
         // the autocannon (combat), fitted from the start: rate = shots a second, reach = range in world units, mult = damage a shot
         { "gun", new Upgrade { name = "Autocannon", levels = new[] { L(rate: 6, reach: 10000, mult: 8), L(rate: 7, reach: 10000, mult: 12), L(rate: 8, reach: 10000, mult: 18), L(rate: 10, reach: 10000, mult: 26) }, costs = new float[] { 900, 3200, 9000 } } },
