@@ -61,10 +61,10 @@ Shield is fixed at 50 for every fit (no refit yet).
   break (1.2–2.5 s). Jink when a player bolt is coming their way (miss under 138 u, within 2,500 u): 70% of the time,
   0.8 s hard turn, then 1.6 s cooldown.
 - Flight model: heading turns at most 30°/s, accel 220, braking 320, movement only along the nose.
-- Destroyed: 30% blow up on the spot. The rest wreck first: burn (~20%: fire and a growing tumble, 3.5–8 s, then the
-  blast), chain (~15%: pops along the hull for ~1 s, then the blast), runaway (~13%: engine jammed open, corkscrews
-  away at 420 u/s² for 1.5–3 s, then the blast), shed (~13%: pieces tear off every 0.3–0.6 s, the body goes up last),
-  dead (~10%: lights out, flat spin with arcs for 10–18 s, then a quiet break-up). Every wreck keeps its momentum;
+- Destroyed: 30% blow up on the spot; that is the only explosion. The rest wreck and then come apart quietly: burn
+  (~20%: fire and a growing tumble, 3.5–8 s), chain (~15%: pops along the hull for ~1 s), runaway (~13%: engine
+  jammed open, corkscrews away at 420 u/s² for 1.5–3 s), shed (~13%: pieces tear off every 0.3–0.6 s until only the
+  body is left), dead (~10%: lights out, flat spin with arcs for 10–18 s). Every wreck keeps its momentum;
   the hull ends as debris that drifts for 60 s. The bounty is paid at the kill.
 
 ## Combat test (`combat-test.bat`, the `-combat` flag)

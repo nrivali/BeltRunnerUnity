@@ -575,11 +575,11 @@ public class Raiders
     }
 
     // ---- the wreck: a killed raider that did not blow up on the spot. Every kind flies on with the momentum it had,
-    // out of control, and ends in the blast (or, for the dead hull, a quiet break-up):
-    //   burn     catches fire and tumbles, trailing flame, smoke and sparks, for 3.5 to 8 s
-    //   chain    a run of small pops along the hull over about a second, then the blast
-    //   runaway  the engine jams open: it flares and the hulk accelerates hard along its nose, corkscrewing, for 1.5 to 3 s
-    //   shed     pieces tear off one by one every 0.3 to 0.6 s with a puff and sparks; the last of it goes up small
+    // out of control, and ends quietly, coming apart with no blast (only the kill on the spot blows up: BLAST_CHANCE):
+    //   burn     catches fire and tumbles, trailing flame, smoke and sparks, for 3.5 to 8 s, then comes apart
+    //   chain    a run of small pops along the hull over about a second, then comes apart
+    //   runaway  the engine jams open: it flares and the hulk accelerates hard along its nose, corkscrewing, for 1.5 to 3 s, then comes apart
+    //   shed     pieces tear off one by one every 0.3 to 0.6 s with a puff and sparks, until the body comes apart too
     //   dead     everything goes dark; it spins flat and silent for 10 to 18 s with arcs crawling over it, then breaks up
     public const float BLAST_CHANCE = 0.3f;   // the rest is split between the kinds below
     class Hulk
@@ -628,8 +628,7 @@ public class Raiders
             if (h.node == null) { _hulks.RemoveAt(i); continue; }
             if (h.fuse <= 0f)
             {
-                if (h.kind == "dead") { QuietBreak(h); }
-                else Explode(h.node, h.pos, h.vel);
+                QuietBreak(h);   // a wreck never blows up: only the kill-on-the-spot does (BLAST_CHANCE), the rest come apart quietly
                 _hulks.RemoveAt(i);
                 continue;
             }
@@ -705,7 +704,7 @@ public class Raiders
                         h.shedT = Random.Range(0.3f, 0.6f);
                         Transform piece = null;
                         for (int c = h.node.childCount - 1; c >= 0; c--) { var t = h.node.GetChild(c); if (t.name != "Exhaust" && t.name != "Core" && t.name != "Body") { piece = t; break; } }
-                        if (piece == null) { h.fuse = 0.01f; break; }
+                        if (piece == null) { h.fuse = 0.01f; break; }   // the body is all that is left: it comes apart next frame
                         var ppos = piece.position + game.worldOffset;
                         piece.SetParent(_root, true);
                         var shove = (ppos - h.pos).normalized * Random.Range(20f, 60f) + Random.insideUnitSphere * 15f;
@@ -742,11 +741,16 @@ public class Raiders
         Audio.Play("hit", Mathf.Max(-30f, db + (bd <= 600f ? 0f : -20f * Mathf.Log10(bd / 600f))));
     }
 
-    /// The dead hull's end: no blast, just the pieces parting with a last crackle of arcs.
+    /// A wreck's end: no blast, the pieces part with a last crackle of arcs (the dead hull) or a last gout of flame and
+    /// smoke (the rest) and a spray of sparks.
     void QuietBreak(Hulk h)
     {
-        if (game.explosions != null) { game.explosions.Arc(h.pos, h.vel); game.explosions.Arc(h.pos + Random.insideUnitSphere * 15f, h.vel); }
-        if (game.sparks != null) game.sparks.Burst(h.pos, 40, 100f, Data.Hex("#bfe8ff"), 1.2f, h.vel);
+        if (game.explosions != null)
+        {
+            if (h.kind == "dead") { game.explosions.Arc(h.pos, h.vel); game.explosions.Arc(h.pos + Random.insideUnitSphere * 15f, h.vel); }
+            else for (int k = 0; k < 4; k++) { game.explosions.Flame(h.pos + Random.insideUnitSphere * 14f, h.vel + Random.insideUnitSphere * 25f); game.explosions.Smoke(h.pos + Random.insideUnitSphere * 12f, h.vel + Random.insideUnitSphere * 20f); }
+        }
+        if (game.sparks != null) game.sparks.Burst(h.pos, 40, 100f, h.kind == "dead" ? Data.Hex("#bfe8ff") : Data.Hex("#ffb060"), 1.2f, h.vel);
         Pop(h.pos, -10f);
         Shatter(h.node, h.pos, h.vel);
     }
