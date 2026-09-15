@@ -137,6 +137,8 @@ public class Ship : MonoBehaviour
     float _ctlYaw, _ctlPitch, _ctlRoll;
     float _fov = FOV;
     public float camYaw, camPitch, camRoll;   // the eased control deflections the camera swing uses (the HUD reads them too)
+    float _lockT;      // seconds since the lock was set: the lock steering eases its authority in over the first 0.4 s
+    bool _autoSteer;   // the lock is steering this frame: the camera swing takes only a quarter of that deflection
     public float burnK;      // the afterburner's intensity, eased: in over a third of a second, out over half
     float _burnKick, _jetT;  // the kick at ignition (decays), the jet puff timer
     public bool rdown;
@@ -848,6 +850,7 @@ public class Ship : MonoBehaviour
         if (hover != null && !HoverIsLock(hover))
         {
             lockKind = hover.kind;
+            _lockT = 0f;
             lockRock = hover.rock;
             lockRaider = hover.raider;
             lockDist = hover.dist;
@@ -865,6 +868,7 @@ public class Ship : MonoBehaviour
     public void LockOnRock(int i)
     {
         lockKind = "rock";
+        _lockT = 0f;
         lockRock = i;
         lockDist = Mathf.Max(0f, (belt.RockPos(i) - LaserOrigin()).magnitude - belt.radius[i]);
         game.Toast("Locked on " + belt.RockName(i), false);
@@ -874,6 +878,7 @@ public class Ship : MonoBehaviour
     public void LockOnRaider(Raiders.Raider r)
     {
         lockKind = "raider";
+        _lockT = 0f;
         lockRaider = r;
         lockRock = -1;
         lockDist = Mathf.Max(0f, (r.pos - LaserOrigin()).magnitude - Raiders.RADIUS);
@@ -1153,17 +1158,22 @@ public class Ship : MonoBehaviour
             lookYaw *= Mathf.Exp(-4f * dt);
             lookPitch *= Mathf.Exp(-4f * dt);
         }
-        if (flying && lockKind != "")
+        _autoSteer = flying && lockKind != "";
+        if (_autoSteer)
         {
             // Q lock: the ship turns itself to put the locked object on the nose ray (a rock, the cargo ship or a raider,
             // which the ship follows round while the mouse works the gun) (the laser's line, not the camera's);
             // the mouse is ignored until the lock is released (roll is still yours). Proportional: full rate beyond about
-            // seven degrees off, easing in as the nose comes on.
+            // eleven degrees off, easing in as the nose comes on, and the authority itself eases in over the first 0.4 s
+            // of a lock so the turn starts gently rather than snapping to full rate
+            _lockT += dt;
+            float auth = Mathf.Clamp01(_lockT / 0.4f);
+            auth = auth * auth * (3f - 2f * auth);
             var L = transform.InverseTransformPoint(LockPos() - game.worldOffset) - new Vector3(0f, 0f, 20f);
             float ey = Mathf.Atan2(L.x, L.z);
             float ep = Mathf.Atan2(L.y, Mathf.Sqrt(L.x * L.x + L.z * L.z));
-            yaw = Mathf.Clamp(ey * 8f, -1f, 1f) * 1.2f;
-            pitchUp = Mathf.Clamp(ep * 8f, -1f, 1f);
+            yaw = Mathf.Clamp(ey * 5f, -1f, 1f) * auth;
+            pitchUp = Mathf.Clamp(ep * 5f, -1f, 1f) * auth;
         }
         else if (flying && mouseSteer && !rdown)
         {
@@ -1184,7 +1194,9 @@ public class Ship : MonoBehaviour
         transform.Rotate(Vector3.up, yaw * turn * dt * Mathf.Rad2Deg, Space.Self);
         transform.Rotate(Vector3.right, -pitchUp * turn * dt * Mathf.Rad2Deg, Space.Self);
         transform.Rotate(Vector3.forward, roll * 0.6f * dt * Mathf.Rad2Deg, Space.Self);
-        _ctlYaw = yaw; _ctlPitch = pitchUp; _ctlRoll = Mathf.Clamp(roll, -1f, 1f);
+        // the camera swing follows the stick, not the lock: an automatic turn that fed it in full swung the view past the
+        // target and back as the nose arrived and the deflection dropped away
+        _ctlYaw = _autoSteer ? yaw * 0.25f : yaw; _ctlPitch = _autoSteer ? pitchUp * 0.25f : pitchUp; _ctlRoll = Mathf.Clamp(roll, -1f, 1f);
 
         // throttle: W raises, S lowers, X cuts; holding S at zero fires the retros
         if (flying)
