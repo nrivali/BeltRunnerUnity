@@ -70,26 +70,44 @@ Shader "BeltRunner/Sky"
             float4 frag(v2f i) : SV_Target
             {
                 float3 d = normalize(i.dir);
-                // the nebula: two noise fields, a dust band round the ecliptic tilted by a slow wave
-                float n1 = fbm(d * 2.2 + 3.0);
-                float n2 = fbm(d * 3.1 + 13.0);
-                float lon = atan2(d.z, d.x);
-                float band = exp(-pow((d.y - 0.07 * sin(lon + 1.2)) / 0.075, 2.0)) * (0.35 + 0.65 * n2);
-                float neb = max(0.0, n1 - 0.52) * 2.2;
-                float neb2 = max(0.0, n2 - 0.6) * 2.4;
-                // the nebula and the dust band are a whisper now: space reads black, the sun and the stars do the sky
-                float3 col = _BaseColor.rgb + (neb * _NebulaA.rgb + neb2 * _NebulaB.rgb) * 0.12 + band * _BandColor.rgb * 0.35;
-                // stars: a sparse hash over direction cells, a brighter few among them
-                float3 sp = d * 240.0;
+                float3 col = _BaseColor.rgb;
+                // the galaxy: a band across the sky, tilted off the belt plane, with cloud structure along it and dark
+                // dust lanes through its middle; warm white in the core, bluer at the edges
+                float3 gN = normalize(float3(0.32, 0.82, -0.47));   // the band's pole
+                float gl = dot(d, gN);
+                float3 gAlong = normalize(d - gN * gl + 1e-4);
+                float gw = exp(-gl * gl / 0.028);
+                float cloud = fbm(d * 3.6 + 21.0) * 0.6 + fbm(d * 9.0 + 5.0) * 0.4;
+                float lane = fbm(float3(gAlong.x * 7.0, gl * 26.0, gAlong.z * 7.0) + 40.0);
+                float lanes = 1.0 - 0.75 * smoothstep(0.45, 0.62, lane) * exp(-gl * gl / 0.006);
+                float galaxy = gw * (0.35 + 0.9 * smoothstep(0.35, 0.75, cloud)) * lanes;
+                float3 gCol = lerp(float3(0.55, 0.62, 0.85), float3(0.95, 0.88, 0.74), gw);
+                col += gCol * galaxy * 0.55;
+                // the nebulae: three coloured clouds in their own parts of the sky, domain-warped so they wisp
+                float3 warp = float3(fbm(d * 2.0 + 7.0), fbm(d * 2.0 + 19.0), fbm(d * 2.0 + 31.0)) - 0.5;
+                float3 dw = d + warp * 0.35;
+                float nb1 = fbm(dw * 2.4 + 3.0);
+                float nb2 = fbm(dw * 2.9 + 13.0);
+                float nb3 = fbm(dw * 2.1 + 27.0);
+                float c1 = smoothstep(0.55, 0.85, nb1) * smoothstep(0.55, 0.95, dot(d, normalize(float3(-0.7, 0.35, 0.6))));
+                float c2 = smoothstep(0.55, 0.85, nb2) * smoothstep(0.5, 0.95, dot(d, normalize(float3(0.75, -0.25, 0.6))));
+                float c3 = smoothstep(0.55, 0.85, nb3) * smoothstep(0.5, 0.95, dot(d, normalize(float3(0.1, -0.6, -0.8))));
+                col += _NebulaA.rgb * c1 * 1.3 + _NebulaB.rgb * c2 * 1.3 + float3(0.55, 0.28, 0.12) * c3 * 1.0;
+                // stars: a hash over direction cells, denser in the galaxy band, a few bright and coloured among them
+                float3 sp = d * 260.0;
                 float3 cell = floor(sp);
                 float h = hash(cell);
-                if (h > 0.9962)
+                float thresh = 0.993 - gw * 0.004;
+                if (h > thresh)
                 {
                     float3 c = float3(hash(cell + 1.0), hash(cell + 2.0), hash(cell + 3.0));
                     float dist = length(frac(sp) - 0.5 - (c - 0.5) * 0.5);
-                    float bright = h > 0.9993 ? 2.4 : 0.9;
-                    float s = smoothstep(0.11, 0.0, dist) * bright * _StarGain;
-                    col += s * lerp(float3(0.72, 0.76, 0.83), float3(0.9, 0.92, 0.97), hash(cell + 5.0));
+                    float big = h > 0.9992 ? 1.0 : 0.0;
+                    float bright = lerp(0.7, 2.6, big);
+                    float s = smoothstep(0.11 + big * 0.06, 0.0, dist) * bright * _StarGain;
+                    float hue = hash(cell + 5.0);
+                    float3 sc = hue < 0.2 ? float3(0.95, 0.75, 0.6) : (hue > 0.8 ? float3(0.7, 0.8, 1.0) : float3(0.85, 0.88, 0.95));
+                    col += s * sc;
                 }
                 // the sun: a hard disc and a small optical glare, both in HDR
                 float cs = dot(d, normalize(_SunDir.xyz));
