@@ -423,6 +423,7 @@ public class Game : MonoBehaviour
         else if (key == "hud") { State.hudScale = Mathf.Clamp(v, 0.7f, 1.6f); hud.SetScale(State.hudScale); }
         else if (key == "music") State.musicOn = v > 0.5f;
         else if (key == "music_volume") State.musicVolume = Mathf.Clamp01(v);
+        else if (key == "brightness") State.brightness = Mathf.Clamp(v, 0.5f, 1.5f);   // the post pass reads it every frame
         else if (key == "display") { State.display = Mathf.Clamp(Mathf.RoundToInt(v), 0, 2); ApplyDisplay(); }
         if (Audio.I != null) Audio.I.ApplySettings();
         if (Music.I != null) Music.I.ApplySettings();

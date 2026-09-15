@@ -188,7 +188,7 @@ public class Post : MonoBehaviour
             if (sh == null) { Graphics.Blit(src, dst); return; }
             _mat = new Material(sh);
         }
-        _mat.SetFloat("_Exposure", exposure);
+        _mat.SetFloat("_Exposure", exposure * State.brightness);   // the Settings brightness slider scales the exposure
         _mat.SetFloat("_Threshold", threshold);
         _mat.SetFloat("_Intensity", intensity);
         _mat.SetFloat("_Burn", burn);

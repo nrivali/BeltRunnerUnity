@@ -5,12 +5,12 @@ using UnityEngine.UI;
 
 /// The start menu and the pause menu, one card (#intro .card.menu in belt-runner-3d.html): the sector eyebrow, the
 /// BELT RUNNER title, a line about the game, then Continue / Resume, New game, Controls and Settings. Settings has the
-/// sound switch and volume, the HUD size, a tutorial restart and the save wipe; Controls is the long list of keys.
+/// sound switch and volume, the HUD size, the brightness, a tutorial restart and the save wipe; Controls is the long list of keys.
 /// Escape brings it up over the frozen game and takes it away again. Game owns the game state; this only asks.
 public class Menu
 {
     public Action onStart, onResume, onNewGame, onWipe, onTutorialRestart, onQuit;
-    public Action<string, float> onSetting;   // "sound" 0/1, "volume" 0..1, "hud" 0.7..1.6
+    public Action<string, float> onSetting;   // "sound" 0/1, "volume" 0..1, "hud" 0.7..1.6, "brightness" 0.5..1.5
 
     public bool started, hasSave;
     public bool Visible { get { return _overlay != null && _overlay.gameObject.activeSelf; } }
@@ -21,8 +21,8 @@ public class Menu
     readonly Dictionary<string, float> _pageH = new Dictionary<string, float>();
     Text _eyebrow;
     Ui.Btn _continueBtn, _newBtn, _soundBtn, _musicBtn, _tutBtn, _wipeBtn, _displayBtn;
-    Text _continueInfo, _newInfo, _volT, _mvolT, _hudT;
-    Slider _vol, _mvol, _hud;
+    Text _continueInfo, _newInfo, _volT, _mvolT, _hudT, _brightT;
+    Slider _vol, _mvol, _hud, _bright;
     bool _newArmed, _wipeArmed, _syncing;
     float _newT, _wipeT, _tutT;
     float _headH;
@@ -151,6 +151,7 @@ public class Menu
         var dr = SettingRow(f, "Display", 48f);
         _displayBtn = Small(dr, "Borderless", () => CycleDisplay());
         VolumeRow(f, "HUD size", 70f, 160f, v => { _hudT.text = Mathf.RoundToInt(v) + "%"; if (!_syncing && onSetting != null) onSetting("hud", v / 100f); }, out _hud, out _hudT);
+        VolumeRow(f, "Brightness", 50f, 150f, v => { _brightT.text = Mathf.RoundToInt(v) + "%"; if (!_syncing && onSetting != null) onSetting("brightness", v / 100f); }, out _bright, out _brightT);
         var tr = SettingRow(f, "Tutorial", 48f);
         _tutBtn = Small(tr, "Run again", () => RestartTutorial());
         var wr = SettingRow(f, "Saved game", 48f);
@@ -241,6 +242,8 @@ public class Menu
         _volT.text = Mathf.RoundToInt(State.volume * 100f) + "%";
         _hud.value = Mathf.RoundToInt(State.hudScale * 100f);
         _hudT.text = Mathf.RoundToInt(State.hudScale * 100f) + "%";
+        _bright.value = Mathf.RoundToInt(State.brightness * 100f);
+        _brightT.text = Mathf.RoundToInt(State.brightness * 100f) + "%";
         _syncing = false;
         _tutBtn.SetText("Run again");
         _wipeBtn.SetText("Wipe save");
