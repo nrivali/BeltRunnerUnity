@@ -309,7 +309,7 @@ public class Audio : MonoBehaviour
         StopVoice();
         // Vega (the tutorial lines) is aboard the ship, so she speaks clean and at once; everyone else is on the radio
         // and gets the squelch before and after
-        bool radio = !name.StartsWith("tut_");
+        bool radio = !name.StartsWith("tut_") && !name.StartsWith("vega_");
         _voiceRadio = radio;
         if (radio) Squelch("radio_on");
         _voice.clip = c;

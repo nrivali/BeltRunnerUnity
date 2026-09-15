@@ -39,4 +39,21 @@ foreach ($id in $lines.Keys){
     $chars+=$text.Length; "made  tut_$id  $((Get-Item $file).Length) bytes"
   } catch { $d=''; try { $rd=New-Object IO.StreamReader($_.Exception.Response.GetResponseStream()); $d=' '+$rd.ReadToEnd() } catch {}; "FAIL  tut_$id : $($_.Exception.Message)$d" }
 }
+# Vega's warnings and calls outside the tutorial: vega_<id>.mp3, read calm and clear
+$vega=[ordered]@{
+  fuel50 = "Vega here. Fuel is at fifty percent. Plenty left, but keep the cargo ship in mind."
+  fuel25 = "Fuel at twenty-five percent. Start thinking about heading back to the cargo ship."
+  fuel5  = "Fuel critical, five percent. Cut the throttle and call recovery, or coast home now."
+}
+foreach ($id in $vega.Keys){
+  if ($Only.Count -gt 0 -and $Only -notcontains $id) { continue }
+  $file=Join-Path $out ("vega_$id.mp3")
+  if ((Test-Path $file) -and -not $Force) { "skip  vega_$id (exists)"; continue }
+  $text='[calm] [clear] '+($vega[$id] -replace '. ', '... ')
+  $body=@{text=$text; model_id='eleven_v3'; voice_settings=@{stability=0.35; similarity_boost=0.8}} | ConvertTo-Json -Depth 4
+  try {
+    Invoke-WebRequest -Uri ("https://api.elevenlabs.io/v1/text-to-speech/$VOICE"+'?output_format=mp3_44100_96') -Method Post -Headers @{'xi-api-key'=$key; 'Content-Type'='application/json'; 'Accept'='audio/mpeg'} -Body ([Text.Encoding]::UTF8.GetBytes($body)) -OutFile $file | Out-Null
+    $chars+=$text.Length; "made  vega_$id  $((Get-Item $file).Length) bytes"
+  } catch { $d=''; try { $rd=New-Object IO.StreamReader($_.Exception.Response.GetResponseStream()); $d=' '+$rd.ReadToEnd() } catch {}; "FAIL  vega_$id : $($_.Exception.Message)$d" }
+}
 "characters spent: $chars"
