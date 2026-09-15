@@ -17,8 +17,8 @@ public class Raiders
     public const float RAIDER_REACH = 6000f; // raiders open fire from 3,000 m; their bolt lives long enough to get there
     public const float RAIDER_BOLT_LIFE = 2.6f;
     public const float PLAYER_BOLT_SPEED = 5000f;   // the player's bolt is faster: 0.8 s of flight covers 4,000 u, past any gun reach
-    public const float RADIUS = 14f;    // the hull, for the reticle, ranges and the pick
-    public const float HIT_R = 48f;     // the hit box a bolt has to pass through: generous, the raider is small and fast
+    public const float RADIUS = 28f;    // the hull, for the reticle, ranges and the pick (the model is drawn at twice its original size)
+    public const float HIT_R = 60f;     // the hit box a bolt has to pass through: generous, the raider is fast; it covers the wing tips
     // a raider flies like a ship: it turns no faster than this, and speeds up and slows down no harder than this
     public const float TURN_RATE = 30f * Mathf.Deg2Rad;   // the same as the player's ship
     public const float ACCEL = 220f;
@@ -130,6 +130,7 @@ public class Raiders
     {
         var go = new GameObject("Raider");
         go.transform.SetParent(_root, false);
+        go.transform.localScale = Vector3.one * 2f;   // twice the size it was drawn at
         var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         Object.Destroy(body.GetComponent<Collider>());
         body.transform.SetParent(go.transform, false);

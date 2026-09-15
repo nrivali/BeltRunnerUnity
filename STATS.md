@@ -12,7 +12,7 @@ The numbers as the code has them today. World units (u) are what the code uses; 
 | Gun | Autocannon: 8 dmg, 6 shots/s, 1,800 u (900 m) | 4 dmg, 6 shots/s, 6,000 u (3,000 m) reach |
 | Bolt speed | 5,000 u/s (dies after 0.8 s, 4,000 u) | 2,600 u/s (dies after 2.6 s, 6,760 u) |
 | Fires when | Trigger held (LMB or L), at the crosshair (the mouse); the dish turret covers the forward half | Nose within 25° of the ship and inside gun reach; 0.05 spread |
-| Hit box | Ship radius (SHIP_R) × 0.8 | 48 u for bolts (hull is 14 u for the reticle and ranges) |
+| Hit box | Ship radius (SHIP_R) × 0.8 | 60 u for bolts (hull is 28 u for the reticle and ranges; the model is drawn at twice its original size) |
 | Top speed | 250 u/s (125 m/s), ×2 to ×5 on the afterburner refit | 865 u/s, capped on a strafe to hold the circle |
 | Thrust | 164 u/s² | 220 u/s² accel, 320 u/s² braking |
 | Turn rate | 30°/s yaw and pitch | 30°/s |
