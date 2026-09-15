@@ -19,6 +19,9 @@ Shader "BeltRunner/Post"
         _RayDecay ("Ray decay per tap", Float) = 0.94
         _RayGain ("Ray gain", Float) = 0
         _Volume ("Volumetric dust", 2D) = "black" {}
+        _Grade ("Grade (saturation, contrast, lift, 0)", Vector) = (1.25, 1.18, 0.015, 0)
+        _ShadowTint ("Shadow tint", Color) = (0.92, 0.96, 1.06, 1)
+        _HighTint ("Highlight tint", Color) = (1.05, 1.0, 0.93, 1)
     }
     SubShader
     {
@@ -35,6 +38,7 @@ Shader "BeltRunner/Post"
         float4 _BurnCenter;
         float4 _SunUV;
         float _RayThreshold, _RayLen, _RayDecay, _RayGain;
+        float4 _Grade, _ShadowTint, _HighTint;
 
         struct v2f
         {
@@ -149,7 +153,14 @@ Shader "BeltRunner/Post"
                     c += ghost * saturate(_RayGain * 2.5);
                 }
                 c += tex2D(_Volume, i.uv).rgb;
-                return float4(aces(c * _Exposure), 1.0);
+                c = aces(c * _Exposure);
+                // the grade: a split tone (cool shadows, warm highlights), saturation, contrast about mid grey, the blacks crushed
+                float l = dot(c, float3(0.2126, 0.7152, 0.0722));
+                c *= lerp(_ShadowTint.rgb, _HighTint.rgb, saturate(l * 1.4));
+                c = lerp(l.xxx, c, _Grade.x);
+                c = (c - 0.5) * _Grade.y + 0.5;
+                c = saturate((c - _Grade.z) / (1.0 - _Grade.z));
+                return float4(c, 1.0);
             }
             ENDCG
         }

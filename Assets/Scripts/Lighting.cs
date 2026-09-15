@@ -17,7 +17,7 @@ public class Lighting
     {
         // the look the user asked for (2026-09-15, from a reference frame): a warm, low, golden sun with a wide glare
         if (zoneId == "hub") return new Profile { color = Data.Hex("#ffe9cf"), intensity = 5.0f, radius = 0.0085f, exposure = 1.0f };
-        return new Profile { color = Data.Hex("#fff1e2"), intensity = 5.8f, radius = 0.0085f, exposure = 1.0f };
+        return new Profile { color = Data.Hex("#ffe9d2"), intensity = 5.8f, radius = 0.0085f, exposure = 0.95f };
     }
 
     public const float SHADOW_REACH = 3300f;          // the browser's 2,400 u shadow box round a focus 900 u ahead of the camera
