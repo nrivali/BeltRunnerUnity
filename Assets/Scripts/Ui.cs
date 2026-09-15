@@ -465,7 +465,7 @@ public static class Ui
         public bool hover;
         public float cut = 6f;
 
-        public void OnPointerEnter(PointerEventData e) { hover = true; SetVerticesDirty(); }
+        public void OnPointerEnter(PointerEventData e) { hover = true; SetVerticesDirty(); if (btn != null && btn.interactable) Audio.Play("ui_hover"); }
         public void OnPointerExit(PointerEventData e) { hover = false; SetVerticesDirty(); }
 
         protected override void OnPopulateMesh(VertexHelper vh)
@@ -518,7 +518,7 @@ public static class Ui
         b.face.raycastTarget = true;
         b.button = b.rt.gameObject.AddComponent<Button>();
         b.button.transition = Selectable.Transition.None;
-        b.button.onClick.AddListener(() => onClick());
+        b.button.onClick.AddListener(() => { Audio.Play("ui_click"); onClick(); });
         b.label = Label(b.rt, mono ? text : text.ToUpperInvariant(), mono ? "mono_med" : "display", fontSize, TEXT, TextAnchor.MiddleCenter);
         float w = Mathf.Max(minW, Mathf.Ceil(b.label.preferredWidth) + 2f * padX + 4f);
         float h = Mathf.Ceil(fontSize * 1.3f) + 2f * padY;
@@ -533,7 +533,7 @@ public static class Ui
     {
         public Text text;
         public Color normal = DIM, over = RED;
-        public void OnPointerEnter(PointerEventData e) { text.color = over; }
+        public void OnPointerEnter(PointerEventData e) { text.color = over; Audio.Play("ui_hover"); }
         public void OnPointerExit(PointerEventData e) { text.color = normal; }
     }
 
@@ -545,7 +545,7 @@ public static class Ui
         t.alignment = TextAnchor.MiddleCenter;
         var b = t.gameObject.AddComponent<Button>();
         b.transition = Selectable.Transition.None;
-        b.onClick.AddListener(() => onClick());
+        b.onClick.AddListener(() => { Audio.Play("ui_click"); onClick(); });
         var h = t.gameObject.AddComponent<Hover>();
         h.text = t;
         h.normal = color ?? DIM;

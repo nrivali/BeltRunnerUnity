@@ -13,6 +13,12 @@ $clips=@(
   # the shield: the moment it is stripped, the time it is down, the moment it comes back
   @{name='shield_down'; dur=1.4; text='sci-fi spaceship energy shield collapsing, a sharp electric crack then a falling power-down whine with a fizzing tail, no music'},
   # shield_out.mp3 (DepletedShields.mp3), shield_charge.mp3 (ShieldRecharge.mp3) and blaster.mp3 (Blaster.mp3) are the user's own clips, 2026-09-14, not generated here
+  # the menus: a tick under the mouse, a click on a press, a tab switch, a window opening and closing
+  @{name='ui_hover'; dur=0.5; text='very soft short sci-fi interface tick, a single subtle high blip, quiet, no music'},
+  @{name='ui_click'; dur=0.5; text='clean short sci-fi interface button click, crisp and satisfying, no music'},
+  @{name='ui_tab';   dur=0.5; text='short sci-fi interface tab switch, a quick two-tone blip, clean, no music'},
+  @{name='ui_open';  dur=0.8; text='sci-fi holographic panel opening, a quick rising glassy swoosh with a soft chime, no music'},
+  @{name='ui_close'; dur=0.7; text='sci-fi holographic panel closing, a quick falling glassy swoosh, no music'},
   # the hit marker: a punchy tick on a hit, a sting on the kill
   @{name='hit_marker';  dur=0.5; text='loud punchy arcade hit marker, a sharp bright metallic click with a hard short thump, instant attack, very short, satisfying, no music'},
   @{name='kill_marker'; dur=0.9; text='arcade kill confirmation, a deep punchy bass thump with a crisp high snap layered on top, one single hit, very short, satisfying, no melody, no music'},

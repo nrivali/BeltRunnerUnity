@@ -366,7 +366,7 @@ public static class State
         up[key] = i + 1;
         if (key == "hull") hull = Stat("hull").hp;
         Save();
-        msg = u.name + " refit to Lv" + (i + 2);
+        msg = u.name + " upgraded to Lv" + (i + 2);
         return true;
     }
 

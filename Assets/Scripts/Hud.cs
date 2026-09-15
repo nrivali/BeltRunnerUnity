@@ -250,23 +250,23 @@ public class Hud : MonoBehaviour
         new object[] { new[] { "X" }, "Cut throttle · S at zero fires retros" },
         new object[] { new[] { "Space" }, "Hold · drift brake: engine cuts, retros slow you, nose swings free" },
         new object[] { new[] { "A", "D" }, "Roll left · right" },
-        new object[] { new[] { "Shift" }, "Afterburner while throttled up (×2 speed from the start, ×5 with the refits · burns fuel fast)" },
-        new object[] { new[] { "G" }, "Laser overcharge on · off (needs the refit · up to ×3 damage · the beam draws fuel while it cuts)" },
+        new object[] { new[] { "Shift" }, "Afterburner while throttled up (×2 speed from the start, ×5 with the upgrades · burns fuel fast)" },
+        new object[] { new[] { "G" }, "Laser overcharge on · off (needs the upgrade · up to ×3 damage · the beam draws fuel while it cuts)" },
         new object[] { new[] { "↑", "↓" }, "Pitch" },
         new object[] { new[] { "LMB" }, "Hold to fire the selected weapon (L too). The laser cuts only what the crosshair is on: aim the nose at a rock" },
         new object[] { new[] { "Wheel" }, "Swap between the mining laser and the autocannon" },
         new object[] { new[] { "R" }, "Radar pulse" },
         new object[] { new[] { "Q" }, "Lock the crosshair on whatever the mouse is over · hover another target and press Q to switch · otherwise press Q to release" },
-        new object[] { new[] { "F" }, "Flashlight on · off in flight · the refit tabs when docked" },
+        new object[] { new[] { "F" }, "Flashlight on · off in flight · the upgrade tabs when docked" },
         new object[] { new[] { "T" }, "Out of fuel · recovery to the cargo ship (15% of credits)" },
         new object[] { new[] { "E" }, "Approach control within 2,250 m of the cargo ship · deposit ore on the pad" },
-        new object[] { new[] { "Tab", "I" }, "The hangar window · inventory, and the refit tabs when docked" },
+        new object[] { new[] { "Tab", "I" }, "The hangar window · inventory, and the upgrade tabs when docked" },
         new object[] { new[] { "N" }, "Nav map · warp (docked in the cargo ship)" },
         new object[] { new[] { "C" }, "Hide · show this list" },
         new object[] { new[] { "F5" }, "Quick-save" },
         new object[] { new[] { "F9" }, "Test · spawn 3 raiders 2,000 to 4,000 m out" },
         new object[] { new[] { "F10" }, "Test · raiders hold their fire · again to let them fire" },
-        new object[] { new[] { "F8" }, "Test · the refit panel anywhere · bottomless credits · − takes a level off" },
+        new object[] { new[] { "F8" }, "Test · the upgrade tabs anywhere · bottomless credits · − takes a level off" },
         new object[] { new[] { "Esc" }, "Pause · the menu with settings and controls" },
     };
 
@@ -476,6 +476,8 @@ public class Hud : MonoBehaviour
     {
         if (_win == null) return;
         if (tab != "inv" && !RefitsAvailable) tab = "inv";
+        if (!_win.gameObject.activeSelf) Audio.Play("ui_open");
+        else if (tab != _winTab) Audio.Play("ui_tab");
         _winTab = tab;
         _win.gameObject.SetActive(true);
         _svcSig = "";
@@ -488,6 +490,7 @@ public class Hud : MonoBehaviour
         if (_win == null || !_win.gameObject.activeSelf) return;
         if (_dragPreview != null) { Destroy(_dragPreview.gameObject); _dragPreview = null; _dragging = null; }
         _win.gameObject.SetActive(false);
+        Audio.Play("ui_close");
     }
 
     /// F: the window on Ship refits (docked, or anywhere in the combat test); pressed again, it closes.
@@ -508,6 +511,7 @@ public class Hud : MonoBehaviour
     void PickTab(string tab)
     {
         if (tab == _winTab) return;
+        Audio.Play("ui_tab");
         _winTab = tab;
         _svcSig = "";
         RefreshWindow();
@@ -580,7 +584,7 @@ public class Hud : MonoBehaviour
         foreach (Transform t in _tabBar) Destroy(t.gameObject);
         float tx = 0f;
         string[] ids = RefitsAvailable ? new[] { "inv", "ship", "depot" } : new[] { "inv" };
-        string[] names = RefitsAvailable ? new[] { "Inventory", "Ship refits", "Cargo ship refits" } : new[] { "Inventory" };
+        string[] names = RefitsAvailable ? new[] { "Inventory", "Ship upgrades", "Cargo ship upgrades" } : new[] { "Inventory" };
         for (int i = 0; i < ids.Length; i++)
         {
             var id = ids[i];
@@ -590,7 +594,8 @@ public class Hud : MonoBehaviour
         }
         var hint = Ui.Label(_tabBar, _winTab == "inv" ? (docked ? "Drag stacks between the grids or double-click one · E deposits all" : "Drag a stack out of the grid, or ✕, to jettison it") : "The price button buys the next level", "body", 12, Ui.DIM, TextAnchor.MiddleRight);
         Ui.At(hint.rectTransform, Ui.TR, Ui.TR, Vector2.zero, new Vector2(520f, 36f));
-        // the body
+        // the body, rebuilt where it stood: the scroll position is kept (a purchase must not throw the list to the top)
+        var keep = _winScroll.content.anchoredPosition;
         _winScroll.Clear();
         holdSlots.Clear();
         storeSlots.Clear();
@@ -602,6 +607,8 @@ public class Hud : MonoBehaviour
         else if (_winTab == "ship") ShipTab(f);
         else DepotTab(f);
         _winScroll.SetHeight(f.Used + 10f);
+        float maxY = Mathf.Max(0f, f.Used + 10f - _winScroll.viewport.rect.height);
+        _winScroll.content.anchoredPosition = new Vector2(keep.x, Mathf.Clamp(keep.y, 0f, maxY));
     }
 
     /// Inventory: the hold's grid on the left and the cargo ship storage's on the right (in flight, the hold alone),
@@ -681,7 +688,7 @@ public class Hud : MonoBehaviour
     /// Ship refits: the personal ship's rows.
     void ShipTab(Ui.Flow f)
     {
-        H3(f, "Personal ship");
+        H3(f, "Ship upgrades");
         float refitsTop = f.y;
         bool first = true;
         foreach (var key in Data.UPGRADE_KEYS)
@@ -700,7 +707,7 @@ public class Hud : MonoBehaviour
     /// Cargo ship refits: the mast dish and the collector drones.
     void DepotTab(Ui.Flow f)
     {
-        H3(f, "Cargo ship");
+        H3(f, "Cargo ship upgrades");
         bool first = true;
         foreach (var key in Data.DEPOT_KEYS)
         {

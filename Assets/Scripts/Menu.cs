@@ -33,22 +33,22 @@ public class Menu
         new object[] { "Mouse", "Aim the ship: cursor left or right of centre yaws, above or below pitches." },
         new object[] { new[] { "W", "S" }, "Throttle up and down. The engines hold whatever setting you leave them at. X cuts to zero; S at zero fires the retro thrusters." },
         new object[] { new[] { "A", "D", "↑", "↓" }, "Roll left and right · pitch up and down on keys." },
-        new object[] { new[] { "G" }, "Laser overcharge on or off. With the refit fitted, the beam cuts ×1.5 to ×3 harder while it is armed, and the reactor feeds it from your fuel tank the whole time it is cutting. It switches itself off when the tank runs dry." },
-        new object[] { new[] { "Shift" }, "Afterburner: hold it with the throttle open and thrust and top speed multiply, ×2 as fitted from the start and up to ×5 with the refits. It burns fuel far faster, so use it in bursts." },
+        new object[] { new[] { "G" }, "Laser overcharge on or off. With the upgrade fitted, the beam cuts ×1.5 to ×3 harder while it is armed, and the reactor feeds it from your fuel tank the whole time it is cutting. It switches itself off when the tank runs dry." },
+        new object[] { new[] { "Shift" }, "Afterburner: hold it with the throttle open and thrust and top speed multiply, ×2 as fitted from the start and up to ×5 with the upgrades. It burns fuel far faster, so use it in bursts." },
         new object[] { new[] { "R" }, "Radar pulse · marks every ore rock in scanner range" },
         new object[] { new[] { "LMB" }, "Hold to fire the mining laser (L too). The dish under the nose cuts whatever the crosshair is on until it breaks. It never picks targets by itself: keep the nose on the rock." },
         new object[] { new[] { "Q" }, "Hover the mouse over a rock or the cargo ship (the label names it), then press Q to lock the crosshair on it. The ship steers itself to keep it in the crosshair (you keep the throttle and roll) until it breaks up or goes beyond 50,000 m. Hover a different target and press Q to switch directly to it. Press Q over the current target or empty space to release the lock. A locked object always shows its range, and its details sit top centre." },
-        new object[] { new[] { "F" }, "Flashlight: a spot beam from the nose, on or off. While docked F opens the hangar window on its Ship refits tab instead (again to close)." },
+        new object[] { new[] { "F" }, "Flashlight: a spot beam from the nose, on or off. While docked F opens the hangar window on its Ship upgrades tab instead (again to close)." },
         new object[] { new[] { "T" }, "Out of fuel? T calls for recovery: the ship is brought straight back to a pad in the cargo ship's hangar for 15% of your credits. A hull breach calls it by itself." },
         new object[] { "Raiders", "Pirate raiders hold station off the rich pockets (the KP fields) and attack within 3,250 m. Roll the scroll wheel to select the autocannon (fitted from the start; the refits sharpen it) and hold LMB: bolts go from the dish to the crosshair, which is the mouse (the dish turret covers the forward half, so nothing fires behind you). Q locks a raider: the ship follows it, keeping its nose on the raider while you work the gun with the mouse, and every raider within gun reach carries an amber LEAD pip marking where to put the crosshair so a bolt fired now meets it (no reticle on raiders). While raiders are attacking nothing else can be locked or picked, and a rock or cargo ship lock is dropped. The cargo ship's guns cover 4,500 m round it. Lose the hull to them and they strip a third of your hold before recovery." },
         new object[] { "Docking", "Fly slowly into either mouth of the cargo ship's through-hangar, or press E within 2,250 m of it and approach control flies you in. Once docked, E deposits all your ore into the cargo ship's storage. Fuel and repairs flow while you sit on the pad. The cargo ship warps with you; ore only sells at the Hub." },
         new object[] { new[] { "N" }, "Open the nav map. The cargo ship makes the jump between zones, so dock in its hangar first; you ride along." },
-        new object[] { new[] { "Tab", "I" }, "The hangar window: a centred window with tabs. Inventory shows the hold's stacks and, while docked, the cargo ship's storage beside it with the gauges and the Hub market; Ship refits and Cargo ship refits list the upgrades. Docking opens it; Esc or Close shuts it." },
+        new object[] { new[] { "Tab", "I" }, "The hangar window: a centred window with tabs. Inventory shows the hold's stacks and, while docked, the cargo ship's storage beside it with the gauges and the Hub market; Ship upgrades and Cargo ship upgrades list them. Docking opens it; Esc or Close shuts it." },
         new object[] { new[] { "C" }, "Hide or show the flight controls list in the bottom-left corner. Remembered between sessions." },
         new object[] { new[] { "F5" }, "Quick-save." },
         new object[] { new[] { "F9" }, "Testing: clear the zone's raiders and spawn three fresh ones 2,000 to 4,000 m out in random directions, mostly ahead, homed on you so they attack at once. Launching the game with -combat starts that way in a sandbox that never touches the save." },
         new object[] { new[] { "F10" }, "Testing: the raiders hold their fire (they still fly and chase); press again and they fire." },
-        new object[] { new[] { "F8" }, "Testing: in the combat test F8 opens the refit panel anywhere, credits are bottomless, and each refit row has a − button that takes a level off, so any loadout can be tried." },
+        new object[] { new[] { "F8" }, "Testing: in the combat test F8 opens the upgrade tabs anywhere, credits are bottomless, and each upgrade row has a − button that takes a level off, so any loadout can be tried." },
         new object[] { new[] { "Space" }, "Hold for the drift brake: the engine cuts (the throttle setting is kept for when you let go), the retro thrusters bleed speed at twice engine thrust, and the ship carries on along its momentum while the nose swings twice as fast as usual, to bring the gun round on a raider going past. During a docking, departure, arrival or warp cutscene, Space skips to the end of it." },
         new object[] { new[] { "Esc" }, "Pause · opens this menu with Settings and Controls" },
     };
@@ -191,8 +191,11 @@ public class Menu
         _pageH["controls"] = 370f + back.Height;
     }
 
+    string _page = "";
     public void ShowPage(string name)
     {
+        if (_page != "" && name != _page) Audio.Play("ui_tab");   // a page change, not the first show
+        _page = name;
         foreach (var kv in _pages) kv.Value.gameObject.SetActive(kv.Key == name);
         _card.sizeDelta = new Vector2(W, _headH + _pageH[name] + 28f);
     }

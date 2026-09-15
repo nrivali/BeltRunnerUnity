@@ -2041,7 +2041,7 @@ public class Ship : MonoBehaviour
         float m = State.Stat("overcharge").mult;
         if (m <= 1f)
         {
-            game.Toast("No laser overcharge fitted · it is a refit in the cargo ship services", true);
+            game.Toast("No laser overcharge fitted · it is an upgrade in the hangar window", true);
             return;
         }
         overcharge = !overcharge;
