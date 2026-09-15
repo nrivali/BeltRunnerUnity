@@ -10,15 +10,7 @@ public static class State
 {
     public static string SavePath
     {
-        get
-        {
-            // Smoke runs reset and save state just like a pilot. Keep that entire lifecycle in a
-            // separate directory, including Init/Load and Reset, before the test fixture starts.
-            var args = Environment.GetCommandLineArgs();
-            bool smoke = Array.IndexOf(args, "-smoke") >= 0 || Array.IndexOf(args, "--smoke") >= 0;
-            string folder = smoke ? Path.Combine(Application.persistentDataPath, "Smoke") : Application.persistentDataPath;
-            return Path.Combine(folder, "belt-runner-save.json");
-        }
+        get { return Path.Combine(Application.persistentDataPath, "belt-runner-save.json"); }
     }
 
     public static float credits = 60f;
@@ -435,7 +427,6 @@ public static class State
         };
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(SavePath));
             File.WriteAllText(SavePath, JsonUtility.ToJson(s));
             hasSave = true;
         }

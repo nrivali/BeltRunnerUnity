@@ -41,10 +41,11 @@ public class Hud : MonoBehaviour
     readonly List<Ui.Marker> _raiderMarkers = new List<Ui.Marker>();
     RectTransform _status, _readouts, _target, _controls, _prompt, _notice, _toastBox, _version, _hoverLbl;
     Text _hoverTxt;
-    CockpitHud _cockpit;
-    Text _promptText, _caption;
-    Ship.HoverInfo _consoleHover;
-    float _consoleHoverAt = -10;
+    Ui.Pane _statusPane;
+    Ui.Gauge _gHull, _gShield, _gFuel, _gThr, _gCargo;
+    Text _speedBig, _row1, _row2, _tEyebrow, _tName, _tRows, _tHpT, _tWarn, _promptText, _caption;
+    Ui.SegBar _tHp;
+    RectTransform _tHpRow;
     Image _barTop, _barBot, _fade;
     float _lastHull = -1f, _dmgT;
     bool _controlsShown = true;
@@ -146,10 +147,9 @@ public class Hud : MonoBehaviour
         _crosshair = _crosshairRt.gameObject.AddComponent<Ui.Crosshair>();
         _crosshair.raycastTarget = false;
         _crosshairRt.gameObject.SetActive(false);
-        _cockpit = new CockpitHud(_root, this);
-        _status = _cockpit.status;
-        _readouts = _cockpit.flight;
-        _target = _cockpit.target;
+        BuildStatus();
+        BuildReadouts();
+        BuildTarget();
         BuildControls();
         BuildPrompt();
         BuildNotice();
@@ -157,7 +157,6 @@ public class Hud : MonoBehaviour
         BuildCine();
         var vt = Ui.Fixed(_root, "v" + Data.VERSION, "mono", 11, Ui.A(Ui.DIM, 0.75f), Ui.BL, new Vector2(14f, 8f));
         _version = vt.rectTransform;
-        _version.gameObject.SetActive(false);
         BuildWindow();
         BuildMap();
         BuildTutorial();
@@ -196,8 +195,66 @@ public class Hud : MonoBehaviour
         _scaler.referenceResolution = new Vector2(1280f / s, 720f / s);
     }
 
+    // ---- bottom centre: the ship (.hud-tl)
+    void BuildStatus()
+    {
+        _status = Pane("Status", Ui.BC, new Vector2(0f, 18f), new Vector2(972f, 67f), out _statusPane);
+        float x = 18f, top = -12f;
+        _gHull = Ui.Gauge.Make(_status, "Hull", Ui.GREEN, x, top - (43f - 29f), 150f); x += 168f;
+        _gShield = Ui.Gauge.Make(_status, "Shield", Data.Hex("#8fe8ff"), x, top - (43f - 29f), 150f); x += 168f;
+        _gFuel = Ui.Gauge.Make(_status, "Fuel", Ui.CYAN, x, top - (43f - 29f), 150f); x += 168f;
+        var se = Ui.Eyebrow(_status, "Speed", Ui.HUD_DIM);
+        se.alignment = TextAnchor.UpperCenter;
+        Ui.At(se.rectTransform, Ui.TL, Ui.TL, new Vector2(x, top), new Vector2(96f, 14f));
+        _speedBig = Ui.Glow(Ui.Label(_status, "0", "mono_semi", 24, Ui.GLOW_TEXT, TextAnchor.LowerCenter), Ui.HUD_GLOW, 1.5f);
+        Ui.At(_speedBig.rectTransform, Ui.TL, Ui.TL, new Vector2(x, top - 14f), new Vector2(96f, 29f));
+        x += 114f;
+        _gThr = Ui.Gauge.Make(_status, "Thrust", Ui.AMBER, x, top - (43f - 31f), 150f, false, 10f); x += 168f;
+        _gCargo = Ui.Gauge.Make(_status, "Cargo", Ui.CARGO, x, top - (43f - 29f), 150f);
+    }
+
+    // ---- top right: the situation (.hud-tr .readouts)
+    void BuildReadouts()
+    {
+        Ui.Pane p;
+        _readouts = Pane("Readouts", Ui.TR, new Vector2(-20f, -18f), new Vector2(300f, 58f), out p);
+        _row1 = ReadoutRow(-10f);
+        _row2 = ReadoutRow(-32f);
+    }
+
+    Text ReadoutRow(float y)
+    {
+        var t = Ui.Glow(Ui.Label(_readouts, "", "mono", 12, Ui.HUD_DIM, TextAnchor.UpperRight), Ui.A(Ui.HUD_GLOW, 0.35f));
+        Ui.At(t.rectTransform, Ui.TR, Ui.TR, new Vector2(-14f, y), new Vector2(600f, 16f));
+        return t;
+    }
+
     static string Kv(string key, string val) { return key + " " + Ui.Col(val, Ui.GLOW_TEXT); }
     static string Kbd(string k) { return "<b>" + Ui.Col(k, Ui.GLOW_TEXT) + "</b>"; }
+
+    // ---- top centre: the target (.hud-tc .target)
+    void BuildTarget()
+    {
+        Ui.Pane p;
+        _target = Pane("Target", Ui.TC, new Vector2(0f, -56f), new Vector2(230f, 92f), out p);
+        _tEyebrow = Ui.Eyebrow(_target, "Target", Ui.HUD_DIM);
+        _tEyebrow.alignment = TextAnchor.UpperCenter;
+        Ui.At(_tEyebrow.rectTransform, Ui.TC, Ui.TC, new Vector2(0f, -10f), new Vector2(400f, 14f));
+        _tName = Ui.Glow(Ui.Label(_target, "", "display", 15, Color.white, TextAnchor.UpperCenter), Ui.A(Ui.CYAN, 0.5f));
+        Ui.At(_tName.rectTransform, Ui.TC, Ui.TC, new Vector2(0f, -27f), new Vector2(400f, 20f));
+        _tRows = Ui.Glow(Ui.Label(_target, "", "mono", 12, Ui.HUD_DIM, TextAnchor.UpperCenter), Ui.A(Ui.HUD_GLOW, 0.35f));
+        Ui.At(_tRows.rectTransform, Ui.TC, Ui.TC, new Vector2(0f, -50f), new Vector2(400f, 16f));
+        _tHpRow = Ui.Rect("Hp", _target, Ui.TC, Ui.TC, new Vector2(0f, -70f), new Vector2(202f, 12f));
+        var brt = Ui.Rect("Bar", _tHpRow, Ui.TL, Ui.TL, new Vector2(0f, -2f), new Vector2(140f, 8f));
+        _tHp = brt.gameObject.AddComponent<Ui.SegBar>();
+        _tHp.fill = Ui.AMBER2;
+        _tHp.raycastTarget = false;
+        _tHpT = Ui.Label(_tHpRow, "", "mono", 11, Ui.MUTED, TextAnchor.MiddleLeft);
+        Ui.At(_tHpT.rectTransform, Ui.TL, Ui.TL, new Vector2(148f, 0f), new Vector2(60f, 12f));
+        _tWarn = Ui.Label(_target, "", "body", 12, Ui.AMBER, TextAnchor.UpperCenter);
+        Ui.At(_tWarn.rectTransform, Ui.TC, Ui.TC, new Vector2(0f, -88f), new Vector2(400f, 16f));
+        _target.gameObject.SetActive(false);
+    }
 
     // ---- bottom left: the flight controls list (.hud-bl .controls), C hides it
     static readonly object[][] CONTROL_ROWS =
@@ -230,18 +287,28 @@ public class Hud : MonoBehaviour
     void BuildControls()
     {
         Ui.Pane p;
-        _controls = Pane("Controls", Ui.TL, new Vector2(20, -20), new Vector2(292, 192), out p, 10, true);
-        var title = Ui.Label(_controls, "FLIGHT CONTROLS  /  C TO CLOSE", "display", 11, Ui.TEXT);
-        Ui.At(title.rectTransform, Ui.TL, Ui.TL, new Vector2(12, -10), new Vector2(270, 16));
-        string[] keys = { "MOUSE", "W / S", "SPACE", "LMB", "WHEEL", "Q / MMB", "E", "ESC" };
-        string[] names = { "Steer · RMB free look", "Throttle · retros at zero", "Hold to drift", "Fire selected weapon", "Laser / autocannon", "Lock · switch · release", "Dock / deposit", "Pause · all controls" };
-        for (int i = 0; i < keys.Length; i++)
+        _controls = Pane("Controls", Ui.BL, new Vector2(20f, 18f), new Vector2(392f, 300f), out p, 14f, true);
+        var title = Ui.Label(_controls, "FLIGHT CONTROLS", "display", 10, Ui.HUD_DIM);
+        Ui.At(title.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -10f), new Vector2(300f, 14f));
+        float y = -30f;
+        const float keyW = 72f, descW = 280f;
+        foreach (var row in CONTROL_ROWS)
         {
-            var k = Ui.Label(_controls, keys[i], "mono", 10, Ui.CYAN);
-            Ui.At(k.rectTransform, Ui.TL, Ui.TL, new Vector2(12, -36 - i * 18), new Vector2(72, 16));
-            var d = Ui.Label(_controls, names[i], "body", 11, Ui.TEXT);
-            Ui.At(d.rectTransform, Ui.TL, Ui.TL, new Vector2(89, -36 - i * 18), new Vector2(193, 16));
+            if (!State.sandbox && row.Length > 1 && row[1] is string td && td.StartsWith("Test")) continue;   // the test keys: the combat test only
+            var keys = row[0] as string[];
+            if (keys != null) Ui.Keys(_controls, keys, true, 14f, y);
+            else
+            {
+                var k = Ui.Label(_controls, (string)row[0], "body", 11, Ui.A(Ui.MUTED, 0.85f));
+                Ui.At(k.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, y), new Vector2(keyW, 16f));
+            }
+            var d = Ui.Label(_controls, (string)row[1], "body", 11, Ui.A(Ui.MUTED, 0.85f), TextAnchor.UpperLeft, true);
+            Ui.At(d.rectTransform, Ui.TL, Ui.TL, new Vector2(14f + keyW + 12f, y - 1f), new Vector2(descW, 0f));
+            float h = Mathf.Max(16f, Mathf.Ceil(d.preferredHeight));
+            d.rectTransform.sizeDelta = new Vector2(descW, h);
+            y -= h + 3f;
         }
+        _controls.sizeDelta = new Vector2(14f + keyW + 12f + descW + 14f, -y + 8f);
     }
 
     // ---- the hint bar above the status pane (.prompt) and the cargo-full notice (.notice)
@@ -1394,44 +1461,6 @@ public class Hud : MonoBehaviour
         State.Save();
     }
 
-    /// The console owns mouse input inside its physical housing; keyboard flight controls still work.
-    public bool PointerOverCockpit { get { return _cockpit != null && _cockpit.Contains(new Vector2(Input.mousePosition.x, Input.mousePosition.y)); } }
-
-    public bool MouseOverFlightUi
-    {
-        get
-        {
-            if (InvOpen || MapOpen || MenuVisible || PointerOverCockpit) return true;
-            var p = new Vector2(Input.mousePosition.x, Input.mousePosition.y);
-            return (_controls != null && _controls.gameObject.activeInHierarchy && RectTransformUtility.RectangleContainsScreenPoint(_controls, p, null)) ||
-                (_tutBox != null && _tutBox.gameObject.activeInHierarchy && RectTransformUtility.RectangleContainsScreenPoint(_tutBox, p, null));
-        }
-    }
-    // Framing stays steady underneath an open inventory or map, and eases away for cinematics.
-    public float FlightConsoleFraction
-    {
-        get { return started && !ship.docked && !ship.InCinematic ? Mathf.Min(330, _root.rect.size.y * .43f) * _canvas.scaleFactor / Mathf.Max(1, Screen.height) : 0; }
-    }
-    float WorldHudBottom { get { return _cockpit.Height > 0 ? _cockpit.Height + (_prompt.gameObject.activeSelf ? _prompt.sizeDelta.y + 24 : 16) : 0; } }
-
-    public void CockpitLock()
-    {
-        // A click moves the pointer off the world. Keep the last hovered contact for this button only;
-        // Q/MMB continue to pick the current pointer position through Ship.ToggleLock.
-        var h = Time.time - _consoleHoverAt <= 3 ? _consoleHover : null;
-        if (h != null && !ship.HoverIsLock(h))
-        {
-            if (h.kind == "rock" && !ship.InCombat && h.rock >= 0 && h.rock < game.belt.count && game.belt.alive[h.rock]) ship.LockOnRock(h.rock);
-            else if (h.kind == "raider" && h.raider != null && !h.raider.dead) ship.LockOnRaider(h.raider);
-            else if (h.kind == "station" && !ship.InCombat) { ship.ReleaseLock(); ship.lockKind = "station"; }
-            else Toast("Contact unavailable · hover another target", true);
-        }
-        else if (ship.lockKind != "") ship.ReleaseLock();
-        else if (ship.raiderTarget != null && !ship.raiderTarget.dead) ship.LockOnRaider(ship.raiderTarget);
-        else if (!ship.InCombat && ship.target >= 0 && ship.target < game.belt.count && game.belt.alive[ship.target]) ship.LockOnRock(ship.target);
-        else Toast("Hover a contact, then select Lock · or press Q", false);
-    }
-
     // ---- the menu
     public void ShowMenu(bool visible, bool paused)
     {
@@ -1451,17 +1480,16 @@ public class Hud : MonoBehaviour
         return behind;
     }
 
-    bool OnScreen(Vector2 sp) { return sp.x > 0f && sp.x < _canvasSize.x && sp.y > WorldHudBottom && sp.y < _canvasSize.y; }
+    bool OnScreen(Vector2 sp) { return sp.x > 0f && sp.x < _canvasSize.x && sp.y > 0f && sp.y < _canvasSize.y; }
 
     Vector2 Edge(Vector2 sp, out float ang)
     {
-        var view = new Vector2(_canvasSize.x, Mathf.Max(100, _canvasSize.y - WorldHudBottom));
-        var c = new Vector2(view.x * .5f, WorldHudBottom + view.y * .5f);
+        var c = _canvasSize * 0.5f;
         var d = sp - c;
         if (d.magnitude < 1f) d = new Vector2(1f, 0f);
         ang = Mathf.Atan2(d.y, d.x);
         const float mg = 46f;
-        float sc = Mathf.Min(d.x != 0f ? Mathf.Abs((c.x - mg) / d.x) : float.PositiveInfinity, d.y != 0f ? Mathf.Abs((view.y * .5f - mg) / d.y) : float.PositiveInfinity);
+        float sc = Mathf.Min(d.x != 0f ? Mathf.Abs((c.x - mg) / d.x) : float.PositiveInfinity, d.y != 0f ? Mathf.Abs((c.y - mg) / d.y) : float.PositiveInfinity);
         return c + d * sc;
     }
 
@@ -1500,17 +1528,99 @@ public class Hud : MonoBehaviour
         bool docked = ship.docked;
         bool inCut = ship.InCinematic;
         bool hold = ship.hold;
-        bool consoleVisible = started && !inCut && !docked && !InvOpen && !MapOpen && !MenuVisible;
-        _cockpit.Layout(_canvasSize, consoleVisible);
-        _cockpit.Tick(dt, ship, belt, carrier, zone, game);
-        bool full = State.UsedSlots() >= State.CargoSlots() && State.CargoTotal() >= State.CargoCapacity() - .5f;
+        // the ship: hull, fuel, speed, thrust, cargo
+        float hp = State.Stat("hull").hp;
+        float hf = State.hull / hp;
+        _gHull.Show(hf, Mathf.CeilToInt(State.hull) + " / " + Mathf.RoundToInt(hp), hf < 0.25f ? Ui.RED : (hf < 0.5f ? Ui.AMBER : Ui.GREEN), hf < 0.25f);
+        float tank = State.Stat("tank").cap;
+        float ff = State.fuel / tank;
+        _gFuel.Show(ff, Mathf.FloorToInt(State.fuel) + " / " + Mathf.RoundToInt(tank), ff < 0.2f ? Ui.RED : Ui.CYAN);
+        float sf = State.shield / Data.SHIELD_MAX;
+        bool charging = State.sinceHit >= Data.SHIELD_WAIT && State.shield < Data.SHIELD_MAX;
+        // the wait: a countdown to the recharge while the shield is down and the last hit is under ten seconds old
+        string tail = charging ? " ↑" : State.shield < Data.SHIELD_MAX ? " · " + (Data.SHIELD_WAIT - State.sinceHit).ToString("0.0") + " s" : "";
+        _gShield.Show(sf, Mathf.CeilToInt(State.shield) + " / " + Mathf.RoundToInt(Data.SHIELD_MAX) + tail, sf < 0.25f ? Ui.AMBER : Data.Hex("#8fe8ff"));
+        float tv = ship.braking ? 1f : ship.throttle;
+        _gThr.Show(tv, ship.drifting ? "DRIFT" : ship.braking ? "RETRO" : Mathf.RoundToInt(ship.throttle * 100f) + "%", ship.braking ? Ui.CYAN : (ship.afterburning ? Ui.AMBER2 : Ui.AMBER));
+        int us = State.UsedSlots();
+        int ns = State.CargoSlots();
+        bool full = us >= ns && State.CargoTotal() >= State.CargoCapacity() - 0.5f;
+        _gCargo.Show(State.CargoTotal() / State.CargoCapacity(), us + " / " + ns + " slots", full ? Ui.AMBER : Ui.CARGO);
+        _gCargo.value.color = full ? Ui.AMBER2 : Ui.GLOW_TEXT;
+        float spd = ship.Speed * Data.METRE;
+        _speedBig.text = docked ? (hold ? "HOLD" : "DOCK") : Data.Fmt(spd);
+        // the situation
         float toCarrier = carrier != null ? (ship.TruePos - carrier.truePos).magnitude : 0f;
+        string spdT = docked ? (hold ? "HOLDING" : "DOCKED") : Mathf.RoundToInt(spd).ToString();
+        var here = docked ? null : belt.FieldAt(ship.TruePos);
+        _row1.text = Kv("ZONE", zone.name) + "   " + Kv("SPD", spdT) + "   " + Kv("CARGO SHIP", Data.Fm(toCarrier)) + "   " + Kv("FIELD", here != null ? here.name : "—");
+        string laser = ship.laserOn ? "CUTTING" : (ship.firing ? "FIRING" : "ready");
+        if (ship.overcharge) laser += " ⚡×" + State.Stat("overcharge").mult;
+        string radar = ship.radarCd <= 0f ? "READY" : ship.radarCd.ToString("0.0") + "s";
+        float reach = State.Stat("range").reach;
         bool locked = ship.lockKind != "" && !docked;
+        string rangeTxt = locked ? Data.Fm(ship.lockDist) + " / " + Data.Fm(reach) + " m" : Data.Fm(reach) + " m";   // the lock's distance against the beam's reach
+        int threat = game != null && game.raiders != null ? game.raiders.threat : 0;
+        string threatTxt = threat > 0 ? Ui.Col(threat + " raider" + (threat > 1 ? "s" : ""), Ui.RED) : Ui.Col("none", Ui.GLOW_TEXT);
+        string weaponTxt = ship.weapon == "gun" ? "Autocannon" : "Laser";
+        _row2.text = Kv("WEAPON", weaponTxt) + "   " + Kv("LASER", laser) + "   " + Kv("RANGE", rangeTxt) + "   " + Kv("RADAR", radar) + "   THREAT " + threatTxt;
+        float rw = Mathf.Max(Ui.Measure(_row1), Ui.Measure(_row2)) + 28f;
+        if (Mathf.Abs(_readouts.sizeDelta.x - rw) > 0.5f) _readouts.sizeDelta = new Vector2(rw, 58f);
+        // the target: the panel follows the lock when there is one, else the crosshair target
         bool hasTarget = ship.target >= 0 && ship.target < belt.count && belt.alive[ship.target] && !docked;
-        if (!PointerOverCockpit && ship.hover != null) { _consoleHover = ship.hover; _consoleHoverAt = Time.time; }
+        int panelRock = locked && ship.lockKind == "rock" ? ship.lockRock : (hasTarget ? ship.target : -1);
+        bool showTarget = false;
+        var panelRaider = locked && ship.lockKind == "raider" ? ship.lockRaider : ship.raiderTarget;
+        if (panelRaider != null && !panelRaider.dead && !docked)
+        {
+            showTarget = true;
+            float rd = Mathf.Max(0f, (panelRaider.pos - ship.LaserOrigin()).magnitude - Raiders.RADIUS);
+            _tEyebrow.text = locked && ship.lockKind == "raider" ? "LOCKED TARGET" : "TARGET";
+            _tName.text = "Pirate raider";
+            _tRows.text = Kv("SIZE", "Ship") + "   " + Kv("RANGE", Data.Fm(rd) + " m") + "   " + Kv("SHIELD", Mathf.CeilToInt(Mathf.Max(0f, panelRaider.shield)) + " / " + Mathf.RoundToInt(panelRaider.maxShield));
+            _tHpRow.gameObject.SetActive(true);
+            _tHp.Set(panelRaider.hp / Mathf.Max(1f, panelRaider.maxHp), Ui.RED);
+            _tHpT.text = Mathf.CeilToInt(Mathf.Max(0f, panelRaider.hp)) + " / " + Mathf.RoundToInt(panelRaider.maxHp);
+            bool hostile = panelRaider.state == "attack";
+            _tWarn.text = hostile ? (State.Stat("gun").reach > 0f ? "Hostile · autocannon on it" : "Hostile · no autocannon fitted") : "";
+            _tWarn.gameObject.SetActive(hostile);
+            _target.sizeDelta = new Vector2(Mathf.Max(230f, Ui.Measure(_tRows) + 28f), hostile ? 108f : 92f);
+        }
+        else if (locked && ship.lockKind == "station")
+        {
+            showTarget = true;
+            _tEyebrow.text = "LOCKED TARGET";
+            _tName.text = "Cargo ship";
+            _tRows.text = Kv("SIZE", "Carrier") + "   " + Kv("RANGE", Data.Fm(ship.lockDist) + " m");
+            _tHpRow.gameObject.SetActive(false);
+            _tWarn.gameObject.SetActive(false);
+            _target.sizeDelta = new Vector2(Mathf.Max(230f, Ui.Measure(_tRows) + 28f), 74f);
+        }
+        else if (panelRock >= 0 && panelRock < belt.count && belt.alive[panelRock])
+        {
+            showTarget = true;
+            int i = panelRock;
+            float tdist = Mathf.Max(0f, (belt.RockPos(i) - ship.LaserOrigin()).magnitude - belt.radius[i]);
+            _tEyebrow.text = locked ? "LOCKED TARGET" : "TARGET";
+            _tName.text = (belt.ore[i] < 0 ? "Barren" : Data.ORES[belt.ore[i]].name) + " Rock";
+            _tRows.text = Kv("SIZE", Belt.CLS_NAME[belt.cls[i]]) + "   " + Kv("RANGE", Data.Fm(tdist) + " m" + (tdist <= reach ? "" : " · beyond reach"));
+            _tHpRow.gameObject.SetActive(true);
+            _tHp.Set(belt.hp[i] / Mathf.Max(1f, belt.hpMax[i]), Ui.AMBER2);
+            _tHpT.text = Mathf.CeilToInt(Mathf.Max(0f, belt.hp[i])) + " / " + Mathf.RoundToInt(belt.hpMax[i]);
+            string reason = "";
+            if (belt.ore[i] >= 0)
+            {
+                int need = Data.ORES[belt.ore[i]].unlock;
+                if (need > State.up["laser"] + 1) reason = "Needs the Lv" + need + " mining laser";
+            }
+            _tWarn.text = reason;
+            _tWarn.gameObject.SetActive(reason != "");
+            float tw = Mathf.Max(230f, Ui.Measure(_tRows) + 28f);
+            _target.sizeDelta = new Vector2(tw, reason != "" ? 108f : 92f);
+        }
         // the hover label beside the cursor: what the mouse is over and how far it is
         var hv = ship.hover;
-        if (hv != null && !docked && !inCut && started && !MouseOverFlightUi)
+        if (hv != null && !docked && !inCut && started)
         {
             _hoverLbl.gameObject.SetActive(true);
             string ht = hv.name + " · " + Data.Fm(hv.dist) + " m";
@@ -1536,7 +1646,7 @@ public class Hud : MonoBehaviour
                 else if (ship.cut.mode == "dock") segs.Add("Approach control has the ship · " + CargoShip.BayName(ship.cut.side));
                 if (ship.cut.mode != "depart") segs.Add(Kbd("Space") + " Skip");
             }
-            else if (carrier != null && toCarrier < Data.DOCK_RANGE && !hold) segs.Add(Kbd("E") + " Auto-dock · cargo ship");
+            else if (carrier != null && toCarrier < Data.DOCK_RANGE && !hold) segs.Add(Kbd("E") + " Auto-dock with the cargo ship · or fly in through either hangar mouth");
             else if (State.fuel <= 0.5f && ship.cut == null) segs.Add(Kbd("T") + " Out of fuel · recovery to the cargo ship (15% of credits)");
             if (ship.cut == null && ship.CanFly)
             {
@@ -1546,7 +1656,7 @@ public class Hud : MonoBehaviour
             if (hasTarget && ship.cut == null && ship.weapon == "laser")
             {
                 int i = ship.target;
-                if (!ship.firing) segs.Add(Kbd("LMB") + " Mine");
+                if (!ship.firing) segs.Add(Kbd("LMB") + " Hold to mine");
                 else if (belt.ore[i] < 0) segs.Add("Breaking rock · scrap only");
                 else segs.Add((ship.laserOn ? "Cutting " : "Aiming at ") + Data.ORES[belt.ore[i]].name);
             }
@@ -1563,19 +1673,19 @@ public class Hud : MonoBehaviour
             _promptText.text = ptext;
             _prompt.sizeDelta = new Vector2(Mathf.Ceil(_promptText.preferredWidth) + 28f, 36f);
         }
-        float baseY = _cockpit.Height + 12f;
-        _promptText.horizontalOverflow = HorizontalWrapMode.Wrap;
-        float promptWidth = Mathf.Min(_canvasSize.x - 40, Mathf.Ceil(_promptText.preferredWidth) + 28);
-        _promptText.rectTransform.sizeDelta = new Vector2(promptWidth - 28, 52);
-        _prompt.sizeDelta = new Vector2(promptWidth, Mathf.Min(64, Mathf.Max(36, _promptText.preferredHeight + 12)));
-        _controls.anchoredPosition = new Vector2(20, _tutBox.gameObject.activeSelf ? -_tutBox.sizeDelta.y - 30 : -20);
+        float baseY = 18f + _status.sizeDelta.y + 14f;
         _prompt.anchoredPosition = new Vector2(0f, baseY);
         _notice.anchoredPosition = new Vector2(0f, baseY + (segs.Count > 0 ? _prompt.sizeDelta.y + 10f : 0f));
         _notice.gameObject.SetActive(started && full && !docked && !inCut);
         // what shows when: the hangar hides the situation, the controls and the hint; a cutscene hides nearly everything
         bool showFlight = started && !inCut;
-        _controls.gameObject.SetActive(consoleVisible && _controlsShown);
-        _prompt.gameObject.SetActive(showFlight && !docked && segs.Count > 0 && !InvOpen && !MapOpen && !MenuVisible);
+        _status.gameObject.SetActive(showFlight);
+        float sa = docked ? 0.85f : 1f;
+        if (Mathf.Abs(_statusPane.alpha - sa) > 0.01f) { _statusPane.alpha = sa; _statusPane.SetVerticesDirty(); }
+        _readouts.gameObject.SetActive(showFlight && !docked);
+        _controls.gameObject.SetActive(showFlight && !docked && _controlsShown);
+        _prompt.gameObject.SetActive(showFlight && !docked && segs.Count > 0);
+        _target.gameObject.SetActive(showTarget && showFlight);
         if (inCut && _tutBox.gameObject.activeSelf) _tutBox.gameObject.SetActive(false);
         _barTop.gameObject.SetActive(inCut);
         _barBot.gameObject.SetActive(inCut);
@@ -1603,7 +1713,7 @@ public class Hud : MonoBehaviour
             _crosshairRt.anchoredPosition = cp;
             _crosshair.Set(ship.gunFiring);
             // the crosshair stands in for the mouse: the pointer hides while it shows and no panel wants clicks
-            Cursor.visible = MouseOverFlightUi || !(_crosshairRt.gameObject.activeSelf && !InvOpen && !MapOpen && !MenuVisible);
+            Cursor.visible = !(_crosshairRt.gameObject.activeSelf && !InvOpen && !MapOpen && !MenuVisible);
             _crosshair.SetHit(game.raiders != null ? game.raiders.hitFlash : 0f, game.raiders != null && game.raiders.hitKill);
             // a LEAD pip on every raider within gun reach: where to put the crosshair for a bolt fired now to meet it
             int li = 0;
@@ -1628,7 +1738,7 @@ public class Hud : MonoBehaviour
         {
             Vector2 sp;
             bool behind = Project(belt.RockPos(ship.target) - game.worldOffset, out sp);
-            _reticleRt.gameObject.SetActive(!behind && OnScreen(sp));
+            _reticleRt.gameObject.SetActive(!behind);
             _reticleRt.anchoredPosition = sp;
             _reticle.Set(ship.laserOn, ship.lockKind == "rock" && ship.lockRock == ship.target);   // locked on: heavier, wider corners
         }
@@ -1661,7 +1771,6 @@ public class Hud : MonoBehaviour
         {
             if (di >= nd) { _droneMarkers[di].Hide(); continue; }
             var c = drones[di];
-            if (_cockpit.Visible && c.phase == "idle") { _droneMarkers[di].Hide(); continue; } // standby lives on the console
             string word;
             if (!DRONE_WORDS.TryGetValue(c.phase, out word)) word = c.phase;
             PlaceMarker(_droneMarkers[di], c.pos - game.worldOffset, "DRONE " + (di + 1) + " · " + word + (c.load > 0.5f ? " · " + Mathf.RoundToInt(c.load) : "") + " · " + Data.Fm((c.pos - ship.TruePos).magnitude));
