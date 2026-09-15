@@ -6,7 +6,8 @@ using UnityEngine;
 /// the ship comes within 9,000 u (flying, and outside the cargo ship's gun cover) they attack, closing to 900 u and
 /// orbiting, firing bolts that lead the ship whenever their nose is on it (the guns are fixed forward). They give up beyond 11,000 u or when the ship is disabled or docked, and
 /// they die under the cargo ship's guns inside SAFE_R. The player's autocannon (a refit) fires bolts from the dish
-/// focus; a kill pays a bounty and sometimes drops salvage. Positions are true world coordinates.
+/// focus; a kill pays a bounty and sometimes drops salvage. The player's seeker rockets (a refit, fitted from the
+/// start) chase a raider and destroy it outright on contact. Positions are true world coordinates.
 public class Raiders
 {
     public const float SAFE_R = 9000f;      // cargo ship gun cover: raiders die here and never engage inside it
@@ -67,6 +68,7 @@ public class Raiders
     public float nearestBoost = 1e9f;   // the nearest boosting raider's distance (for the afterburner roar)
     public int kills, shotsFired, hitsTaken;   // for the smoke run
     public int hitsLanded;
+    public int rocketsFired, rocketKills;
     public float hitFlash;    // the hit marker: 1 the frame a player bolt lands, fading over HIT_FLASH seconds
     public bool hitKill;      // ... and whether that hit was the kill
     public const float HIT_FLASH = 0.28f;
@@ -82,6 +84,23 @@ public class Raiders
     Material _hull, _trim, _boltRed, _boltCyan, _boltGlowPlayer, _boltGlowRaider;
     Mesh _boltMesh;
     readonly List<Transform> _boltPool = new List<Transform>();
+
+    // ---- seeker rockets: the player's fire-and-forget weapon. One leaves the dish focus carrying the ship's speed plus a
+    // kick, burns up to ROCKET_SPEED and turns onto its raider at ROCKET_TURN a second, far tighter than a raider can
+    // fly (TURN_RATE), leading it by its velocity, so it closes on anything within its life; contact (ROCKET_HIT_R, any
+    // raider, not only its own) destroys the raider outright, on the spot, with the blast. A rocket that outlives
+    // ROCKET_LIFE, or whose raider dies first, flies straight on and pops harmlessly.
+    public class Rocket
+    {
+        public Vector3 pos, heading;
+        public float spd, life, smokeT;
+        public Raider target;
+        public Transform node;
+    }
+    public const float ROCKET_SPEED = 2400f, ROCKET_ACCEL = 1800f, ROCKET_KICK = 300f, ROCKET_TURN = 140f * Mathf.Deg2Rad, ROCKET_LIFE = 12f, ROCKET_HIT_R = 70f;
+    public readonly List<Rocket> rockets = new List<Rocket>();
+    Material _rocketBody, _rocketFlame, _rocketNose;
+    readonly List<Transform> _rocketPool = new List<Transform>();
 
     // the wreckage: a destroyed raider's hull pieces, each flying on with the momentum the raider had plus a shove from
     // the blast, tumbling, kept for DEBRIS_LIFE seconds (true coordinates, like everything here)
@@ -110,6 +129,13 @@ public class Raiders
         _boltCyan.SetColor("_Color", new Color(1f, 0.22f, 0.16f, 1f));
         _boltGlowPlayer = Ship.SoftMaterial(new Color(1f, 0.18f, 0.12f, 0.6f));
         _boltGlowRaider = Ship.SoftMaterial(new Color(1f, 0.6f, 0.2f, 0.4f));
+        // a rocket: a pale metal body, a hot amber exhaust and a small cyan seeker eye at the nose
+        _rocketBody = new Material(Game.Sh("Standard"));
+        _rocketBody.color = new Color(0.82f, 0.84f, 0.88f);
+        _rocketBody.SetFloat("_Metallic", 0.6f);
+        _rocketBody.SetFloat("_Glossiness", 0.5f);
+        _rocketFlame = Ship.SoftMaterial(new Color(1f, 0.72f, 0.3f, 0.9f));
+        _rocketNose = Ship.SoftMaterial(new Color(0.56f, 0.91f, 1f, 0.9f));
     }
 
     public void Clear()
@@ -119,6 +145,8 @@ public class Raiders
         raiders.Clear();
         foreach (var b in bolts) if (b.node != null) b.node.gameObject.SetActive(false);
         bolts.Clear();
+        foreach (var k in rockets) if (k.node != null) k.node.gameObject.SetActive(false);
+        rockets.Clear();
         foreach (var h in _hulks) if (h.node != null) Object.Destroy(h.node.gameObject);
         _hulks.Clear();
         foreach (var d in _debris) if (d.node != null) Object.Destroy(d.node.gameObject);
@@ -239,13 +267,13 @@ public class Raiders
         if (r.hp <= 0f) Kill(r, true);
     }
 
-    void Kill(Raider r, bool byPlayer)
+    void Kill(Raider r, bool byPlayer, bool blast = false)
     {
         r.dead = true;
         raiders.Remove(r);
         if (r.node != null)
         {
-            if (Random.value < BLAST_CHANCE) Explode(r.node, r.pos, r.vel);
+            if (blast || Random.value < BLAST_CHANCE) Explode(r.node, r.pos, r.vel);
             else StartWreck(r);   // one of five slower ends: burn, chain, runaway, shed or dead
         }
         if (byPlayer)
@@ -335,6 +363,115 @@ public class Raiders
         }
     }
 
+    /// The raider a seeker goes after: the locked one if it is within reach, else the nearest within 30 degrees of the
+    /// nose, else the nearest in reach at all. Null when nothing is in reach.
+    public Raider Acquire(Vector3 origin, Vector3 dir, float reach, Raider locked)
+    {
+        if (locked != null && !locked.dead && (locked.pos - origin).magnitude <= reach) return locked;
+        var best = NearestInCone(origin, dir, reach, Mathf.Cos(30f * Mathf.Deg2Rad));
+        if (best != null) return best;
+        float bd = reach;
+        foreach (var r in raiders) { float d = (r.pos - origin).magnitude; if (d < bd) { bd = d; best = r; } }
+        return best;
+    }
+
+    /// A rocket: a root pointed along the flight, the body cylinder (14 u long), the exhaust glow behind and the seeker eye at the nose.
+    Transform RocketNode()
+    {
+        Transform t = null;
+        foreach (var p in _rocketPool) if (!p.gameObject.activeSelf) { t = p; break; }
+        if (t == null)
+        {
+            var go = new GameObject("Rocket");
+            go.transform.SetParent(_root, false);
+            var body = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            Object.Destroy(body.GetComponent<Collider>());
+            body.name = "Body";
+            body.transform.SetParent(go.transform, false);
+            body.transform.localScale = new Vector3(2.2f, 7f, 2.2f);
+            var mr = body.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = _rocketBody;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            Ship.GlowQuad(go.transform, new Vector3(0f, -9f, 0f), 12f, _rocketFlame, "Flame");
+            Ship.GlowQuad(go.transform, new Vector3(0f, 7.5f, 0f), 4f, _rocketNose, "Eye");
+            t = go.transform;
+            _rocketPool.Add(t);
+        }
+        t.gameObject.SetActive(true);
+        return t;
+    }
+
+    /// A seeker away from a point along a direction, carrying the ship's velocity, after a raider (null: it flies straight and pops).
+    public Rocket Launch(Vector3 from, Vector3 dir, Vector3 vel, Raider target)
+    {
+        var d = dir.normalized;
+        var k = new Rocket { pos = from, heading = d, spd = Mathf.Max(0f, Vector3.Dot(vel, d)) + ROCKET_KICK, life = ROCKET_LIFE, target = target, node = RocketNode() };
+        k.node.position = from - game.worldOffset;
+        k.node.rotation = Quaternion.FromToRotation(Vector3.up, d);
+        rockets.Add(k);
+        rocketsFired++;
+        if (game.sparks != null) game.sparks.Burst(from, 10, 120f, new Color(1f, 0.75f, 0.35f), 0.6f);
+        return k;
+    }
+
+    void TickRockets(float dt, Vector3 off)
+    {
+        for (int i = rockets.Count - 1; i >= 0; i--)
+        {
+            var k = rockets[i];
+            k.life -= dt;
+            if (k.target != null && (k.target.dead || !raiders.Contains(k.target))) k.target = null;
+            if (k.target != null)
+            {
+                // the lead: aim where the raider will be when the rocket gets there (capped at two seconds out), then turn onto it
+                var to = k.target.pos - k.pos;
+                float eta = Mathf.Min(2f, to.magnitude / Mathf.Max(200f, k.spd));
+                k.heading = RotateTowards(k.heading, to + k.target.vel * eta, ROCKET_TURN * dt);
+            }
+            k.spd = Mathf.Min(ROCKET_SPEED, k.spd + ROCKET_ACCEL * dt);
+            var prev = k.pos;
+            k.pos += k.heading * k.spd * dt;
+            k.node.position = k.pos - off;
+            k.node.rotation = Quaternion.FromToRotation(Vector3.up, k.heading);
+            // the exhaust trail: a puff of smoke every few metres of flight, left behind and drifting
+            k.smokeT -= dt;
+            if (k.smokeT <= 0f && game.explosions != null) { k.smokeT = 0.07f; game.explosions.Smoke(k.pos - k.heading * 9f, k.heading * -30f + Random.insideUnitSphere * 8f); }
+            // contact: the segment flown this frame against every raider's hit sphere
+            bool hit = false;
+            foreach (var r in raiders)
+            {
+                var ab = k.pos - prev;
+                float t = Mathf.Clamp01(Vector3.Dot(r.pos - prev, ab) / Mathf.Max(1e-6f, ab.sqrMagnitude));
+                if ((prev + ab * t - r.pos).magnitude < ROCKET_HIT_R)
+                {
+                    rocketKills++;
+                    hitsLanded++;
+                    hitFlash = 1f;
+                    hitKill = true;
+                    Audio.Sure("kill_marker");
+                    r.sinceHit = 0f;
+                    r.shield = 0f;
+                    r.hp = 0f;
+                    Kill(r, true, true);   // destroyed outright, on the spot
+                    hit = true;
+                    break;
+                }
+            }
+            if (hit || k.life <= 0f)
+            {
+                if (!hit)
+                {
+                    // spent: a small pop where it dies, heard with distance
+                    if (game.explosions != null) game.explosions.Pop(k.pos, k.heading * k.spd * 0.2f);
+                    float bd = (k.pos - game.ship.TruePos).magnitude;
+                    Audio.Play("hit", Mathf.Max(-30f, -8f + (bd <= 600f ? 0f : -20f * Mathf.Log10(bd / 600f))));
+                }
+                k.node.gameObject.SetActive(false);
+                rockets.RemoveAt(i);
+            }
+        }
+    }
+
     public void Tick(float dt)
     {
         var ship = game.ship;
@@ -358,6 +495,7 @@ public class Raiders
         var off = game.worldOffset;
         TickDebris(dt, off);
         TickHulks(dt, off);
+        TickRockets(dt, off);
         var sp = ship.TruePos;
         bool flying = game.started && !ship.docked && ship.warp == null && ship.cut == null;
         bool nearDepot = carrier != null && !carrier.hold && (sp - carrier.truePos).magnitude < SAFE_R;
@@ -816,6 +954,6 @@ public class Raiders
     {
         int attacking = 0;
         foreach (var r in raiders) if (r.state == "attack") attacking++;
-        return raiders.Count + " raiders, " + attacking + " attacking, " + bolts.Count + " bolts, kills " + kills + ", shots " + shotsFired + ", landed " + hitsLanded + ", hits taken " + hitsTaken;
+        return raiders.Count + " raiders, " + attacking + " attacking, " + bolts.Count + " bolts, kills " + kills + ", shots " + shotsFired + ", landed " + hitsLanded + ", hits taken " + hitsTaken + ", rockets " + rocketsFired + " (" + rocketKills + " kills)";
     }
 }

@@ -22,6 +22,7 @@ public static class State
     public static float sinceHit = 99f;   // seconds since the last hit, for the shield's recharge
     public static float shipFuel = 1200f;   // the cargo ship's fuel supply, which the ship's tank fills from while docked
     public static float parts = 120f;       // repair parts aboard the cargo ship, one per hull point mended while docked
+    public static int rockets = -1;         // seeker rockets aboard; -1 (a fresh pilot, an older save) means a full magazine, filled on the pad
     public static Dictionary<string, int> up = new Dictionary<string, int>();
     public static Dictionary<string, int> depot = new Dictionary<string, int>();   // cargo ship upgrades: the mast dish and the collector drones
     public static float droneUnits = 0f;                                          // ore the collectors have stowed, all told
@@ -387,7 +388,7 @@ public static class State
 
     // ---- the save file: the browser's field names, written by JsonUtility through a mirror of the save object
     [Serializable] public class Bag { public float iron, copper, gold, platinum, crystal, cobalt, beryl; }
-    [Serializable] public class Ups { public int laser, cargo, engine, tank, scanner, range, hull, thrusters, overcharge, gun; }
+    [Serializable] public class Ups { public int laser, cargo, engine, tank, scanner, range, hull, thrusters, overcharge, gun, rocket; }
     [Serializable] public class Dep { public int laser, collectors; }
     [Serializable] public class Settings { public bool sound = true; public float volume = 1f; public bool music = true; public float music_volume = 1f; public float hud = 1f; public bool controls = true; public int display = 1; }
     [Serializable]
@@ -400,6 +401,7 @@ public static class State
         public float droneUnits;
         public string zone;
         public int tut;
+        public int rockets = -1;
         public Settings settings;
     }
 
@@ -421,9 +423,9 @@ public static class State
         {
             credits = credits, fuel = fuel, hull = hull, shield = shield, mined = mined, earned = earned, time = time, shipFuel = shipFuel, parts = parts,
             cargo = ToBag(cargo), store = ToBag(store), market = ToBag(market),
-            up = new Ups { laser = up["laser"], cargo = up["cargo"], engine = up["engine"], tank = up["tank"], scanner = up["scanner"], range = up["range"], hull = up["hull"], thrusters = up["thrusters"], overcharge = up["overcharge"], gun = up["gun"] },
+            up = new Ups { laser = up["laser"], cargo = up["cargo"], engine = up["engine"], tank = up["tank"], scanner = up["scanner"], range = up["range"], hull = up["hull"], thrusters = up["thrusters"], overcharge = up["overcharge"], gun = up["gun"], rocket = up["rocket"] },
             depot = new Dep { laser = depot["laser"], collectors = depot["collectors"] }, droneUnits = droneUnits,
-            zone = zoneId, tut = tut, settings = new Settings { sound = soundOn, volume = volume, music = musicOn, music_volume = musicVolume, hud = hudScale, controls = controlsShown, display = display },
+            zone = zoneId, tut = tut, rockets = rockets, settings = new Settings { sound = soundOn, volume = volume, music = musicOn, music_volume = musicVolume, hud = hudScale, controls = controlsShown, display = display },
         };
         try
         {
@@ -454,6 +456,7 @@ public static class State
         time = s.time;
         zoneId = string.IsNullOrEmpty(s.zone) ? "kessler" : s.zone;
         tut = s.tut;
+        rockets = s.rockets;
         FromBag(s.cargo, cargo);
         FromBag(s.store, store);
         FromBag(s.market, market);
@@ -462,7 +465,7 @@ public static class State
         {
             // an older save's hull was 100 at the first plating; it is 50 now
             up["laser"] = s.up.laser; up["cargo"] = s.up.cargo; up["engine"] = s.up.engine; up["tank"] = s.up.tank; up["scanner"] = s.up.scanner;
-            up["range"] = s.up.range; up["hull"] = s.up.hull; up["thrusters"] = s.up.thrusters; up["overcharge"] = s.up.overcharge; up["gun"] = s.up.gun;
+            up["range"] = s.up.range; up["hull"] = s.up.hull; up["thrusters"] = s.up.thrusters; up["overcharge"] = s.up.overcharge; up["gun"] = s.up.gun; up["rocket"] = s.up.rocket;
             foreach (var k in Data.UPGRADE_KEYS) up[k] = Mathf.Clamp(up[k], 0, Data.UPGRADES[k].levels.Length - 1);
         }
         if (s.depot != null)
@@ -493,6 +496,7 @@ public static class State
         droneUnits = 0f;
         marketT = 0f;
         zoneId = "kessler";
+        rockets = -1;
         tut = 0;
         mined = 0f;
         earned = 0f;

@@ -876,6 +876,20 @@ public static class Ui
                 Line(vh, new Vector2(c.x + 22f, c.y), new Vector2(c.x + 28f, c.y), 2.4f, hot);
                 Line(vh, new Vector2(c.x + 31f, c.y), new Vector2(c.x + 34f, c.y), 2.4f, A(hot, 0.6f));
             }
+            else if (kind == "rocket")
+            {
+                // a seeker rocket: a slim body with a pointed nose and fins, the exhaust flaring out behind, and the seeker eye lit
+                Rectangle(vh, new Rect(c.x - 16f, c.y - 4f, 26f, 8f), dim);
+                Outline(vh, new[] { new Vector2(c.x - 16f, c.y - 4f), new Vector2(c.x + 10f, c.y - 4f), new Vector2(c.x + 10f, c.y + 4f), new Vector2(c.x - 16f, c.y + 4f) }, 1.2f, ink);
+                Poly(vh, new[] { new Vector2(c.x + 10f, c.y - 4f), new Vector2(c.x + 22f, c.y), new Vector2(c.x + 10f, c.y + 4f) }, ink);
+                Line(vh, new Vector2(c.x - 16f, c.y + 4f), new Vector2(c.x - 24f, c.y + 12f), 1.4f, ink);
+                Line(vh, new Vector2(c.x - 24f, c.y + 12f), new Vector2(c.x - 10f, c.y + 4f), 1.4f, ink);
+                Line(vh, new Vector2(c.x - 16f, c.y - 4f), new Vector2(c.x - 24f, c.y - 12f), 1.4f, ink);
+                Line(vh, new Vector2(c.x - 24f, c.y - 12f), new Vector2(c.x - 10f, c.y - 4f), 1.4f, ink);
+                Line(vh, new Vector2(c.x - 17f, c.y), new Vector2(c.x - 34f, c.y), 5f, A(hot, 0.25f));
+                Line(vh, new Vector2(c.x - 17f, c.y), new Vector2(c.x - 30f, c.y), 2.4f, hot);
+                Rectangle(vh, new Rect(c.x + 17f, c.y - 1.5f, 3f, 3f), A(CYAN, 0.95f));
+            }
             else
             {
                 // the mining laser: a dish (an arc) on its mount with the feed at the focus, and the beam going out right

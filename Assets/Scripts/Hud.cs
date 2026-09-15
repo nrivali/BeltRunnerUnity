@@ -44,8 +44,8 @@ public class Hud : MonoBehaviour
     // the WEAPON pane: two rows (the laser, the cannon), the equipped one lit, and the cannon's heat under them
     RectTransform _weaponPane, _wHeatRt;
     Ui.WeaponIcon _wIcon;
-    Ui.Box _wBox1, _wBox2;
-    Text _wName1, _wName2, _wHeatT;
+    Ui.Box _wBox1, _wBox2, _wBox3;
+    Text _wName1, _wName2, _wName3, _wHeatT, _wHeatE;
     Ui.SegBar _wHeat;
     const float BAND_H = 100f;   // the bottom band's panes are this tall
     Text _hoverTxt;
@@ -286,13 +286,15 @@ public class Hud : MonoBehaviour
         var ic = Ui.Rect("Icon", _weaponPane, Ui.TL, Ui.TL, new Vector2(12f, -8f), new Vector2(64f, 60f));
         _wIcon = ic.gameObject.AddComponent<Ui.WeaponIcon>();
         _wIcon.raycastTarget = false;
-        WeaponRow(-12f, "1", "Mining laser", out _wBox1, out _wName1);
-        WeaponRow(-42f, "2", "Autocannon", out _wBox2, out _wName2);
-        var he = Ui.Eyebrow(_weaponPane, "Heat", Ui.HUD_DIM);
-        Ui.At(he.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -74f), new Vector2(60f, 14f));
+        WeaponRow(-4f, "1", "Mining laser", out _wBox1, out _wName1);
+        WeaponRow(-30f, "2", "Autocannon", out _wBox2, out _wName2);
+        WeaponRow(-56f, "3", "Seeker rockets", out _wBox3, out _wName3);
+        // the line under the rows reads the cannon's heat, or the rockets aboard and the tube's reload with the seekers selected
+        _wHeatE = Ui.Eyebrow(_weaponPane, "Heat", Ui.HUD_DIM);
+        Ui.At(_wHeatE.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -80f), new Vector2(70f, 14f));
         _wHeatT = Ui.Glow(Ui.Label(_weaponPane, "", "mono", 11, Ui.GLOW_TEXT, TextAnchor.UpperRight), Ui.A(Ui.HUD_GLOW, 0.35f));
-        Ui.At(_wHeatT.rectTransform, Ui.TR, Ui.TR, new Vector2(-14f, -74f), new Vector2(120f, 14f));
-        _wHeatRt = Ui.Rect("Heat", _weaponPane, Ui.TL, Ui.TL, new Vector2(14f, -90f), new Vector2(212f, 5f));
+        Ui.At(_wHeatT.rectTransform, Ui.TR, Ui.TR, new Vector2(-14f, -80f), new Vector2(150f, 14f));
+        _wHeatRt = Ui.Rect("Heat", _weaponPane, Ui.TL, Ui.TL, new Vector2(14f, -94f), new Vector2(212f, 4f));
         _wHeat = _wHeatRt.gameObject.AddComponent<Ui.SegBar>();
         _wHeat.segmented = false;
         _wHeat.track = new Color(0.078f, 0.098f, 0.212f);
@@ -302,11 +304,18 @@ public class Hud : MonoBehaviour
 
     void WeaponRow(float y, string key, string name, out Ui.Box box, out Text label)
     {
-        var row = Ui.Rect("Weapon " + key, _weaponPane, Ui.TL, Ui.TL, new Vector2(84f, y), new Vector2(142f, 26f));
+        var row = Ui.Rect("Weapon " + key, _weaponPane, Ui.TL, Ui.TL, new Vector2(84f, y), new Vector2(142f, 24f));
         box = Ui.MakeBox(row, Ui.A(Ui.CYAN, 0.04f), Ui.HUD_FAINT, 1f);
         Ui.Chip(row, key, true, new Vector2(6f, -5f));
         label = Ui.Label(row, name, "display", 13, Ui.HUD_DIM, TextAnchor.MiddleLeft);
-        Ui.At(label.rectTransform, Ui.TL, Ui.TL, new Vector2(34f, 0f), new Vector2(106f, 26f));
+        Ui.At(label.rectTransform, Ui.TL, Ui.TL, new Vector2(34f, 0f), new Vector2(106f, 24f));
+    }
+
+    /// A weapon row lit amber (equipped) or dim.
+    static void LitRow(Ui.Box box, Text name, bool on)
+    {
+        box.Set(on ? Ui.A(Ui.AMBER, 0.16f) : Ui.A(Ui.CYAN, 0.04f), on ? Ui.AMBER : Ui.HUD_FAINT);
+        name.color = on ? Ui.GLOW_TEXT : Ui.HUD_DIM;
     }
 
     // ---- bottom left: the flight controls list (.hud-bl .controls), C hides it
@@ -321,7 +330,7 @@ public class Hud : MonoBehaviour
         new object[] { new[] { "G" }, "Laser overcharge on · off (needs the upgrade · up to ×3 damage · the beam draws fuel while it cuts)" },
         new object[] { new[] { "↑", "↓" }, "Pitch" },
         new object[] { new[] { "LMB" }, "Hold to fire the selected weapon (L too). The laser cuts only what the crosshair is on: aim the nose at a rock" },
-        new object[] { new[] { "1", "2" }, "Mining laser · autocannon (the wheel swaps too)" },
+        new object[] { new[] { "1", "2", "3" }, "Mining laser · autocannon · seeker rockets (the wheel cycles too)" },
         new object[] { new[] { "R" }, "Radar pulse" },
         new object[] { new[] { "Q", "MMB" }, "Lock the crosshair on whatever the mouse is over · hover another target and press Q to switch · otherwise press Q to release" },
         new object[] { new[] { "F" }, "Flashlight on · off in flight · the upgrade tabs when docked" },
@@ -1615,17 +1624,29 @@ public class Hud : MonoBehaviour
         string rangeTxt = locked ? Data.Fm(ship.lockDist) + " / " + Data.Fm(reach) + " m" : Data.Fm(reach) + " m";   // the lock's distance against the beam's reach
         int threat = game != null && game.raiders != null ? game.raiders.threat : 0;
         string threatTxt = threat > 0 ? Ui.Col(threat + " raider" + (threat > 1 ? "s" : ""), Ui.RED) : Ui.Col("none", Ui.GLOW_TEXT);
-        string weaponTxt = ship.weapon == "gun" ? "Autocannon" : "Laser";
+        string weaponTxt = ship.weapon == "gun" ? "Autocannon" : ship.weapon == "rocket" ? "Rockets" : "Laser";
         _row2.text = Kv("RADAR", radar) + "   THREAT " + threatTxt;
-        // WEAPON: the equipped row lit amber, the other dim; the heat reads for the cannon
-        bool gunUp = ship.weapon == "gun";
+        // WEAPON: the equipped row lit amber, the others dim; the line under them reads the cannon's heat, or the rockets
+        // aboard and the reload with the seekers selected
         _wIcon.Set(ship.weapon);
-        _wBox1.Set(gunUp ? Ui.A(Ui.CYAN, 0.04f) : Ui.A(Ui.AMBER, 0.16f), gunUp ? Ui.HUD_FAINT : Ui.AMBER);
-        _wBox2.Set(gunUp ? Ui.A(Ui.AMBER, 0.16f) : Ui.A(Ui.CYAN, 0.04f), gunUp ? Ui.AMBER : Ui.HUD_FAINT);
-        _wName1.color = gunUp ? Ui.HUD_DIM : Ui.GLOW_TEXT;
-        _wName2.color = gunUp ? Ui.GLOW_TEXT : Ui.HUD_DIM;
-        _wHeatT.text = ship.gunOverheated ? Ui.Col("OVERHEATED", Ui.RED) : Mathf.RoundToInt(ship.gunHeat * 100f) + "%";
-        _wHeat.Set(ship.gunHeat, ship.gunOverheated ? Ui.RED : ship.gunHeat > 0.75f ? Ui.AMBER2 : Ui.AMBER);
+        LitRow(_wBox1, _wName1, ship.weapon == "laser");
+        LitRow(_wBox2, _wName2, ship.weapon == "gun");
+        LitRow(_wBox3, _wName3, ship.weapon == "rocket");
+        if (ship.weapon == "rocket")
+        {
+            var rk = State.Stat("rocket");
+            int aboard = Mathf.Max(0, State.rockets);
+            bool reloading = ship.rocketCd > 0f && aboard > 0;
+            _wHeatE.text = "Rockets";
+            _wHeatT.text = aboard <= 0 ? Ui.Col("EMPTY · restock on the pad", Ui.RED) : (reloading ? "RELOAD " + ship.rocketCd.ToString("0.0") + "s · " : "") + aboard + " / " + rk.slots;
+            _wHeat.Set(reloading ? 1f - ship.rocketCd / Mathf.Max(0.1f, rk.rate) : aboard / (float)Mathf.Max(1, rk.slots), aboard <= 0 ? Ui.RED : reloading ? Ui.AMBER2 : Ui.AMBER);
+        }
+        else
+        {
+            _wHeatE.text = "Heat";
+            _wHeatT.text = ship.gunOverheated ? Ui.Col("OVERHEATED", Ui.RED) : Mathf.RoundToInt(ship.gunHeat * 100f) + "%";
+            _wHeat.Set(ship.gunHeat, ship.gunOverheated ? Ui.RED : ship.gunHeat > 0.75f ? Ui.AMBER2 : Ui.AMBER);
+        }
         // the target: the panel follows the lock when there is one, else the crosshair target
         bool hasTarget = ship.target >= 0 && ship.target < belt.count && belt.alive[ship.target] && !docked;
         int panelRock = locked && ship.lockKind == "rock" ? ship.lockRock : (hasTarget ? ship.target : -1);
@@ -1711,6 +1732,7 @@ public class Hud : MonoBehaviour
             if (ship.cut == null && ship.CanFly)
             {
                 if (ship.weapon == "gun") segs.Add(ship.gunFiring ? "Autocannon firing · bolts go to the crosshair" : (ship.lockKind == "raider" ? Kbd("LMB") + " Fire · put the crosshair on the LEAD pip" : Kbd("LMB") + " Fire the autocannon at the crosshair"));
+                else if (ship.weapon == "rocket") segs.Add(State.rockets <= 0 ? "No rockets aboard · the pad restocks them" : ship.rocketCd > 0f ? "Rocket tube reloading" : Kbd("LMB") + (ship.lockKind == "raider" ? " Fire a seeker rocket · it chases the locked raider" : " Fire a seeker rocket · it chases the nearest raider"));
                 else if (ship.raiderTarget != null && !hasTarget) segs.Add(Kbd("Wheel") + " Autocannon for the raider");
             }
             if (hasTarget && ship.cut == null && ship.weapon == "laser")
@@ -1769,7 +1791,7 @@ public class Hud : MonoBehaviour
         {
             // the crosshair sits on the nose ray at the weapon's reach, with either weapon (the mouse steers the ship; the
             // nose is the aim); it never moves to a target: no assist of any kind
-            float cDist = ship.weapon == "gun" ? ship.GunReach : State.Stat("range").reach;
+            float cDist = ship.weapon != "laser" ? ship.GunReach : State.Stat("range").reach;
             Vector2 cp;
             bool cBehind = Project(ship.LaserOrigin() + ship.Forward * cDist - game.worldOffset, out cp);
             _crosshairRt.gameObject.SetActive(!cBehind && OnScreen(cp));

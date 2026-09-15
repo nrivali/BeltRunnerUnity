@@ -110,8 +110,10 @@ public class Ship : MonoBehaviour
     public bool gunOverheated;
     public const float GUN_HEAT_TIME = 5f, GUN_COOL_TIME = 4f, GUN_COOL_TO = 0.4f;
     public Vector3 aimDir = Vector3.forward;   // where the gun points: down the mouse ray, within the forward half
-    public string weapon = "laser";   // the scroll wheel swaps: "laser" cuts rock, "gun" is the autocannon
-    float _gunCd, _gunWarnT;
+    public string weapon = "laser";   // 1, 2, 3 and the wheel: "laser" cuts rock, "gun" is the autocannon, "rocket" the seekers
+    float _gunCd, _gunWarnT, _rocketWarnT;
+    public float rocketCd;            // the seeker tube's reload, seconds left
+    public static string WeaponName(string w) { return w == "gun" ? "Autocannon" : w == "rocket" ? "Seeker rockets" : "Mining laser"; }
     public HoverInfo hover;                     // what the mouse is over (refreshed at 10 Hz, and afresh on Q)
     int _hoverFrame;
 
@@ -616,7 +618,7 @@ public class Ship : MonoBehaviour
     void TickDish(float dt)
     {
         if (_dishYaw == null || _dishPitch == null) return;
-        bool gunAim = weapon == "gun" && !docked;
+        bool gunAim = weapon != "laser" && !docked;
         bool hasAim = gunAim || (target >= 0 && target < belt.count && !docked) || (raiderTarget != null && !docked);
         float wantYaw = 0f, wantPitch = 0.05f;
         if (gunAim) DishAngles(LaserOrigin() + aimDir * 400f - game.worldOffset, out wantYaw, out wantPitch);
@@ -1889,14 +1891,15 @@ public class Ship : MonoBehaviour
         float wheel = Input.mouseScrollDelta.y;
         if (wheel != 0f && CanFly && !docked && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible)
         {
-            weapon = weapon == "laser" ? "gun" : "laser";
-            game.Toast(weapon == "gun" ? "Autocannon selected" : "Mining laser selected", false);
+            weapon = weapon == "laser" ? "gun" : weapon == "gun" ? "rocket" : "laser";
+            game.Toast(WeaponName(weapon) + " selected", false);
         }
-        // 1 and 2 pick them outright
+        // 1, 2 and 3 pick them outright
         if (CanFly && !docked && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible)
         {
             if (Input.GetKeyDown(KeyCode.Alpha1) && weapon != "laser") { weapon = "laser"; game.Toast("Mining laser selected", false); }
             if (Input.GetKeyDown(KeyCode.Alpha2) && weapon != "gun") { weapon = "gun"; game.Toast("Autocannon selected", false); }
+            if (Input.GetKeyDown(KeyCode.Alpha3) && weapon != "rocket") { weapon = "rocket"; game.Toast("Seeker rockets selected", false); }
         }
         // the autocannon: the raider under the nose (or the locked one, across the forward half); with the cannon selected a
         // rock in the way does not stop the shot
@@ -1907,7 +1910,7 @@ public class Ship : MonoBehaviour
         var gun = State.Stat("gun");
         // the gun aims straight down the nose, like the laser: the mouse steers the ship and the nose is the aim
         aimDir = fwd;
-        if (game.raiders != null && (target < 0 || weapon == "gun"))
+        if (game.raiders != null && (target < 0 || weapon != "laser"))
         {
             float gunReach = gun.reach > 0f ? gun.reach : 1800f;
             // the locked raider first: the cannon rides the dish turret, so it tracks a lock across the forward arc
@@ -1944,6 +1947,37 @@ public class Ship : MonoBehaviour
             return;
         }
         if (wantGun) { TickSpot(dt, false, _spotPos); return; }   // overheated: the trigger does nothing until it cools
+        // the seekers: one leaves per trigger pull once the tube has reloaded, after the locked raider, else the nearest
+        // ahead, else the nearest in reach; the magazine restocks on the pad
+        var rk = State.Stat("rocket");
+        if (docked || State.rockets < 0) State.rockets = rk.slots;
+        rocketCd = Mathf.Max(0f, rocketCd - dt);
+        _rocketWarnT -= dt;
+        if (weapon == "rocket")
+        {
+            bool pull = autoFire || Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.L);
+            if (pull && !docked && game.raiders != null && rocketCd <= 0f)
+            {
+                if (State.rockets <= 0)
+                {
+                    if (_rocketWarnT <= 0f) { _rocketWarnT = 3f; game.Toast("No rockets left · the pad restocks them", true); Audio.Play("laser_off", -4f); }
+                }
+                else
+                {
+                    var who = game.raiders.Acquire(origin, fwd, rk.reach, lockKind == "raider" ? lockRaider : null);
+                    if (who == null) { if (_rocketWarnT <= 0f) { _rocketWarnT = 3f; game.Toast("No raider within " + Data.Fm(rk.reach) + " m for a rocket", true); } }
+                    else
+                    {
+                        game.raiders.Launch(origin, fwd, vel, who);
+                        State.rockets--;
+                        rocketCd = rk.rate;
+                        Audio.Play("rocket_launch", 2f);
+                    }
+                }
+            }
+            TickSpot(dt, false, _spotPos);
+            return;
+        }
         if (firing && weapon == "laser" && raiderTarget != null && target < 0)
         {
             // the laser selected with a raider in the sights: a reminder, and no beam

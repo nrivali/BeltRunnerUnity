@@ -102,8 +102,10 @@ public static class Data
         { "overcharge", new Upgrade { name = "Laser overcharge", levels = new[] { L(mult: 1f), L(mult: 1.5f), L(mult: 2f), L(mult: 2.5f), L(mult: 3f) }, costs = new float[] { 600, 2200, 7000, 18000 } } },
         // the autocannon (combat), fitted from the start: rate = shots a second, reach = range in world units, mult = damage a shot
         { "gun", new Upgrade { name = "Autocannon", levels = new[] { L(rate: 6, reach: 10000, mult: 8), L(rate: 7, reach: 10000, mult: 12), L(rate: 8, reach: 10000, mult: 18), L(rate: 10, reach: 10000, mult: 26) }, costs = new float[] { 900, 3200, 9000 } } },
+        // seeker rockets (combat), fitted from the start: slots = the magazine (restocked on the pad), rate = the reload in seconds, reach = how far one goes after a raider
+        { "rocket", new Upgrade { name = "Seeker rockets", levels = new[] { L(slots: 4, rate: 6, reach: 12000), L(slots: 6, rate: 5, reach: 14000), L(slots: 8, rate: 4, reach: 16000), L(slots: 10, rate: 3, reach: 18000) }, costs = new float[] { 1200, 4000, 11000 } } },
     };
-    public static readonly string[] UPGRADE_KEYS = { "laser", "cargo", "engine", "tank", "scanner", "range", "hull", "thrusters", "overcharge", "gun" };
+    public static readonly string[] UPGRADE_KEYS = { "laser", "cargo", "engine", "tank", "scanner", "range", "hull", "thrusters", "overcharge", "gun", "rocket" };
 
     /// Cargo ship upgrades, bought at the services panel; they work whether or not you are docked. Level 0 = not
     /// installed. The dish on the mast breaks rocks near the carrier and leaves their ore adrift; collector drones fly
@@ -146,6 +148,7 @@ public static class Data
             case "thrusters": return L.mult > 1 ? "×" + L.mult + " speed on Shift · ×" + BurnMult(L.mult) + " fuel burn" : "not fitted";
             case "gun": return L.reach > 0f ? Mathf.RoundToInt(L.mult) + " dmg × " + L.rate + " /s · " + Fm(L.reach) + " m range" : "not fitted";
             case "overcharge": return L.mult > 1f ? "×" + L.mult + " laser damage · " + (OVER_BURN * L.mult).ToString("0.0") + " fuel/s while cutting" : "not fitted";
+            case "rocket": return L.slots + " rockets · " + L.rate + " s reload · " + Fm(L.reach) + " m chase";
             case "tank": return L.cap + " fuel";
             case "scanner": return Fm(L.range) + " m scan";
             case "range": return Fm(L.reach) + " m laser reach";

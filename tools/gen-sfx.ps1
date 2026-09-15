@@ -28,7 +28,9 @@ $clips=@(
   @{name='raider_engine'; dur=4.0; loop=$true; text='small spaceship engine under steady thrust, a soft low hum with a light turbine whine, seamless loop, quiet, no music'},
   # a raider's afterburner, sustained for as long as it boosts
   @{name='raider_boost_loop'; dur=4.0; loop=$true; text='sci-fi ion thruster at full burn, a high screaming jet whine over a crackling plasma hiss, tense and aggressive, seamless loop, no music'},
-  @{name='shield_up';   dur=1.6; text='sci-fi spaceship energy shield recharging and snapping back on, a rising electric charge swell ending in a clean bright lock-in chime, no music'}
+  @{name='shield_up';   dur=1.6; text='sci-fi spaceship energy shield recharging and snapping back on, a rising electric charge swell ending in a clean bright lock-in chime, no music'},
+  # a seeker rocket leaving the tube
+  @{name='rocket_launch'; dur=1.8; text='sci-fi missile launching from a spaceship, a sharp pneumatic thump then a rocket motor igniting with a fast rising whoosh that streaks away into the distance, no music'}
 )
 foreach ($c in $clips) {
   if ($Only.Count -gt 0 -and $Only -notcontains $c.name) { continue }

@@ -61,6 +61,7 @@ public class Game : MonoBehaviour
             }
             if (args[i] == "-combat" || args[i] == "--combat") _combat = true;
             if ((args[i] == "-gun" || args[i] == "--gun") && i + 1 < args.Length) int.TryParse(args[i + 1], out _combatGun);
+            if ((args[i] == "-rocket" || args[i] == "--rocket") && i + 1 < args.Length) int.TryParse(args[i + 1], out _combatRocket);
         }
         if (_combat)
         {
@@ -69,6 +70,7 @@ public class Game : MonoBehaviour
             State.sandbox = true;
             State.tut = -1;
             State.up["gun"] = Mathf.Clamp(Mathf.Max(State.up["gun"], _combatGun), 0, Data.UPGRADES["gun"].costs.Length);
+            State.up["rocket"] = Mathf.Clamp(Mathf.Max(State.up["rocket"], _combatRocket), 0, Data.UPGRADES["rocket"].costs.Length);
             State.credits = Mathf.Max(State.credits, 5000f);
             State.hull = State.Stat("hull").hp;
             State.fuel = State.Stat("tank").cap;
@@ -378,7 +380,7 @@ public class Game : MonoBehaviour
     // ---- the combat test (-combat, and F9 at any time): the ship set down 1,500 u off a raider hold, facing it, with
     // the autocannon fitted, so a fight starts within a second or two; F9 spawns a fresh three
     bool _combat;
-    int _combatGun = 0;
+    int _combatGun = 0, _combatRocket = 0;
     int _combatFrame;
 
     /// The combat test's fight: every raider in the zone is cleared and three fresh ones are spawned 2,000 to 4,000 m
@@ -609,7 +611,7 @@ public class Game : MonoBehaviour
         hud.UpdateHud(dt, ship, belt, carrier, zone, started);
         hud.menu.Tick(dt);
         tutorial.Update(dt);
-        if (_combat) { State.fuel = State.Stat("tank").cap; State.credits = Mathf.Max(State.credits, 9999999f); }   // the test: fuel never runs out, nor credits
+        if (_combat) { State.fuel = State.Stat("tank").cap; State.credits = Mathf.Max(State.credits, 9999999f); State.rockets = State.Stat("rocket").slots; }   // the test: fuel never runs out, nor credits
         if (_combat && ++_combatFrame == 240) { Shot("combat_test"); Debug.Log("combat test: " + raiders.Stats() + " · hull " + State.hull.ToString("0") + " · lock " + ship.lockKind + " · target " + (ship.raiderTarget != null)); }
         if (_smoke) SmokeStep();
     }
@@ -780,6 +782,9 @@ public class Game : MonoBehaviour
                     Debug.Log("smoke: combat · " + raiders.Stats() + " · raider hp " + _smokeRaider.hp.ToString("0") + " state " + _smokeRaider.state + " · gun " + Data.Describe("gun", State.up["gun"]) + " · hull " + State.hull.ToString("0"));
                 }
                 if (_phaseFrame == 120) Shot("smoke_combat");
+                // four seconds in, one seeker away (at the locked raider if it still lives, else the nearest), then back to the cannon
+                if (_phaseFrame == 240) ship.weapon = "rocket";
+                if (_phaseFrame == 242) { ship.weapon = "gun"; Debug.Log("smoke: rocket · fired " + raiders.rocketsFired + " · in flight " + raiders.rockets.Count + " · aboard " + State.rockets + " of " + State.Stat("rocket").slots); }
                 if (_phaseFrame % 150 == 0) Debug.Log("smoke: combat · " + raiders.Stats() + " · raider hp " + (_smokeRaider.dead ? "dead" : _smokeRaider.hp.ToString("0")) + " state " + _smokeRaider.state + " · lock " + ship.lockKind + " target " + (ship.raiderTarget != null) + " firing " + ship.gunFiring + " · hull " + State.hull.ToString("0") + " · threat " + raiders.threat);
                 if (_smokeRaider.dead || _phaseFrame > 900)
                 {

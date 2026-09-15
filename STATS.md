@@ -11,7 +11,8 @@ The numbers as the code has them today. World units (u) are what the code uses; 
 | Shield | 50, recharges empty to full in 3 s after 10 s without a hit; sounds when it is stripped, while it is down, and while it recharges (cut by a hit); a breathing red edge on screen while it is down | 50, recharges 10/s after 10 s without a hit |
 | Gun | Autocannon: 8 dmg, 6 shots/s, 10,000 u (5,000 m); overheats after 5 s of continuous fire, locked out until cooled below 40% (4 s from full to cold) | 4 dmg, 6 shots/s, 6,000 u (3,000 m) reach |
 | Bolt speed | 5,000 u/s (dies after 2.2 s, 11,000 u) | 2,600 u/s (dies after 2.6 s, 6,760 u) |
-| Fires when | Trigger held (LMB or L), straight down the nose like the laser; the mouse steers the nose onto the LEAD pip; 2 selects it, 1 the laser, the wheel swaps | Nose within 25° of the ship and inside gun reach; rough aim: 0.09 spread (~5°) and the lead over- or under-estimated by 55–115% shot by shot |
+| Rockets | Seeker rockets: 4 aboard (restocked on the pad), one per trigger pull, 6 s reload; 2,400 u/s (accelerating at 1,800 u/s² from the ship's speed plus 300), turning 140°/s onto the raider with a velocity lead, 12 s of flight; contact within 70 u destroys the raider outright with the blast; goes after the locked raider, else the nearest within 30° of the nose, else the nearest within 12,000 u (6,000 m) | none |
+| Fires when | Trigger held (LMB or L), straight down the nose like the laser; the mouse steers the nose onto the LEAD pip; 2 selects it, 1 the laser, 3 the rockets, the wheel cycles | Nose within 25° of the ship and inside gun reach; rough aim: 0.09 spread (~5°) and the lead over- or under-estimated by 55–115% shot by shot |
 | Hit box | Ship radius (SHIP_R) × 0.8 | 60 u for bolts (hull is 28 u for the reticle and ranges; the model is drawn at twice its original size) |
 | Top speed | 500 u/s (250 m/s), ×2 on the afterburner from the start, up to ×5 with the refits | 865 u/s, ×1.25 (1,081) on the boost (runs in from beyond 900 u and long runs out), capped on a strafe to hold the circle |
 | Thrust | 328 u/s² | 220 u/s² accel (352 on the boost), 320 u/s² braking |
@@ -25,6 +26,7 @@ The numbers as the code has them today. World units (u) are what the code uses; 
 | Refit | Levels | Costs |
 |---|---|---|
 | Autocannon | 8 dmg · 6/s → 12 · 7/s → 18 · 8/s → 26 · 10/s, 5,000 m at every level | 900, 3,200, 9,000 |
+| Seeker rockets (magazine · reload · chase) | 4 · 6 s · 6,000 m → 6 · 5 s · 7,000 m → 8 · 4 s · 8,000 m → 10 · 3 s · 9,000 m | 1,200, 4,000, 11,000 |
 | Hull plating | 50 → 80 → 125 → 200 → 300 | 250, 900, 3,000, 9,000 |
 | Engines (thrust · top speed, u) | 328 · 500 → 438 · 640 → 562 · 800 → 718 · 980 → 922 · 1,220 (250 m/s base on the readout) | 300, 1,100, 3,500, 10,000 |
 | Afterburner | ×2 (fitted from the start) → ×3 → ×4 → ×5 speed on Shift, heavy fuel burn | 3,000, 9,000, 24,000 |
