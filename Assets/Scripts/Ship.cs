@@ -8,7 +8,7 @@ using UnityEngine;
 public class Ship : MonoBehaviour
 {
     public const float TURN = 30f * Mathf.Deg2Rad;   // yaw and pitch: 30 degrees a second at full deflection
-    public const float DRIFT_TURN = 2.5f;    // the drift brake: the nose turns this many times faster (75 degrees a second)
+    public const float DRIFT_TURN = 2f;      // the drift brake: the nose turns this many times faster (60 degrees a second)
     public const float DRIFT_BRAKE = 2f;     // ... and the retros bleed speed at this many times engine thrust
     public const float REPAIR_RATE = 6f;
     public const float WARP_DUR = 8.6f;
@@ -125,6 +125,10 @@ public class Ship : MonoBehaviour
     // free look (the browser's lookYaw / lookPitch): hold the right mouse button to swing the camera without turning
     // the ship; it eases back once the button is released
     public float lookYaw, lookPitch;
+    // the camera feel: this frame's control deflections (for the swing and the bank) and the eased camera state
+    public const float FOV = 62f;
+    float _ctlYaw, _ctlPitch, _ctlRoll;
+    float _fov = FOV, _camYaw, _camPitch, _camRoll;
     public bool rdown;
 
     // the beam's heat effect (the browser's heatFx): the spot on the stone takes 30 s to reach white heat and cools off
@@ -1025,6 +1029,7 @@ public class Ship : MonoBehaviour
         transform.Rotate(Vector3.up, yaw * turn * dt * Mathf.Rad2Deg, Space.Self);
         transform.Rotate(Vector3.right, -pitchUp * turn * dt * Mathf.Rad2Deg, Space.Self);
         transform.Rotate(Vector3.forward, roll * 0.6f * dt * Mathf.Rad2Deg, Space.Self);
+        _ctlYaw = yaw; _ctlPitch = pitchUp; _ctlRoll = Mathf.Clamp(roll, -1f, 1f);
 
         // throttle: W raises, S lowers, X cuts; holding S at zero fires the retros
         if (flying)
@@ -1034,7 +1039,7 @@ public class Ship : MonoBehaviour
             if (Input.GetKey(KeyCode.X)) throttle = 0f;
         }
         // the drift brake: hold Space and the engine cuts (the throttle setting is kept for the release), the retros bleed
-        // speed at twice engine thrust, and the ship carries on along its momentum while the nose swings two and a half times faster than usual
+        // speed at twice engine thrust, and the ship carries on along its momentum while the nose swings twice as fast as usual
         drifting = flying && Input.GetKey(KeyCode.Space);
         float abMult = State.Stat("thrusters").mult;
         afterburning = flying && throttle > 0f && !drifting && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && abMult > 1f && State.fuel > 0f;
@@ -1928,12 +1933,31 @@ public class Ship : MonoBehaviour
             return;
         }
         _camQ = Quaternion.Slerp(_camQ, transform.rotation, 1f - Mathf.Exp(-7f * dt));
+        // the field of view: out on the afterburner (further with the bigger refits), in on the brakes and the drift,
+        // a touch out with speed otherwise
+        var eng = State.Stat("engine");
+        float spFrac = eng.max > 0f ? Mathf.Clamp01(vel.magnitude / eng.max) : 0f;
+        float fovWant = FOV + 4f * spFrac;
+        if (afterburning) fovWant = FOV + 8f + 2f * State.Stat("thrusters").mult;
+        else if (drifting) fovWant = FOV - 9f;
+        else if (braking) fovWant = FOV - 5f;
+        _fov = Mathf.Lerp(_fov, fovWant, 1f - Mathf.Exp(-(fovWant > _fov ? 3f : 4f) * dt));
+        cam.fieldOfView = _fov;
+        // the turn: the chase camera hangs back on the outside of the turn, the look point leads into it, and the frame
+        // banks a little with the yaw (roll input tips it too); everything eased so it settles rather than snaps
+        float k = 1f - Mathf.Exp(-5f * dt);
+        _camYaw = Mathf.Lerp(_camYaw, CanFly ? _ctlYaw : 0f, k);
+        _camPitch = Mathf.Lerp(_camPitch, CanFly ? _ctlPitch : 0f, k);
+        _camRoll = Mathf.Lerp(_camRoll, CanFly ? _ctlRoll : 0f, k);
         // free look turns the camera relative to the hull; the chase offset stays rigid on the ship's position
         var lq = _camQ * Quaternion.AngleAxis(lookYaw * Mathf.Rad2Deg, Vector3.up) * Quaternion.AngleAxis(lookPitch * Mathf.Rad2Deg, Vector3.right);
         var f = lq * Vector3.forward;
         var u = lq * Vector3.up;
-        var camPos = transform.position - f * 88f * s + u * 30f * s;
-        var look = transform.position + f * 140f * s + u * 10f * s;
+        var r = lq * Vector3.right;
+        float bank = (-_camYaw * 7f - _camRoll * 4f) * Mathf.Deg2Rad;
+        u = (Mathf.Cos(bank) * u + Mathf.Sin(bank) * r).normalized;   // the bank: tip the up vector about the view axis
+        var camPos = transform.position - f * 88f * s + u * 30f * s - r * _camYaw * 16f * s - u * _camPitch * 10f * s;
+        var look = transform.position + f * 140f * s + u * 10f * s + r * _camYaw * 34f * s + u * _camPitch * 24f * s;
         if (shake > 0f)
         {
             shake = Mathf.Max(0f, shake - dt * 1.8f);
