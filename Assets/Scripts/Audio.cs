@@ -351,6 +351,55 @@ public class Audio : MonoBehaviour
 
     // ---- static conveniences
     public static void Play(string name, float extraDb = 0f) { if (I != null) I.Sfx(name, extraDb); }
+    /// A gun shot: its own source, restarted on every shot so the sound lands on the shot however fast the gun fires.
+    public static void Shot(string name, float extraDb = 0f) { if (I != null) I.GunShot(name, extraDb); }
+
+    AudioSource _gun;
+    AudioClip _gunRaw, _gunClip;
+    void GunShot(string name, float extraDb)
+    {
+        var raw = Clip(name);
+        if (raw == null) return;
+        if (_gun == null) _gun = Src("Gun");
+        if (raw != _gunRaw)
+        {
+            _gunRaw = raw;
+            _gunClip = null;
+            raw.LoadAudioData();
+        }
+        // the trimmed copy, once the data is in: an mp3 opens on a run of encoder silence, which is the lag
+        if (_gunClip == null && raw.loadState == AudioDataLoadState.Loaded) _gunClip = TrimHead(raw);
+        float db;
+        if (!GAIN_DB.TryGetValue(name, out db)) db = -5f;
+        _gun.Stop();
+        _gun.clip = _gunClip != null ? _gunClip : raw;
+        _gun.volume = Lin(db + extraDb);
+        _gun.pitch = 1f;
+        _gun.Play();
+        Count(name);
+    }
+
+    /// A copy of a clip without the silence at its head (and tail): the first and last frames that carry anything.
+    static AudioClip TrimHead(AudioClip c)
+    {
+        int ch = c.channels, n = c.samples, rate = c.frequency;
+        var d = new float[n * ch];
+        if (!c.GetData(d, 0)) return null;
+        const float floor = 0.01f;
+        int a = 0, b = n - 1;
+        while (a < n) { bool any = false; for (int k = 0; k < ch; k++) if (Mathf.Abs(d[a * ch + k]) > floor) { any = true; break; } if (any) break; a++; }
+        while (b > a) { bool any = false; for (int k = 0; k < ch; k++) if (Mathf.Abs(d[b * ch + k]) > floor) { any = true; break; } if (any) break; b--; }
+        int len = b - a + 1;
+        if (len < 64) return null;
+        var o = new float[len * ch];
+        System.Array.Copy(d, a * ch, o, 0, len * ch);
+        // a two-millisecond fade in so the cut does not click
+        int f = Mathf.Min(len, rate / 500);
+        for (int i = 0; i < f; i++) for (int k = 0; k < ch; k++) o[i * ch + k] *= (i + 1f) / f;
+        var s = AudioClip.Create(c.name + "_trim", len, ch, rate, false);
+        s.SetData(o, 0);
+        return s;
+    }
     public static void Say(string name) { if (I != null) I.Voice(name); }
     public static void Announce(string name) { if (I != null) I.Intercom(name); }
     public static void Hush() { if (I != null) I.StopVoice(); }

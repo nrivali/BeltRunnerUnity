@@ -1754,7 +1754,7 @@ public class Ship : MonoBehaviour
             {
                 _gunCd = 1f / gun.rate;
                 game.raiders.Fire(origin, aimDir, gun.mult, true);   // at the crosshair: leading the target is the pilot's job
-                Audio.Play("blaster");   // the user's own clip
+                Audio.Shot("blaster");   // the user's own clip, on its own source so it lands on the shot
             }
             TickSpot(dt, false, _spotPos);
             return;
