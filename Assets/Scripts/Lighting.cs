@@ -116,7 +116,7 @@ public class Post : MonoBehaviour
     // the god rays: the sun's place in the frame from its direction (Lighting sets it), the source masked round it,
     // blurred toward it twice; faded out as the sun leaves the frame, and off while it is behind the camera
     public Vector3 sunDir = Vector3.up;
-    public float rays = 0.4f;
+    public float rays = 0.25f;
     // the volumetric dust (BeltRunner/Volumetric): a ray march through thin dust lit by the sun and shadowed by its
     // shadow map, at half resolution; V toggles it. The shadow map is copied to a global after the sun draws it.
     public Light sun;

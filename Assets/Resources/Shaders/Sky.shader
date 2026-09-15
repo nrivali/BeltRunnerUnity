@@ -104,7 +104,7 @@ Shader "BeltRunner/Sky"
                 float r = a / _SunRadius;
                 // the glare, as the user's sunrise reference has it: a white-hot disc in a broad, soft orange glow that
                 // falls away smoothly a long way out
-                float halo = 1.3 * exp(-r * 1.1) + 0.5 * exp(-r * 0.32) + 0.18 * exp(-r * 0.09);
+                float halo = 1.3 * exp(-r * 1.3) + 0.45 * exp(-r * 0.5) + 0.08 * exp(-r * 0.16);   // tighter: the wide term mostly gone
                 col += float3(1.0, 0.97, 0.92) * disc * _DiscGain + float3(1.0, 0.55, 0.26) * halo * 0.7;
                 return float4(col, 1.0);
             }

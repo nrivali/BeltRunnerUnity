@@ -147,9 +147,9 @@ Shader "BeltRunner/Post"
                 if (_RayGain > 0.001)
                 {
                     float2 g = 0.5 - i.uv;
-                    float3 ghost = tex2D(_Rays, 0.5 + g * 0.55).rgb * float3(0.5, 0.7, 1.0) * 0.10
-                                 + tex2D(_Rays, 0.5 + g * 1.35).rgb * float3(0.7, 0.85, 1.0) * 0.07
-                                 + tex2D(_Rays, 0.5 + g * 2.2).rgb * float3(1.0, 0.75, 0.9) * 0.05;
+                    float3 ghost = tex2D(_Rays, 0.5 + g * 0.55).rgb * float3(0.5, 0.7, 1.0) * 0.04
+                                 + tex2D(_Rays, 0.5 + g * 1.35).rgb * float3(0.7, 0.85, 1.0) * 0.03
+                                 + tex2D(_Rays, 0.5 + g * 2.2).rgb * float3(1.0, 0.75, 0.9) * 0.02;
                     c += ghost * saturate(_RayGain * 2.5);
                 }
                 c += tex2D(_Volume, i.uv).rgb;
