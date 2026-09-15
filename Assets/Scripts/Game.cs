@@ -208,6 +208,7 @@ public class Game : MonoBehaviour
                 foreach (var pm in mr.materials) if (pm.HasProperty("_Color")) pm.color = pm.color * 0.7f;
             }
             Atmosphere(_planet.transform, r, z);
+            BuildRings(_planet.transform, r);
         }
         else
         {
@@ -221,6 +222,62 @@ public class Game : MonoBehaviour
             _planet.GetComponent<MeshRenderer>().sharedMaterial = pm;
             _planet.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
+    }
+
+    /// The belt seen from afar (BeltRunner/Ring): a thick ring volume round the planet, the three base belts by radius
+    /// each a gaussian across its spread, drawn as the inside faces of a box round the whole belt (a child of the
+    /// planet), so the belt reads all the way round from inside it too; it fades out where the real rocks take over.
+    /// Nothing at the Hub, which has no belts.
+    void BuildRings(Transform planet, float r)
+    {
+        var sh = Shader.Find("BeltRunner/Ring");
+        if (sh == null || belt == null || belt.belts.Count < 3) return;
+        var b0 = belt.belts[0]; var b1 = belt.belts[1]; var b2 = belt.belts[2];
+        float rOut = b2.rMax + b2.spread * 0.5f;
+        float h = Mathf.Max(b0.spread, Mathf.Max(b1.spread, b2.spread)) * 0.5f * 1.6f;
+        var go = GameObject.CreatePrimitive(PrimitiveType.Cube);   // Unity's cube: faces wound outward, so Cull Front leaves the far faces from inside and out
+        go.name = "Ring volume";
+        Destroy(go.GetComponent<Collider>());
+        go.transform.SetParent(planet, false);
+        go.transform.localScale = new Vector3(rOut * 2f, h * 2f, rOut * 2f) / r;   // the planet is scaled to its radius; the box is in world units
+        var mr = go.GetComponent<MeshRenderer>();
+        var m = new Material(sh);
+        m.SetVector("_Belt0", new Vector4(b0.rMin - b0.spread * 0.5f, b0.rMax + b0.spread * 0.5f, b0.spread * 0.5f, 1f));
+        m.SetVector("_Belt1", new Vector4(b1.rMin - b1.spread * 0.5f, b1.rMax + b1.spread * 0.5f, b1.spread * 0.5f, 0.85f));
+        m.SetVector("_Belt2", new Vector4(b2.rMin - b2.spread * 0.5f, b2.rMax + b2.spread * 0.5f, b2.spread * 0.5f, 0.7f));
+        m.SetFloat("_PlanetR", r);
+        m.SetFloat("_Dens", 0.0000038f);
+        m.SetFloat("_NearFade", Belt.DRAW_DIST * 0.5f);
+        m.SetFloat("_FarFade", Belt.DRAW_DIST * 1.25f);
+        mr.sharedMaterial = m;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mr.receiveShadows = false;
+    }
+
+    /// A unit cube (1 across, centred) with its faces wound outward.
+    static Mesh CubeMesh()
+    {
+        var verts = new List<Vector3>();
+        var tris = new List<int>();
+        Vector3[] axes = { Vector3.right, Vector3.up, Vector3.forward };
+        for (int a = 0; a < 3; a++)
+        {
+            var n = axes[a]; var u = axes[(a + 1) % 3]; var v = axes[(a + 2) % 3];
+            for (int side = -1; side <= 1; side += 2)
+            {
+                int b = verts.Count;
+                var c = n * (0.5f * side);
+                verts.Add(c + (-u - v) * 0.5f); verts.Add(c + (u - v) * 0.5f); verts.Add(c + (u + v) * 0.5f); verts.Add(c + (-u + v) * 0.5f);
+                if (side > 0) { tris.Add(b); tris.Add(b + 2); tris.Add(b + 1); tris.Add(b); tris.Add(b + 3); tris.Add(b + 2); }
+                else { tris.Add(b); tris.Add(b + 1); tris.Add(b + 2); tris.Add(b); tris.Add(b + 2); tris.Add(b + 3); }
+            }
+        }
+        var mesh = new Mesh();
+        mesh.name = "Ring box";
+        mesh.SetVertices(verts);
+        mesh.SetTriangles(tris, 0);
+        mesh.RecalculateBounds();
+        return mesh;
     }
 
     /// The planet's atmosphere: an additive fresnel shell 3.5% bigger than the planet (BeltRunner/Atmo), in the planet's

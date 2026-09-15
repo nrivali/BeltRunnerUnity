@@ -96,9 +96,9 @@ Shader "BeltRunner/Sky"
                 float a = acos(clamp(cs, -1.0, 1.0));
                 float disc = 1.0 - smoothstep(_SunRadius * 0.97, _SunRadius, a);
                 float r = a / _SunRadius;
-                // the glare: a tight core, a mid halo and a wide soft wash a long way out, warmer than the disc
-                float halo = 1.4 * exp(-r * 1.6) + 0.6 * exp(-r * 0.4) + 0.42 * exp(-r * 0.07);
-                col += _SunColor.rgb * disc * _DiscGain + _SunColor.rgb * float3(1.0, 0.78, 0.5) * halo * 0.7;
+                // the glare: compact, as the user's concept frame has it: a hot core round the disc and a small soft halo, no wide wash
+                float halo = 1.6 * exp(-r * 1.4) + 0.35 * exp(-r * 0.45);
+                col += _SunColor.rgb * disc * _DiscGain + _SunColor.rgb * float3(1.0, 0.92, 0.8) * halo * 0.6;
                 return float4(col, 1.0);
             }
             ENDCG

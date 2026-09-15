@@ -139,6 +139,15 @@ Shader "BeltRunner/Post"
                 else c = tex2D(_MainTex, i.uv).rgb;
                 c += tex2D(_Bloom, i.uv).rgb * _Intensity;
                 c += tex2D(_Rays, i.uv).rgb * _RayGain;
+                // the lens flare: a few faint ghosts of the sun mirrored through the frame's centre, cool-tinted
+                if (_RayGain > 0.001)
+                {
+                    float2 g = 0.5 - i.uv;
+                    float3 ghost = tex2D(_Rays, 0.5 + g * 0.55).rgb * float3(0.5, 0.7, 1.0) * 0.10
+                                 + tex2D(_Rays, 0.5 + g * 1.35).rgb * float3(0.7, 0.85, 1.0) * 0.07
+                                 + tex2D(_Rays, 0.5 + g * 2.2).rgb * float3(1.0, 0.75, 0.9) * 0.05;
+                    c += ghost * saturate(_RayGain * 2.5);
+                }
                 c += tex2D(_Volume, i.uv).rgb;
                 return float4(aces(c * _Exposure), 1.0);
             }

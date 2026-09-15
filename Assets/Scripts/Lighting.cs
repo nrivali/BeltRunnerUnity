@@ -17,7 +17,7 @@ public class Lighting
     {
         // the look the user asked for (2026-09-15, from a reference frame): a warm, low, golden sun with a wide glare
         if (zoneId == "hub") return new Profile { color = Data.Hex("#ffe9cf"), intensity = 5.0f, radius = 0.0085f, exposure = 1.0f };
-        return new Profile { color = Data.Hex("#ffcf95"), intensity = 5.8f, radius = 0.018f, exposure = 1.0f };
+        return new Profile { color = Data.Hex("#fff1e2"), intensity = 5.8f, radius = 0.0085f, exposure = 1.0f };
     }
 
     public const float SHADOW_REACH = 3300f;          // the browser's 2,400 u shadow box round a focus 900 u ahead of the camera
@@ -83,6 +83,7 @@ public class Lighting
         sun.color = p.color;
         sun.intensity = 2.4f * p.intensity / 5.2f;
         Shader.SetGlobalVector("_BeltSunDir", new Vector4(dir.x, dir.y, dir.z, 0f));
+        Shader.SetGlobalColor("_RingSunColor", p.color);
         if (post != null) { post.exposure = p.exposure; post.sunDir = dir; post.sun = sun; post.sunColor = p.color; }
         if (sky != null)
         {
@@ -115,16 +116,16 @@ public class Post : MonoBehaviour
     // the god rays: the sun's place in the frame from its direction (Lighting sets it), the source masked round it,
     // blurred toward it twice; faded out as the sun leaves the frame, and off while it is behind the camera
     public Vector3 sunDir = Vector3.up;
-    public float rays = 1.1f;
+    public float rays = 0.4f;
     // the volumetric dust (BeltRunner/Volumetric): a ray march through thin dust lit by the sun and shadowed by its
     // shadow map, at half resolution; V toggles it. The shadow map is copied to a global after the sun draws it.
     public Light sun;
     public Color sunColor = Color.white;
     public bool volumetric = true;
-    public float dustDensity = 0.00003f;   // per world unit
+    public float dustDensity = 0.00002f;   // per world unit
     public float dustReach = 6000f;        // how far the march goes
     public int dustSteps = 48;
-    public float dustIntensity = 0.45f;
+    public float dustIntensity = 0.3f;
     public float dustAniso = 0.75f;        // Henyey-Greenstein g: forward-peaked toward the sun
     Material _mat, _volMat;
     Camera _camera;
