@@ -27,6 +27,8 @@ public class Hud : MonoBehaviour
 
     // the flight HUD
     Ui.Vignette _vignette, _dmg, _shieldOut;
+    Ui.SpeedStreaks _speed;
+    float _speedK;
     float _shieldOutA;   // the shield-down warning: 0..1, eased
     Ui.Blips _blips;
     Ui.Reticle _reticle;
@@ -124,6 +126,7 @@ public class Hud : MonoBehaviour
         _shieldOut.tint = Data.Hex("#ff5a3c");
         _shieldOut.inner = 0.5f;
         _shieldOut.strength = 0f;
+        _speed = FullGraphic<Ui.SpeedStreaks>("SpeedStreaks");
         _blips = FullGraphic<Ui.Blips>("Blips");
         _reticleRt = Ui.Rect("Reticle", _root, Ui.BL, Ui.MID, Vector2.zero, new Vector2(64f, 64f));
         _reticle = _reticleRt.gameObject.AddComponent<Ui.Reticle>();
@@ -1658,6 +1661,11 @@ public class Hud : MonoBehaviour
         _shieldOutA = Mathf.MoveTowards(_shieldOutA, shieldOut ? 1f : 0f, dt / (shieldOut ? 0.4f : 0.8f));
         float breathe = 0.5f + 0.5f * Mathf.Sin(Time.time * Mathf.PI * 2f / 1.4f);
         _shieldOut.Set(_shieldOutA * (0.09f + 0.09f * breathe));
+        // the afterburner's speed streaks: in over a third of a second when it lights, out over half a second after
+        bool burning = ship.afterburning && !docked && ship.cut == null && ship.warp == null;
+        _speedK = Mathf.Lerp(_speedK, burning ? 1f : 0f, 1f - Mathf.Exp(-(burning ? 3f : 2f) * dt));
+        var engS = State.Stat("engine");
+        _speed.Set(_speedK, dt, engS.max > 0f ? Mathf.Clamp01(ship.vel.magnitude / (engS.max * 3f)) : 0.5f);
         // side panels follow the window
         _services.sizeDelta = new Vector2(Mathf.Min(580f, _canvasSize.x * 0.52f), 0f);
         _inv.sizeDelta = new Vector2(Mathf.Min(520f, _canvasSize.x * 0.48f), 0f);

@@ -754,6 +754,65 @@ public static class Ui
         }
     }
 
+    // ---- the afterburner's speed streaks: thin pale lines racing out from the centre of the screen toward the edges,
+    // each on its own spoke at its own pace, tapered and faint near the centre, brighter as it nears the edge. The HUD
+    // sets the intensity (0 hides it) and the streaks step outward each frame.
+    public class SpeedStreaks : MaskableGraphic
+    {
+        const int N = 64;
+        readonly float[] _ang = new float[N], _r = new float[N], _len = new float[N], _spd = new float[N], _w = new float[N];
+        float _k;
+        bool _seeded;
+
+        void Seed(int i)
+        {
+            _ang[i] = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+            _r[i] = UnityEngine.Random.Range(0.05f, 0.6f);        // start radius, as a fraction of the half-diagonal
+            _len[i] = UnityEngine.Random.Range(0.08f, 0.22f);
+            _spd[i] = UnityEngine.Random.Range(0.9f, 1.8f);       // fractions of the half-diagonal a second
+            _w[i] = UnityEngine.Random.Range(1f, 2.2f);
+        }
+
+        /// `k` is the intensity 0..1; `dt` steps the streaks outward, faster with `speed` (0..1).
+        public void Set(float k, float dt, float speed)
+        {
+            if (!_seeded) { for (int i = 0; i < N; i++) { Seed(i); _r[i] = UnityEngine.Random.Range(0.05f, 1f); } _seeded = true; }
+            _k = k;
+            if (k <= 0.005f) { SetVerticesDirty(); return; }
+            for (int i = 0; i < N; i++)
+            {
+                _r[i] += _spd[i] * (0.6f + 0.8f * speed) * dt;
+                if (_r[i] > 1.05f) { Seed(i); _r[i] = UnityEngine.Random.Range(0.02f, 0.12f); }
+            }
+            SetVerticesDirty();
+        }
+
+        protected override void OnPopulateMesh(VertexHelper vh)
+        {
+            vh.Clear();
+            if (_k <= 0.005f) return;
+            var rect = GetPixelAdjustedRect();
+            var c = rect.center;
+            float half = new Vector2(rect.width, rect.height).magnitude * 0.5f;
+            for (int i = 0; i < N; i++)
+            {
+                float r0 = _r[i], r1 = Mathf.Min(1.05f, r0 + _len[i]);
+                if (r0 < 0.1f) continue;   // the centre stays clear
+                var d = new Vector2(Mathf.Cos(_ang[i]), Mathf.Sin(_ang[i]));
+                var a = c + d * r0 * half;
+                var b = c + d * r1 * half;
+                // faint near the centre, brightest two thirds out, gone at the edge
+                float mid = (r0 + r1) * 0.5f;
+                float bright = Mathf.Clamp01((mid - 0.1f) / 0.45f) * Mathf.Clamp01((1.05f - mid) / 0.3f);
+                var col = new Color(0.8f, 0.9f, 1f, 0.55f * _k * bright);
+                // tapered: a sliver at the near end, the full width at the far end
+                var n = new Vector2(-d.y, d.x);
+                float w = _w[i] * (0.6f + 0.6f * mid);
+                Quad(vh, a - n * 0.2f, a + n * 0.2f, b + n * w * 0.5f, b - n * w * 0.5f, col);
+            }
+        }
+    }
+
     // ---- .hudfx and .dmg: a soft vignette, and the red flash on a hull knock
     public class Vignette : MaskableGraphic
     {
