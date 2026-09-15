@@ -56,8 +56,8 @@ Shield is fixed at 50 for every fit (no refit yet).
     min(3, 1 + floor(danger))) → 1 or 2 at Kessler, 1 elsewhere.
 - Engage a flying ship within 9,000 u (4,500 m); give up beyond 14,000 u, or when the ship is disabled or docked.
 - The cargo ship's guns cover 9,000 u: raiders inside lose 30 health/s and never engage there.
-- Manoeuvres: run in (weaving) until inside 600 u; strafe at a radius of 200–500 u for 3–7 s, speed capped so the
-  circle holds; then 15% a long run to a point 3,000–6,000 u away (1,500–3,000 m), else 80% another strafe / 20% a short
+- Manoeuvres: run in (weaving) until inside 600 u; strafe at a radius of 200–500 u for 2–4 s, speed capped so the
+  circle holds; then 50% a long run at full thrust to a point 2,500–5,000 u away (1,250–2,500 m) and a fresh run back in, else 90% another strafe / 10% a short
   break (1.2–2.5 s). Jink when a player bolt is coming their way (miss under 138 u, within 2,500 u): 70% of the time,
   0.8 s hard turn, then 1.6 s cooldown.
 - Flight model: heading turns at most 30°/s, accel 220, braking 320, movement only along the nose.

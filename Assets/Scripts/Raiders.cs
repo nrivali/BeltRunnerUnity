@@ -356,7 +356,7 @@ public class Raiders
                 {
                     // the run in: toward the ship, weaving side to side, until close
                     desired = sp + side * Mathf.Sin(r.weave) * 260f + Vector3.up * Mathf.Sin(r.weave * 0.6f) * 90f;
-                    if (d < 600f) { r.move = "strafe"; r.moveT = Random.Range(3f, 7f); r.orbitR = Random.Range(200f, 500f); r.orbitDir = Random.value < 0.5f ? -1f : 1f; }
+                    if (d < 600f) { r.move = "strafe"; r.moveT = Random.Range(2f, 4f); r.orbitR = Random.Range(200f, 500f); r.orbitDir = Random.value < 0.5f ? -1f : 1f; }
                 }
                 else if (r.move == "strafe")
                 {
@@ -367,19 +367,20 @@ public class Raiders
                     if (r.moveT <= 0f)
                     {
                         float roll = Random.value;
-                        if (roll < 0.15f)
+                        if (roll < 0.5f)
                         {
-                            // a long run: out to a point 1,500 to 3,000 m from the ship, then back in from wherever that leaves it
+                            // a long run, half the time: full thrust out to a point 1,250 to 2,500 m from the ship to get range,
+                            // then a fresh attack run back in, guns going as soon as the nose is on you
                             r.move = "long";
                             var away = -toShip + side * Random.Range(-0.8f, 0.8f) + Vector3.up * Random.Range(-0.3f, 0.3f);
-                            float reach = Random.Range(3000f, 6000f);
+                            float reach = Random.Range(2500f, 5000f);
                             r.longTo = sp + away.normalized * reach;
                             r.moveT = reach / r.speed * 1.6f;
                         }
                         else
                         {
-                            r.move = roll < 0.8f ? "strafe" : "break";   // aggressive: mostly another pass
-                            r.moveT = r.move == "break" ? Random.Range(1.2f, 2.5f) : Random.Range(3f, 7f);
+                            r.move = roll < 0.9f ? "strafe" : "break";   // otherwise mostly another pass
+                            r.moveT = r.move == "break" ? Random.Range(1.2f, 2.5f) : Random.Range(2f, 4f);
                             r.orbitR = Random.Range(200f, 500f);
                             if (Random.value < 0.5f) r.orbitDir = -r.orbitDir;
                         }
@@ -389,7 +390,7 @@ public class Raiders
                 {
                     // the long run, weaving a little; over when the point is reached or the time is up
                     desired = r.longTo + side * Mathf.Sin(r.weave) * 150f;
-                    if ((r.longTo - r.pos).magnitude < 300f || r.moveT <= 0f) { r.move = "run"; r.moveT = 0f; }
+                    if ((r.longTo - r.pos).magnitude < 400f || r.moveT <= 0f) { r.move = "run"; r.moveT = 0f; }
                 }
                 else
                 {
@@ -436,7 +437,7 @@ public class Raiders
                 r.heading = RotateTowards(r.heading, want, TURN_RATE * dt);
                 float wantSpd = r.state == "attack" ? r.speed : 300f;
                 if (r.state == "attack" && r.move == "strafe") wantSpd = Mathf.Min(wantSpd, r.orbitR * TURN_RATE * 0.9f);   // slow enough to hold the circle
-                if (r.state != "attack" || r.move == "long") wantSpd = Mathf.Min(wantSpd, Mathf.Max(60f, dist / 3f));   // ease up on the point
+                if (r.state != "attack") wantSpd = Mathf.Min(wantSpd, Mathf.Max(60f, dist / 3f));   // ease up on the point (a long run is flown at full thrust)
                 float off2 = Vector3.Dot(r.heading, want);
                 if (off2 < 0.3f) wantSpd = Mathf.Min(wantSpd, 260f);   // pointing the wrong way: throttle back through the turn
                 r.spd = r.spd < wantSpd ? Mathf.Min(wantSpd, r.spd + ACCEL * dt) : Mathf.Max(wantSpd, r.spd - DECEL * dt);
