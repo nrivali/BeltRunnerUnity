@@ -208,6 +208,7 @@ public class Game : MonoBehaviour
                 foreach (var pm in mr.materials) if (pm.HasProperty("_Color")) pm.color = pm.color * 0.7f;
             }
             Atmosphere(_planet.transform, r, z);
+            BuildSpecks(_planet.transform, r);
         }
         else
         {
@@ -221,6 +222,50 @@ public class Game : MonoBehaviour
             _planet.GetComponent<MeshRenderer>().sharedMaterial = pm;
             _planet.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
+    }
+
+    /// The belt's far rocks as specks (BeltRunner/Specks): one small camera-facing quad per rock, built once from the
+    /// rocks' own positions relative to the planet, a child of the planet, so the belt reads as rock all the way round
+    /// it past the rocks' draw distance. Nothing at the Hub, which has no belt.
+    void BuildSpecks(Transform planet, float r)
+    {
+        var sh = Shader.Find("BeltRunner/Specks");
+        if (sh == null || belt == null || belt.count == 0) return;
+        var verts = new List<Vector3>();
+        var uv = new List<Vector2>();
+        var uv1 = new List<Vector2>();
+        var tris = new List<int>();
+        Vector2[] corners = { new Vector2(-1f, -1f), new Vector2(1f, -1f), new Vector2(1f, 1f), new Vector2(-1f, 1f) };
+        for (int i = 0; i < belt.count; i++)
+        {
+            if (!belt.alive[i]) continue;
+            var p = (belt.RockPos(i) - _planetTrue) / r;
+            int b = verts.Count;
+            for (int c = 0; c < 4; c++) { verts.Add(p); uv.Add(corners[c]); uv1.Add(new Vector2(belt.radius[i], 0f)); }
+            tris.Add(b); tris.Add(b + 2); tris.Add(b + 1); tris.Add(b); tris.Add(b + 3); tris.Add(b + 2);
+        }
+        var mesh = new Mesh();
+        mesh.name = "Specks";
+        mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        mesh.SetVertices(verts);
+        mesh.SetUVs(0, uv);
+        mesh.SetUVs(1, uv1);
+        mesh.SetTriangles(tris, 0);
+        mesh.RecalculateBounds();
+        var go = new GameObject("Specks");
+        go.transform.SetParent(planet, false);
+        var mf = go.AddComponent<MeshFilter>();
+        mf.sharedMesh = mesh;
+        var mr = go.AddComponent<MeshRenderer>();
+        var m = new Material(sh);
+        m.SetFloat("_PlanetR", r);
+        m.SetFloat("_Scale", r);
+        m.SetFloat("_NearFade", Belt.DRAW_DIST * 0.7f);
+        m.SetFloat("_FarFade", Belt.DRAW_DIST * 1.1f);
+        mr.sharedMaterial = m;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mr.receiveShadows = false;
+        Debug.Log("specks: " + (verts.Count / 4) + " far rocks");
     }
 
     /// The planet's atmosphere: an additive fresnel shell 3.5% bigger than the planet (BeltRunner/Atmo), in the planet's

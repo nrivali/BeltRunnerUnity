@@ -83,6 +83,7 @@ public class Lighting
         sun.color = p.color;
         sun.intensity = 2.4f * p.intensity / 5.2f;
         Shader.SetGlobalVector("_BeltSunDir", new Vector4(dir.x, dir.y, dir.z, 0f));
+        Shader.SetGlobalColor("_SpeckSunColor", p.color);
         if (post != null) { post.exposure = p.exposure; post.sunDir = dir; post.sun = sun; post.sunColor = p.color; }
         if (sky != null)
         {
