@@ -1500,6 +1500,7 @@ public class Hud : MonoBehaviour
         _ringTargets["target"] = _target;
         _ringTargets["marker"] = _marker.rt;
         _ringTargets["controls"] = _controls;
+        _ringTargets["weapon"] = _weaponPane;
         _ringTargets["deposit"] = null;
         _ringTargets["depart"] = _departBtn.rt;
     }
@@ -1516,7 +1517,7 @@ public class Hud : MonoBehaviour
             return;
         }
         _tutBox.gameObject.SetActive(!_tutHidden);
-        _tutStep.text = "FLIGHT OPS · " + number + " / " + Tutorial.STEPS.Length;
+        _tutStep.text = "VEGA · " + number + " / " + Tutorial.STEPS.Length;
         _tutTitle.text = s.title;
         _tutText.text = s.text;
         float th = Mathf.Ceil(_tutText.preferredHeight);
