@@ -848,6 +848,22 @@ public static class Ui
         }
     }
 
+    // ---- the pointer dot: a small pale disc with a dark rim that stands in for the mouse pointer in flight
+    public class Dot : MaskableGraphic
+    {
+        protected override void OnPopulateMesh(VertexHelper vh)
+        {
+            vh.Clear();
+            const int N = 20;
+            var rim = new Vector2[N]; var core = new Vector2[N];
+            for (int i = 0; i < N; i++) { float a = i * Mathf.PI * 2f / N; var d = new Vector2(Mathf.Cos(a), Mathf.Sin(a)); rim[i] = d * 4.5f; core[i] = d * 3f; }
+            var rc = new Color[N]; var cc = new Color[N];
+            for (int i = 0; i < N; i++) { rc[i] = new Color(0f, 0.05f, 0.1f, 0.6f); cc[i] = A(Color.white, 0.95f); }
+            Poly(vh, rim, rc);
+            Poly(vh, core, cc);
+        }
+    }
+
     // ---- .hudfx and .dmg: a soft vignette, and the red flash on a hull knock
     public class Vignette : MaskableGraphic
     {

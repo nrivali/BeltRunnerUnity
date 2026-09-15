@@ -39,7 +39,7 @@ public class Hud : MonoBehaviour
     RectTransform _crosshairRt;
     readonly List<Ui.Marker> _droneMarkers = new List<Ui.Marker>();
     readonly List<Ui.Marker> _raiderMarkers = new List<Ui.Marker>();
-    RectTransform _status, _readouts, _target, _controls, _prompt, _notice, _toastBox, _version, _hoverLbl;
+    RectTransform _status, _readouts, _target, _controls, _prompt, _notice, _toastBox, _version, _hoverLbl, _pointerDot;
     Text _speedUnit, _tWeapon;
     const float BAND_H = 100f;   // the bottom band's panes are this tall
     Text _hoverTxt;
@@ -137,6 +137,10 @@ public class Hud : MonoBehaviour
         _shieldOut.inner = 0.5f;
         _shieldOut.strength = 0f;
         _speed = FullGraphic<Ui.SpeedStreaks>("SpeedStreaks");
+        // the pointer dot: shown wherever the mouse is while the OS pointer is hidden in flight
+        _pointerDot = Ui.Rect("PointerDot", _root, Ui.BL, Ui.MID, Vector2.zero, new Vector2(12f, 12f));
+        _pointerDot.gameObject.AddComponent<Ui.Dot>().raycastTarget = false;
+        _pointerDot.gameObject.SetActive(false);
         _blips = FullGraphic<Ui.Blips>("Blips");
         _reticleRt = Ui.Rect("Reticle", _root, Ui.BL, Ui.MID, Vector2.zero, new Vector2(64f, 64f));
         _reticle = _reticleRt.gameObject.AddComponent<Ui.Reticle>();
@@ -1748,6 +1752,15 @@ public class Hud : MonoBehaviour
             for (; li < _leadPips.Count; li++) _leadPips[li].Hide();
         }
         else { _crosshairRt.gameObject.SetActive(false); foreach (var p in _leadPips) p.Hide(); Cursor.visible = true; }
+        // the pointer dot stands in for the hidden pointer, on top of everything
+        bool dotOn = !Cursor.visible;
+        if (_pointerDot.gameObject.activeSelf != dotOn) _pointerDot.gameObject.SetActive(dotOn);
+        if (dotOn)
+        {
+            var dm = Input.mousePosition;
+            _pointerDot.anchoredPosition = new Vector2(dm.x, dm.y) / _canvas.scaleFactor;
+            _pointerDot.SetAsLastSibling();
+        }
         // the bracket: on the locked target, whatever it is, fitted to how big it looks; else a small one on a rock in the sights
         {
             Vector3 bracketAt = Vector3.zero;
