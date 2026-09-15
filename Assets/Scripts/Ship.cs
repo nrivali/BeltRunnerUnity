@@ -1204,7 +1204,7 @@ public class Ship : MonoBehaviour
         float turn = TURN * (drifting ? DRIFT_TURN : 1f);   // the drift: the nose swings much faster
         transform.Rotate(Vector3.up, yaw * turn * dt * Mathf.Rad2Deg, Space.Self);
         transform.Rotate(Vector3.right, -pitchUp * turn * dt * Mathf.Rad2Deg, Space.Self);
-        transform.Rotate(Vector3.forward, roll * 0.6f * dt * Mathf.Rad2Deg, Space.Self);
+        transform.Rotate(Vector3.forward, roll * 1.2f * dt * Mathf.Rad2Deg, Space.Self);   // 1.2 rad/s: twice the 0.6 it had (2026-09-15)
         // the camera swing follows the stick, not the lock: an automatic turn that fed it in full swung the view past the
         // target and back as the nose arrived and the deflection dropped away
         _ctlYaw = _autoSteer ? yaw * 0.25f : yaw; _ctlPitch = _autoSteer ? pitchUp * 0.25f : pitchUp; _ctlRoll = Mathf.Clamp(roll, -1f, 1f);
