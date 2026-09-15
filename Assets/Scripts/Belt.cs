@@ -265,6 +265,7 @@ public class Belt
         if (sm.HasProperty("metallicFactor")) m.SetFloat("_Metallic", sm.GetFloat("metallicFactor"));
         if (sm.HasProperty("roughnessFactor")) m.SetFloat("_Roughness", sm.GetFloat("roughnessFactor"));
         m.SetFloat("_Tint", sm.name.StartsWith("Ore_") ? 1f : 0f);
+        m.SetFloat("_OreGlow", sm.name.StartsWith("Ore_") ? 1f : 0f);   // the veins glow in their ore colour
         _matCache[sm] = m;
         return m;
     }

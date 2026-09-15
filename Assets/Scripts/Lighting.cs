@@ -15,8 +15,9 @@ public class Lighting
     /// Per-zone sun profiles (the HTML's `profiles`): colour, strength, the disc's angular radius, and the exposure.
     public static Profile ProfileFor(string zoneId)
     {
-        if (zoneId == "hub") return new Profile { color = Data.Hex("#fff6eb"), intensity = 5.0f, radius = 0.0085f, exposure = 1.05f };
-        return new Profile { color = Data.Hex("#fff3e3"), intensity = 5.3f, radius = 0.0090f, exposure = 1.05f };
+        // the look the user asked for (2026-09-15, from a reference frame): a warm, low, golden sun with a wide glare
+        if (zoneId == "hub") return new Profile { color = Data.Hex("#ffe9cf"), intensity = 5.0f, radius = 0.0085f, exposure = 1.0f };
+        return new Profile { color = Data.Hex("#ffcf95"), intensity = 5.8f, radius = 0.018f, exposure = 1.0f };
     }
 
     public const float SHADOW_REACH = 3300f;          // the browser's 2,400 u shadow box round a focus 900 u ahead of the camera
@@ -54,13 +55,17 @@ public class Lighting
             RenderSettings.skybox = sky;
             cam.clearFlags = CameraClearFlags.Skybox;
         }
-        // the browser's fill is a faint hemisphere bounce and an ambient of 0.025 through a Lambert with 1/pi: a fixed
-        // colour of about that strength here, with the hulls' reflections from the sky
+        // the fill: nearly none, and what there is runs cool, so the shadow side of a rock goes to a deep blue-black
+        // and the sun does all the shaping (the reference frame's contrast); the hulls still reflect the sky
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.62f, 0.61f, 0.60f) * 0.06f;
+        RenderSettings.ambientLight = new Color(0.42f, 0.48f, 0.62f) * 0.04f;
         RenderSettings.defaultReflectionMode = UnityEngine.Rendering.DefaultReflectionMode.Skybox;
         RenderSettings.defaultReflectionResolution = 128;
+        // a faint dark haze with distance on the rock alone (the rock shader's finalcolor): far rocks sink toward the
+        // sky and near ones stand out, while the planet, the carrier and the ships stay clear at any range
         RenderSettings.fog = false;
+        Shader.SetGlobalFloat("_HazeDensity", 0.000012f);
+        Shader.SetGlobalColor("_HazeColor", new Color(0.030f, 0.026f, 0.028f));
         // the finish: ACES at the zone's exposure and the glow
         if (Shader.Find("BeltRunner/Post") != null)
         {
@@ -76,14 +81,15 @@ public class Lighting
         var dir = z.sunDir.normalized;
         sun.transform.rotation = Quaternion.LookRotation(-dir, Mathf.Abs(dir.y) < 0.98f ? Vector3.up : Vector3.forward);
         sun.color = p.color;
-        sun.intensity = 1.7f * p.intensity / 5.2f;
+        sun.intensity = 2.4f * p.intensity / 5.2f;
+        Shader.SetGlobalVector("_BeltSunDir", new Vector4(dir.x, dir.y, dir.z, 0f));
         if (post != null) post.exposure = p.exposure;
         if (sky != null)
         {
             sky.SetVector("_SunDir", dir);
             sky.SetFloat("_SunRadius", p.radius);
-            sky.SetColor("_SunColor", Color.Lerp(p.color, Color.white, 0.3f));
-            sky.SetColor("_BaseColor", Color.Lerp(z.bg, new Color(0.02f, 0.027f, 0.063f), 0.5f));
+            sky.SetColor("_SunColor", Color.Lerp(p.color, Color.white, 0.15f));
+            sky.SetColor("_BaseColor", Color.Lerp(z.bg, Color.black, 0.65f));   // space is black; the zone's tint is a whisper
             sky.SetFloat("_DiscGain", 1.6f);
             DynamicGI.UpdateEnvironment();
             sky.SetFloat("_DiscGain", 6f);
@@ -101,9 +107,9 @@ public class Lighting
 /// The image effect: a quarter-size bright pass, a two-tap separable blur, and the composite with exposure and ACES.
 public class Post : MonoBehaviour
 {
-    public float exposure = 1.05f;
-    public float threshold = 1.15f;
-    public float intensity = 0.55f;
+    public float exposure = 1.0f;
+    public float threshold = 0.95f;   // the sun, the engines, the hot veins and the beam bloom; lit hull does not
+    public float intensity = 0.8f;
     public float burn;                              // the afterburner: 0..1, the radial blur and the fringing
     public Vector2 burnCenter = new Vector2(0.5f, 0.5f);   // its centre in uv, leading into a turn
     Material _mat;

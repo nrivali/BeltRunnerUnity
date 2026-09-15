@@ -77,12 +77,13 @@ Shader "BeltRunner/Sky"
                 float band = exp(-pow((d.y - 0.07 * sin(lon + 1.2)) / 0.075, 2.0)) * (0.35 + 0.65 * n2);
                 float neb = max(0.0, n1 - 0.52) * 2.2;
                 float neb2 = max(0.0, n2 - 0.6) * 2.4;
-                float3 col = _BaseColor.rgb + (neb * _NebulaA.rgb + neb2 * _NebulaB.rgb) * 0.7 + band * _BandColor.rgb;
+                // the nebula and the dust band are a whisper now: space reads black, the sun and the stars do the sky
+                float3 col = _BaseColor.rgb + (neb * _NebulaA.rgb + neb2 * _NebulaB.rgb) * 0.12 + band * _BandColor.rgb * 0.35;
                 // stars: a sparse hash over direction cells, a brighter few among them
                 float3 sp = d * 240.0;
                 float3 cell = floor(sp);
                 float h = hash(cell);
-                if (h > 0.9955)
+                if (h > 0.9962)
                 {
                     float3 c = float3(hash(cell + 1.0), hash(cell + 2.0), hash(cell + 3.0));
                     float dist = length(frac(sp) - 0.5 - (c - 0.5) * 0.5);
@@ -95,8 +96,9 @@ Shader "BeltRunner/Sky"
                 float a = acos(clamp(cs, -1.0, 1.0));
                 float disc = 1.0 - smoothstep(_SunRadius * 0.97, _SunRadius, a);
                 float r = a / _SunRadius;
-                float halo = 1.15 * exp(-r * 1.9) + 0.24 * exp(-r * 0.6);
-                col += _SunColor.rgb * (disc * _DiscGain + halo * 0.35);
+                // the glare: a tight core, a mid halo and a wide soft wash a long way out, warmer than the disc
+                float halo = 1.4 * exp(-r * 1.6) + 0.6 * exp(-r * 0.4) + 0.42 * exp(-r * 0.07);
+                col += _SunColor.rgb * disc * _DiscGain + _SunColor.rgb * float3(1.0, 0.78, 0.5) * halo * 0.7;
                 return float4(col, 1.0);
             }
             ENDCG

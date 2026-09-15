@@ -62,6 +62,7 @@ public class Game : MonoBehaviour
             if (args[i] == "-combat" || args[i] == "--combat") _combat = true;
             if ((args[i] == "-gun" || args[i] == "--gun") && i + 1 < args.Length) int.TryParse(args[i + 1], out _combatGun);
             if ((args[i] == "-rocket" || args[i] == "--rocket") && i + 1 < args.Length) int.TryParse(args[i + 1], out _combatRocket);
+            if ((args[i] == "-face" || args[i] == "--face") && i + 1 < args.Length) _combatFace = args[i + 1];   // sun | planet: the sandbox ship turned to face it (lighting checks)
         }
         if (_combat)
         {
@@ -133,6 +134,13 @@ public class Game : MonoBehaviour
         {
             StartGame();
             JumpToHold();
+            if (_combatFace == "sun" || _combatFace == "planet")
+            {
+                var d = _combatFace == "sun" ? zone.sunDir.normalized : (_planetTrue - ship.TruePos).normalized;
+                ship.transform.rotation = Quaternion.LookRotation(d, Vector3.up);
+                ship.mouseSteer = false;   // or the pointer, wherever it sits, would swing the nose off it
+                ship.UpdateCamera(1f);
+            }
             hud.Toast("Combat test · sandbox, nothing is saved · F9 spawns a fresh three", false);
         }
         else
@@ -193,7 +201,13 @@ public class Game : MonoBehaviour
             _planet = Instantiate(pp);
             _planet.name = "Planet " + z.planetName;
             _planet.transform.localScale = Vector3.one * r;
-            foreach (var mr in _planet.GetComponentsInChildren<MeshRenderer>(true)) mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            foreach (var mr in _planet.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                // the surface sits a step down under this sun, so the day side keeps its detail and the limb glow reads
+                foreach (var pm in mr.materials) if (pm.HasProperty("_Color")) pm.color = pm.color * 0.7f;
+            }
+            Atmosphere(_planet.transform, r, z);
         }
         else
         {
@@ -207,6 +221,27 @@ public class Game : MonoBehaviour
             _planet.GetComponent<MeshRenderer>().sharedMaterial = pm;
             _planet.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
+    }
+
+    /// The planet's atmosphere: an additive fresnel shell 3.5% bigger than the planet (BeltRunner/Atmo), in the planet's
+    /// tint pulled toward a pale haze, brightest at the sunlit limb.
+    void Atmosphere(Transform planet, float r, Data.Zone z)
+    {
+        var sh = Shader.Find("BeltRunner/Atmo");
+        if (sh == null) return;
+        var a = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        a.name = "Atmosphere";
+        Destroy(a.GetComponent<Collider>());
+        a.transform.SetParent(planet, false);
+        a.transform.localScale = Vector3.one * 2f * 1.05f;   // the unit sphere is 1 across; the planet model is unit radius
+        var m = new Material(sh);
+        m.SetColor("_Color", Color.Lerp(z.tint, new Color(0.7f, 0.82f, 1f), 0.6f));
+        m.SetFloat("_Power", 2.6f);
+        m.SetFloat("_Gain", 2.6f);
+        var mr = a.GetComponent<MeshRenderer>();
+        mr.sharedMaterial = m;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        mr.receiveShadows = false;
     }
 
     /// Place the carrier and the ship for the zone: on the pad in the dock that faces the planet in a belt; at the Hub, at
@@ -381,6 +416,7 @@ public class Game : MonoBehaviour
     // the autocannon fitted, so a fight starts within a second or two; F9 spawns a fresh three
     bool _combat;
     int _combatGun = 0, _combatRocket = 0;
+    string _combatFace = "";
     int _combatFrame;
 
     /// The combat test's fight: every raider in the zone is cleared and three fresh ones are spawned 2,000 to 4,000 m

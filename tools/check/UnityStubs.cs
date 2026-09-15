@@ -221,6 +221,7 @@ namespace UnityEngine
 
     public enum Space { World, Self }
     public enum PrimitiveType { Sphere, Capsule, Cylinder, Cube, Plane, Quad }
+    public enum FogMode { Linear = 1, Exponential = 2, ExponentialSquared = 3 }
     public enum CameraClearFlags { Skybox, SolidColor, Depth, Nothing }
     public enum LightType { Spot, Directional, Point }
     public enum LightShadows { None, Hard, Soft }
@@ -365,6 +366,9 @@ namespace UnityEngine
         public static Rendering.AmbientMode ambientMode { get; set; }
         public static Color ambientLight { get; set; }
         public static bool fog { get; set; }
+        public static FogMode fogMode { get; set; }
+        public static Color fogColor { get; set; }
+        public static float fogDensity { get; set; }
         public static Material skybox { get; set; }
         public static Rendering.DefaultReflectionMode defaultReflectionMode { get; set; }
         public static int defaultReflectionResolution { get; set; }
@@ -383,6 +387,7 @@ namespace UnityEngine
         public bool isSupported => true;
         public static Shader Find(string name) => new Shader { name = name };
         public static void SetGlobalFloat(string name, float v) { }
+        public static void SetGlobalColor(string name, Color c) { }
         public static void SetGlobalVector(string name, Vector4 v) { }
     }
 
@@ -448,10 +453,12 @@ namespace UnityEngine
     {
         public bool enabled { get; set; }
         public Material[] sharedMaterials { get; set; }
+        public Material[] materials { get; set; }
         public void SetPropertyBlock(MaterialPropertyBlock b) { }
         public Material sharedMaterial { get; set; }
         public Material material { get; set; }
         public Rendering.ShadowCastingMode shadowCastingMode { get; set; }
+        public bool receiveShadows { get; set; }
     }
 
     public class MeshRenderer : Renderer { }

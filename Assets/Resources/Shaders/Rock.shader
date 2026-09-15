@@ -16,6 +16,7 @@ Shader "BeltRunner/Rock"
         _Metallic ("Metallic factor", Range(0, 1)) = 0
         _Roughness ("Roughness factor", Range(0, 1)) = 1
         _Tint ("Tint by instance colour", Float) = 1
+        _OreGlow ("Ore glow", Float) = 0
     }
     SubShader
     {
@@ -23,7 +24,7 @@ Shader "BeltRunner/Rock"
         LOD 200
 
         CGPROGRAM
-        #pragma surface surf Standard vertex:vert addshadow fullforwardshadows
+        #pragma surface surf Standard vertex:vert finalcolor:haze addshadow fullforwardshadows
         #pragma multi_compile_instancing
         #pragma target 3.5
 
@@ -38,6 +39,9 @@ Shader "BeltRunner/Rock"
         float _Metallic;
         float _Roughness;
         float _Tint;
+        float _OreGlow;
+        float _HazeDensity;    // set by Lighting: the belt's haze with distance, on the rock alone
+        float4 _HazeColor;
 
         UNITY_INSTANCING_BUFFER_START(Props)
             UNITY_DEFINE_INSTANCED_PROP(float4, _Color)
@@ -81,6 +85,13 @@ Shader "BeltRunner/Rock"
             return hc * (0.55 + h * 0.6) * g * 0.85;
         }
 
+        void haze(Input IN, SurfaceOutputStandard o, inout fixed4 color)
+        {
+            float d = distance(IN.worldPos, _WorldSpaceCameraPos);
+            float f = exp(-d * _HazeDensity);
+            color.rgb = lerp(_HazeColor.rgb, color.rgb, f);
+        }
+
         void surf(Input IN, inout SurfaceOutputStandard o)
         {
             float4 c = UNITY_ACCESS_INSTANCED_PROP(Props, _Color);
@@ -88,15 +99,19 @@ Shader "BeltRunner/Rock"
             float3 col = tex.rgb * lerp(float3(1.0, 1.0, 1.0), c.rgb, _Tint);
             // the body heat pulses a little, as the browser's does
             float h = saturate(IN.heat) * (0.92 + 0.08 * sin(_Time.y * 7.0 + IN.worldPos.x * 0.05 + IN.worldPos.y * 0.07));
-            o.Albedo = col * (1.0 - h * 0.55);
+            // the stone runs darker and a touch glossier than the maps say, so the sun catches its facets and the
+            // shadow side falls away (the reference frame's rock)
+            o.Albedo = col * 0.62 * (1.0 - h * 0.55);
             float4 mr = tex2D(_MetalRough, IN.uv_MainTex);
             o.Metallic = _Metallic * mr.b;
-            o.Smoothness = 1.0 - _Roughness * mr.g;
+            o.Smoothness = saturate(1.0 - _Roughness * mr.g * 0.82 + 0.06);
             o.Normal = UnpackScaleNormal(tex2D(_BumpMap, IN.uv_MainTex), _BumpScale);
             float3 hc = h < 0.5 ? lerp(float3(0.9, 0.1, 0.02), float3(1.0, 0.45, 0.12), h * 2.0)
                                 : lerp(float3(1.0, 0.45, 0.12), float3(1.0, 0.82, 0.5), (h - 0.5) * 2.0);
             float lum = dot(col, float3(0.3, 0.59, 0.11));
             o.Emission = hc * h * (0.45 + 0.65 * h) * (0.6 + lum * 1.2) * 0.5;
+            // the ore veins glow with their own colour, hot at the seams, so they read from a distance and bloom a little
+            o.Emission += c.rgb * _OreGlow * (0.35 + 0.45 * tex.r);
             // the laser's spot glows where the beam is cooking the stone
             o.Emission += Spot(IN.worldPos, _HeatPos0, _HeatAmt.x) + Spot(IN.worldPos, _HeatPos1, _HeatAmt.y);
             o.Alpha = 1.0;
