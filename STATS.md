@@ -58,7 +58,7 @@ Shield is fixed at 50 for every fit (no refit yet).
 - The cargo ship's guns cover 9,000 u: raiders inside lose 30 health/s and never engage there.
 - Manoeuvres: run in (weaving) until inside 600 u; strafe at a radius of 200–500 u for 3–7 s, speed capped so the
   circle holds; then 15% a long run to a point 3,000–6,000 u away (1,500–3,000 m), else 80% another strafe / 20% a short
-  break (1.2–2.5 s). Jink when a player bolt is coming their way (miss under 124 u, within 2,500 u): 70% of the time,
+  break (1.2–2.5 s). Jink when a player bolt is coming their way (miss under 138 u, within 2,500 u): 70% of the time,
   0.8 s hard turn, then 1.6 s cooldown.
 - Flight model: heading turns at most 30°/s, accel 220, braking 320, movement only along the nose.
 
