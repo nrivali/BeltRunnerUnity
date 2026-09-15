@@ -111,6 +111,10 @@ public class Raiders
         raiders.Clear();
         foreach (var b in bolts) if (b.node != null) b.node.gameObject.SetActive(false);
         bolts.Clear();
+        foreach (var h in _hulks) if (h.node != null) Object.Destroy(h.node.gameObject);
+        _hulks.Clear();
+        foreach (var d in _debris) if (d.node != null) Object.Destroy(d.node.gameObject);
+        _debris.Clear();
         threat = 0;
         _warned = false;
     }
