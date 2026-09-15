@@ -7,8 +7,8 @@ Shader "BeltRunner/Specks"
     Properties
     {
         _Color ("Albedo, as the rock shader's stone", Color) = (0.36, 0.34, 0.33, 1)
-        _Size ("Size (px)", Float) = 1.5
-        _Gain ("Gain", Float) = 1.0
+        _Size ("Size (px)", Float) = 1.2
+        _Gain ("Gain", Float) = 0.22
         _PlanetR ("Planet radius (u)", Float) = 225000
         _NearFade ("Fade in from (u)", Float) = 120000
         _FarFade ("Fade in to (u)", Float) = 200000
@@ -75,7 +75,8 @@ Shader "BeltRunner/Specks"
                 o.pos = UnityObjectToClipPos(float4(v.vertex.xyz, 1.0));
                 o.pos.xy += v.uv * px * 2.0 / _ScreenParams.xy * o.pos.w;
                 o.uv = v.uv;
-                float a = fade * _Gain * saturate(0.35 + r / 60.0);
+                // faint, and fainter with distance: the far belt is all but lost in space, a hint of grain round the planet
+                float a = fade * _Gain * saturate(0.35 + r / 60.0) / (1.0 + d / 350000.0);
                 o.col = float4(_Color.rgb * _SpeckSunColor.rgb * lit, a);
                 return o;
             }
