@@ -58,7 +58,7 @@ public class Lighting
         // the fill: nearly none, and what there is runs cool, so the shadow side of a rock goes to a deep blue-black
         // and the sun does all the shaping (the reference frame's contrast); the hulls still reflect the sky
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.42f, 0.48f, 0.62f) * 0.025f;
+        RenderSettings.ambientLight = new Color(0.42f, 0.48f, 0.62f) * 0.008f;   // all but none: the unlit side of a rock is black
         RenderSettings.defaultReflectionMode = UnityEngine.Rendering.DefaultReflectionMode.Skybox;
         RenderSettings.defaultReflectionResolution = 128;
         // a faint dark haze with distance on the rock alone (the rock shader's finalcolor): far rocks sink toward the
