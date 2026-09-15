@@ -74,12 +74,13 @@ public class Music : MonoBehaviour
     static float[][] B(params float[][] rows) { return rows; }
     static float[] Bp(float step, float mult) { return new[] { step, mult }; }
 
-    // the combat track: fast, minor, a kick on every beat, a driving sawtooth bass, square arps, stabs and a lead
-    static readonly Track COMBAT = new Track { name = "Vanguard", bpm = 156, pad = "strings", padCut = 520f, lfo = 0.14f, subWave = "sawtooth", echo = 2, ambient = new Ambient(), scale = AEO, melodyWave = "sawtooth",
+    // the combat track: fast, minor, a kick on every beat, a driving sawtooth bass, square arps, stabs and a lead (the
+    // sub, the stabs and the lead are sine and triangle: a sawtooth held under everything was a buzz)
+    static readonly Track COMBAT = new Track { name = "Vanguard", bpm = 156, pad = "strings", padCut = 520f, lfo = 0.14f, subWave = "sine", echo = 2, ambient = new Ambient(), scale = AEO, melodyWave = "triangle",
         chords = new[] { Ch(33, 45, 48, 52, 55, 60), Ch(31, 43, 46, 50, 53, 58), Ch(36, 48, 51, 55, 58, 63), Ch(32, 44, 48, 51, 55, 60) },
         groove = new Groove { kick = new[] { 0, 2, 4, 6 }, fill = true, snare = new[] { 2, 6 }, hat = "16", openHat = new[] { 1, 5 }, rim = new[] { 3, 7 }, bassWave = "sawtooth",
             bass = B(Bp(0, 1f), Bp(1, 1f), Bp(2, 1f), Bp(3, 1f), Bp(4, 1.5f), Bp(5, 1f), Bp(6, 2f), Bp(7, 1.5f)), arpWave = "square", arpVol = 0.035f, arp = new[] { 0, 4, 2, 4, 0, 4, 3, 5 },
-            stab = new[] { 0, 3, 6 }, stabWave = "sawtooth", lead = true } };
+            stab = new[] { 0, 3, 6 }, stabWave = "triangle", lead = true } };
 
     static readonly Track[] TRACKS =
     {
