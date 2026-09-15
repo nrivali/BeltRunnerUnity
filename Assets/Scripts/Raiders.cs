@@ -16,7 +16,8 @@ public class Raiders
     public const float RAIDER_DMG = 4f;      // a raider bolt: half the player's base gun
     public const float RAIDER_REACH = 6000f; // raiders open fire from 3,000 m; their bolt lives long enough to get there
     public const float RAIDER_BOLT_LIFE = 2.6f;
-    public const float PLAYER_BOLT_SPEED = 5000f;   // the player's bolt is faster: 0.8 s of flight covers 4,000 u, past any gun reach
+    public const float PLAYER_BOLT_SPEED = 5000f;   // the player's bolt is faster: PLAYER_BOLT_LIFE of flight covers 11,000 u, past the 10,000 u gun reach
+    public const float PLAYER_BOLT_LIFE = 2.2f;
     public const float RADIUS = 28f;    // the hull, for the reticle, ranges and the pick (the model is drawn at twice its original size)
     public const float HIT_R = 60f;     // the hit box a bolt has to pass through: generous, the raider is fast; it covers the wing tips
     // a raider flies like a ship: it turns no faster than this, and speeds up and slows down no harder than this
@@ -282,7 +283,7 @@ public class Raiders
 
     public void Fire(Vector3 from, Vector3 dir, float dmg, bool player)
     {
-        var b = new Bolt { pos = from, dir = dir.normalized, life = player ? 0.8f : RAIDER_BOLT_LIFE, dmg = dmg, player = player, node = BoltNode(player) };
+        var b = new Bolt { pos = from, dir = dir.normalized, life = player ? PLAYER_BOLT_LIFE : RAIDER_BOLT_LIFE, dmg = dmg, player = player, node = BoltNode(player) };
         b.node.rotation = Quaternion.FromToRotation(Vector3.up, b.dir);
         bolts.Add(b);
         if (player)

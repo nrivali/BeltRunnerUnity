@@ -9,8 +9,8 @@ The numbers as the code has them today. World units (u) are what the code uses; 
 |---|---|---|
 | Hull | 50 | 50 |
 | Shield | 50, recharges empty to full in 3 s after 10 s without a hit; sounds when it is stripped, while it is down, and while it recharges (cut by a hit); a breathing red edge on screen while it is down | 50, recharges 10/s after 10 s without a hit |
-| Gun | Autocannon: 8 dmg, 6 shots/s, 1,800 u (900 m) | 4 dmg, 6 shots/s, 6,000 u (3,000 m) reach |
-| Bolt speed | 5,000 u/s (dies after 0.8 s, 4,000 u) | 2,600 u/s (dies after 2.6 s, 6,760 u) |
+| Gun | Autocannon: 8 dmg, 6 shots/s, 10,000 u (5,000 m) | 4 dmg, 6 shots/s, 6,000 u (3,000 m) reach |
+| Bolt speed | 5,000 u/s (dies after 2.2 s, 11,000 u) | 2,600 u/s (dies after 2.6 s, 6,760 u) |
 | Fires when | Trigger held (LMB or L), at the crosshair (the mouse); the dish turret covers the forward half | Nose within 25° of the ship and inside gun reach; 0.05 spread |
 | Hit box | Ship radius (SHIP_R) × 0.8 | 60 u for bolts (hull is 28 u for the reticle and ranges; the model is drawn at twice its original size) |
 | Top speed | 250 u/s (125 m/s), ×2 to ×5 on the afterburner refit | 865 u/s, capped on a strafe to hold the circle |
@@ -24,7 +24,7 @@ The numbers as the code has them today. World units (u) are what the code uses; 
 
 | Refit | Levels | Costs |
 |---|---|---|
-| Autocannon | 8 dmg · 6/s · 900 m → 12 · 7/s · 1,100 m → 18 · 8/s · 1,400 m → 26 · 10/s · 1,700 m | 900, 3,200, 9,000 |
+| Autocannon | 8 dmg · 6/s → 12 · 7/s → 18 · 8/s → 26 · 10/s, 5,000 m at every level | 900, 3,200, 9,000 |
 | Hull plating | 50 → 80 → 125 → 200 → 300 | 250, 900, 3,000, 9,000 |
 | Engines (thrust · top speed, u) | 164 · 250 → 219 · 320 → 281 · 400 → 359 · 490 → 461 · 610 | 300, 1,100, 3,500, 10,000 |
 | Afterburner | ×1 → ×2 → ×3 → ×4 → ×5 speed on Shift, heavy fuel burn | 800, 3,000, 9,000, 24,000 |
