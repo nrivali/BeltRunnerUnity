@@ -215,9 +215,9 @@ public class Hud : MonoBehaviour
         _status = BandPane("Ship", BAND_LEFT, 250f, out _statusPane);
         var e = Ui.Eyebrow(_status, "Ship", Ui.HUD_DIM);
         Ui.At(e.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -8f), new Vector2(200f, 14f));
-        _gHull = Ui.Gauge.Make(_status, "Hull", Ui.GREEN, 14f, -22f, 222f, false, 6f);
-        _gShield = Ui.Gauge.Make(_status, "Shield", Data.Hex("#8fe8ff"), 14f, -47f, 222f, false, 6f);
-        _gFuel = Ui.Gauge.Make(_status, "Fuel", Ui.CYAN, 14f, -72f, 222f, false, 6f);
+        _gHull = Ui.Gauge.Make(_status, "Hull", Ui.GREEN, 14f, -20f, 222f, false, 6f);
+        _gShield = Ui.Gauge.Make(_status, "Shield", Data.Hex("#8fe8ff"), 14f, -44f, 222f, false, 6f);
+        _gFuel = Ui.Gauge.Make(_status, "Fuel", Ui.CYAN, 14f, -68f, 222f, false, 6f);
     }
 
     // ---- FLIGHT: the big speed with its unit, the thrust gauge beside it, two small rows of the situation under them
@@ -227,13 +227,13 @@ public class Hud : MonoBehaviour
         _readouts = BandPane("Flight", BAND_LEFT + 260f, 300f, out p);
         _flightEyebrow = Ui.Eyebrow(_readouts, "Flight", Ui.HUD_DIM);
         Ui.At(_flightEyebrow.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -8f), new Vector2(272f, 14f));
-        _speedBig = Ui.Glow(Ui.Label(_readouts, "0", "mono_semi", 28, Ui.GLOW_TEXT, TextAnchor.LowerLeft), Ui.HUD_GLOW, 1.5f);
-        Ui.At(_speedBig.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -22f), new Vector2(110f, 34f));
-        _speedUnit = Ui.Label(_readouts, "m/s", "mono", 11, Ui.HUD_DIM, TextAnchor.LowerLeft);
-        Ui.At(_speedUnit.rectTransform, Ui.TL, Ui.TL, new Vector2(126f, -38f), new Vector2(40f, 16f));
-        _gThr = Ui.Gauge.Make(_readouts, "Thrust", Ui.AMBER, 160f, -24f, 126f, false, 8f);
-        _row1 = FlightRow(-66f);
-        _row2 = FlightRow(-82f);
+        _speedBig = Ui.Glow(Ui.Label(_readouts, "0", "mono_semi", 26, Ui.GLOW_TEXT, TextAnchor.LowerLeft), Ui.HUD_GLOW, 1.5f);
+        Ui.At(_speedBig.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -20f), new Vector2(130f, 28f));
+        _speedUnit = Ui.Label(_readouts, "SPEED · m/s", "mono", 10, Ui.HUD_DIM, TextAnchor.UpperLeft);   // under the number, so it sits still whatever the digits
+        Ui.At(_speedUnit.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -49f), new Vector2(130f, 12f));
+        _gThr = Ui.Gauge.Make(_readouts, "Thrust", Ui.AMBER, 160f, -20f, 126f, false, 8f);
+        _row1 = FlightRow(-64f);
+        _row2 = FlightRow(-80f);
     }
 
     Text FlightRow(float y)
@@ -250,9 +250,9 @@ public class Hud : MonoBehaviour
         _cargoPane = BandPane("Cargo", BAND_LEFT + 880f, 210f, out p);
         var e = Ui.Eyebrow(_cargoPane, "Cargo", Ui.HUD_DIM);
         Ui.At(e.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -8f), new Vector2(180f, 14f));
-        _gCargo = Ui.Gauge.Make(_cargoPane, "Hold", Ui.CARGO, 14f, -24f, 182f, false, 8f);
+        _gCargo = Ui.Gauge.Make(_cargoPane, "Hold", Ui.CARGO, 14f, -20f, 182f, false, 8f);
         _cargoRows = Ui.Glow(Ui.Label(_cargoPane, "", "mono", 11, Ui.HUD_DIM, TextAnchor.UpperLeft), Ui.A(Ui.HUD_GLOW, 0.35f));
-        Ui.At(_cargoRows.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -66f), new Vector2(182f, 30f));
+        Ui.At(_cargoRows.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -64f), new Vector2(182f, 30f));
     }
 
     static string Kv(string key, string val) { return key + " " + Ui.Col(val, Ui.GLOW_TEXT); }
@@ -266,10 +266,10 @@ public class Hud : MonoBehaviour
         _tEyebrow = Ui.Eyebrow(_target, "Target", Ui.HUD_DIM);
         Ui.At(_tEyebrow.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -8f), new Vector2(272f, 14f));
         _tName = Ui.Glow(Ui.Label(_target, "", "display", 15, Color.white, TextAnchor.UpperLeft), Ui.A(Ui.CYAN, 0.5f));
-        Ui.At(_tName.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -22f), new Vector2(272f, 20f));
+        Ui.At(_tName.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -20f), new Vector2(272f, 20f));
         _tRows = Ui.Glow(Ui.Label(_target, "", "mono", 11, Ui.HUD_DIM, TextAnchor.UpperLeft), Ui.A(Ui.HUD_GLOW, 0.35f));
-        Ui.At(_tRows.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -42f), new Vector2(272f, 14f));
-        _tHpRow = Ui.Rect("Hp", _target, Ui.TL, Ui.TL, new Vector2(14f, -58f), new Vector2(272f, 12f));
+        Ui.At(_tRows.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -40f), new Vector2(272f, 14f));
+        _tHpRow = Ui.Rect("Hp", _target, Ui.TL, Ui.TL, new Vector2(14f, -56f), new Vector2(272f, 12f));
         var brt = Ui.Rect("Bar", _tHpRow, Ui.TL, Ui.TL, new Vector2(0f, -2f), new Vector2(140f, 8f));
         _tHp = brt.gameObject.AddComponent<Ui.SegBar>();
         _tHp.fill = Ui.AMBER2;
@@ -277,9 +277,10 @@ public class Hud : MonoBehaviour
         _tHpT = Ui.Label(_tHpRow, "", "mono", 11, Ui.MUTED, TextAnchor.MiddleLeft);
         Ui.At(_tHpT.rectTransform, Ui.TL, Ui.TL, new Vector2(148f, 0f), new Vector2(60f, 12f));
         _tWarn = Ui.Label(_target, "", "body", 11, Ui.AMBER, TextAnchor.UpperLeft);
-        Ui.At(_tWarn.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -70f), new Vector2(272f, 14f));
+        Ui.At(_tWarn.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -72f), new Vector2(272f, 14f));
+        // the weapon line shares the last row with the warning: the warning takes it while there is one
         _tWeapon = Ui.Glow(Ui.Label(_target, "", "mono", 11, Ui.HUD_DIM, TextAnchor.UpperLeft), Ui.A(Ui.HUD_GLOW, 0.35f));
-        Ui.At(_tWeapon.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -84f), new Vector2(272f, 14f));
+        Ui.At(_tWeapon.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -72f), new Vector2(272f, 14f));
         _target.gameObject.SetActive(false);
     }
 
@@ -1655,10 +1656,11 @@ public class Hud : MonoBehaviour
         {
             _tEyebrow.text = "TARGET";
             _tName.text = "No target";
-            _tRows.text = Ui.Col("Q or the middle button locks what the mouse is over", Ui.HUD_DIM);
+            _tRows.text = Ui.Col("Q or MMB locks what the mouse is over", Ui.HUD_DIM);
             _tHpRow.gameObject.SetActive(false);
             _tWarn.gameObject.SetActive(false);
         }
+        _tWeapon.gameObject.SetActive(!_tWarn.gameObject.activeSelf);   // the warning takes the last row while there is one
         // the hover label beside the cursor: what the mouse is over and how far it is
         var hv = ship.hover;
         if (hv != null && !docked && !inCut && started)
