@@ -20,7 +20,7 @@ public class Menu
     readonly Dictionary<string, RectTransform> _pages = new Dictionary<string, RectTransform>();
     readonly Dictionary<string, float> _pageH = new Dictionary<string, float>();
     Text _eyebrow;
-    Ui.Btn _continueBtn, _newBtn, _soundBtn, _musicBtn, _tutBtn, _wipeBtn;
+    Ui.Btn _continueBtn, _newBtn, _soundBtn, _musicBtn, _tutBtn, _wipeBtn, _displayBtn;
     Text _continueInfo, _newInfo, _volT, _mvolT, _hudT;
     Slider _vol, _mvol, _hud;
     bool _newArmed, _wipeArmed, _syncing;
@@ -148,6 +148,8 @@ public class Menu
         var mr = SettingRow(f, "Music", 48f);
         _musicBtn = Small(mr, "On", () => ToggleMusic());
         VolumeRow(f, "Music volume", 0f, 100f, v => { _mvolT.text = Mathf.RoundToInt(v) + "%"; if (!_syncing && onSetting != null) onSetting("music_volume", v / 100f); }, out _mvol, out _mvolT);
+        var dr = SettingRow(f, "Display", 48f);
+        _displayBtn = Small(dr, "Borderless", () => CycleDisplay());
         VolumeRow(f, "HUD size", 70f, 160f, v => { _hudT.text = Mathf.RoundToInt(v) + "%"; if (!_syncing && onSetting != null) onSetting("hud", v / 100f); }, out _hud, out _hudT);
         var tr = SettingRow(f, "Tutorial", 48f);
         _tutBtn = Small(tr, "Run again", () => RestartTutorial());
@@ -232,6 +234,7 @@ public class Menu
         _syncing = true;
         _soundBtn.SetText(State.soundOn ? "On" : "Off");
         _musicBtn.SetText(State.musicOn ? "On" : "Off");
+        _displayBtn.SetText(DisplayName(State.display));
         _mvol.value = Mathf.RoundToInt(State.musicVolume * 100f);
         _mvolT.text = Mathf.RoundToInt(State.musicVolume * 100f) + "%";
         _vol.value = Mathf.RoundToInt(State.volume * 100f);
@@ -242,6 +245,16 @@ public class Menu
         _tutBtn.SetText("Run again");
         _wipeBtn.SetText("Wipe save");
         _wipeArmed = false;
+    }
+
+    static string DisplayName(int d) { return d == 0 ? "Full screen" : d == 1 ? "Borderless" : "Windowed"; }
+
+    /// Display: Full screen → Borderless → Windowed → Full screen.
+    void CycleDisplay()
+    {
+        int d = (State.display + 1) % 3;
+        if (onSetting != null) onSetting("display", d);
+        _displayBtn.SetText(DisplayName(d));
     }
 
     void ToggleMusic()

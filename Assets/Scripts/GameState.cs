@@ -38,6 +38,7 @@ public static class State
     public static float hudScale = 1f;         // Settings: HUD size
     public static bool musicOn = true;         // Settings: the soundtrack, apart from the sound effects
     public static float musicVolume = 1f;
+    public static int display = 1;   // 0 full screen (exclusive), 1 borderless (a full-screen window), 2 windowed
     public static bool controlsShown = true;   // C hides the flight controls list; remembered in the save
     public static bool hasSave = false;
     public static bool sandbox = false;   // a test session (-combat): the save file is never written
@@ -388,7 +389,7 @@ public static class State
     [Serializable] public class Bag { public float iron, copper, gold, platinum, crystal, cobalt, beryl; }
     [Serializable] public class Ups { public int laser, cargo, engine, tank, scanner, range, hull, thrusters, overcharge, gun; }
     [Serializable] public class Dep { public int laser, collectors; }
-    [Serializable] public class Settings { public bool sound = true; public float volume = 1f; public bool music = true; public float music_volume = 1f; public float hud = 1f; public bool controls = true; }
+    [Serializable] public class Settings { public bool sound = true; public float volume = 1f; public bool music = true; public float music_volume = 1f; public float hud = 1f; public bool controls = true; public int display = 1; }
     [Serializable]
     public class SaveData
     {
@@ -422,7 +423,7 @@ public static class State
             cargo = ToBag(cargo), store = ToBag(store), market = ToBag(market),
             up = new Ups { laser = up["laser"], cargo = up["cargo"], engine = up["engine"], tank = up["tank"], scanner = up["scanner"], range = up["range"], hull = up["hull"], thrusters = up["thrusters"], overcharge = up["overcharge"], gun = up["gun"] },
             depot = new Dep { laser = depot["laser"], collectors = depot["collectors"] }, droneUnits = droneUnits,
-            zone = zoneId, tut = tut, settings = new Settings { sound = soundOn, volume = volume, music = musicOn, music_volume = musicVolume, hud = hudScale, controls = controlsShown },
+            zone = zoneId, tut = tut, settings = new Settings { sound = soundOn, volume = volume, music = musicOn, music_volume = musicVolume, hud = hudScale, controls = controlsShown, display = display },
         };
         try
         {
@@ -471,7 +472,7 @@ public static class State
         }
         droneUnits = s.droneUnits;
         hull = Mathf.Min(hull, Stat("hull").hp);
-        if (s.settings != null) { soundOn = s.settings.sound; volume = s.settings.volume; musicOn = s.settings.music; musicVolume = s.settings.music_volume; hudScale = s.settings.hud > 0f ? s.settings.hud : 1f; controlsShown = s.settings.controls; }
+        if (s.settings != null) { display = Mathf.Clamp(s.settings.display, 0, 2); soundOn = s.settings.sound; volume = s.settings.volume; musicOn = s.settings.music; musicVolume = s.settings.music_volume; hudScale = s.settings.hud > 0f ? s.settings.hud : 1f; controlsShown = s.settings.controls; }
         hasSave = true;
         return true;
     }

@@ -100,6 +100,7 @@ public class Game : MonoBehaviour
         var hudGo = new GameObject("HUD");
         hud = hudGo.AddComponent<Hud>();
         hud.instantUi = _smoke;   // the smoke run: the hangar window shows at once, no ease, so its screenshots catch it
+        if (!_smoke) ApplyDisplay();   // the saved display mode (the smoke runs keep the window the command line gave them)
         hud.ship = ship;
         hud.game = this;
         hud.Build();
@@ -338,9 +339,25 @@ public class Game : MonoBehaviour
         else if (key == "hud") { State.hudScale = Mathf.Clamp(v, 0.7f, 1.6f); hud.SetScale(State.hudScale); }
         else if (key == "music") State.musicOn = v > 0.5f;
         else if (key == "music_volume") State.musicVolume = Mathf.Clamp01(v);
+        else if (key == "display") { State.display = Mathf.Clamp(Mathf.RoundToInt(v), 0, 2); ApplyDisplay(); }
         if (Audio.I != null) Audio.I.ApplySettings();
         if (Music.I != null) Music.I.ApplySettings();
         State.Save();
+    }
+
+    /// The display setting: full screen at the desktop resolution (exclusive, or a borderless window), or a 1280x720
+    /// window. The desktop resolution is what Screen.currentResolution reports from a window, so it is read there.
+    public void ApplyDisplay()
+    {
+        var r = Screen.currentResolution;
+        int w = r.width, h = r.height;
+        switch (State.display)
+        {
+            case 0: Screen.SetResolution(w, h, FullScreenMode.ExclusiveFullScreen); break;
+            case 1: Screen.SetResolution(w, h, FullScreenMode.FullScreenWindow); break;
+            default: Screen.SetResolution(1280, 720, FullScreenMode.Windowed); break;
+        }
+        Debug.Log("display: " + (State.display == 0 ? "full screen" : State.display == 1 ? "borderless" : "windowed") + " · " + w + "x" + h);
     }
 
     void Quit()

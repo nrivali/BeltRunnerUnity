@@ -197,10 +197,14 @@ namespace UnityEngine
         static readonly DateTime _t0 = DateTime.Now;
     }
 
+    public struct Resolution { public int width, height; }
+    public enum FullScreenMode { ExclusiveFullScreen, FullScreenWindow, MaximizedWindow, Windowed }
     public static class Screen
     {
         public static int width => 1280;
         public static int height => 720;
+        public static Resolution currentResolution => new Resolution { width = 1280, height = 720 };
+        public static void SetResolution(int w, int h, FullScreenMode m) { }
     }
 
     public enum KeyCode { A, B, C, D, E, F, G, H, I, L, N, Q, R, S, T, W, X, Space, Escape, Return, Tab, F5, F8, F9, F10, Alpha1, Alpha2, Alpha3, UpArrow, DownArrow, LeftShift, RightShift }
