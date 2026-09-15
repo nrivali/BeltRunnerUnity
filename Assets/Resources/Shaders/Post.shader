@@ -109,7 +109,7 @@ Shader "BeltRunner/Post"
                     float2 cen = _BurnCenter.xy;
                     float2 d = i.uv - cen;
                     float dist = length(d * float2(1.0, _MainTex_TexelSize.x / _MainTex_TexelSize.y));
-                    float s = _Burn * (0.045 + 0.06 * dist);
+                    float s = _Burn * (0.0225 + 0.03 * dist);
                     float fr = _Burn * 0.0045 * dist;
                     float3 acc = 0.0;
                     for (int k = 0; k < 10; k++)
