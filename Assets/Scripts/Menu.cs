@@ -49,7 +49,7 @@ public class Menu
         new object[] { new[] { "F9" }, "Testing: jump to the next raider hold, 1,500 u off it and facing it. Launching the game with -combat starts there in a sandbox that never touches the save." },
         new object[] { new[] { "F10" }, "Testing: the raiders hold their fire (they still fly and chase); press again and they fire." },
         new object[] { new[] { "F8" }, "Testing: in the combat test F8 opens the refit panel anywhere, credits are bottomless, and each refit row has a − button that takes a level off, so any loadout can be tried." },
-        new object[] { new[] { "Space" }, "Hold for the drift brake: the engine cuts (the throttle setting is kept for when you let go), the retro thrusters bleed speed at full engine thrust, and the ship carries on along its momentum while you swing the nose wherever you like, to bring the gun round on a raider going past. During a docking, departure, arrival or warp cutscene, Space skips to the end of it." },
+        new object[] { new[] { "Space" }, "Hold for the drift brake: the engine cuts (the throttle setting is kept for when you let go), the retro thrusters bleed speed at twice engine thrust, and the ship carries on along its momentum while the nose swings two and a half times faster than usual, to bring the gun round on a raider going past. During a docking, departure, arrival or warp cutscene, Space skips to the end of it." },
         new object[] { new[] { "Esc" }, "Pause · opens this menu with Settings and Controls" },
     };
 

@@ -1558,6 +1558,8 @@ public class Hud : MonoBehaviour
             _crosshairRt.gameObject.SetActive(OnScreen(cp) && ship.weapon == "gun");
             _crosshairRt.anchoredPosition = cp;
             _crosshair.Set(ship.gunFiring);
+            // the crosshair stands in for the mouse: the pointer hides while it shows and no panel wants clicks
+            Cursor.visible = !(_crosshairRt.gameObject.activeSelf && !InvOpen && !MapOpen && !MenuVisible && !_services.gameObject.activeSelf);
             _crosshair.SetHit(game.raiders != null ? game.raiders.hitFlash : 0f, game.raiders != null && game.raiders.hitKill);
             var lr = ship.lockKind == "raider" && ship.lockRaider != null && !ship.lockRaider.dead ? ship.lockRaider : ship.raiderTarget;
             if (lr != null)
@@ -1569,7 +1571,7 @@ public class Hud : MonoBehaviour
             }
             else _leadPip.Hide();
         }
-        else { _crosshairRt.gameObject.SetActive(false); _leadPip.Hide(); }
+        else { _crosshairRt.gameObject.SetActive(false); _leadPip.Hide(); Cursor.visible = true; }
         // the reticle on the target
         if (hasTarget && showFlight && ship.cut == null)
         {

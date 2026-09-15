@@ -8,6 +8,8 @@ using UnityEngine;
 public class Ship : MonoBehaviour
 {
     public const float TURN = 30f * Mathf.Deg2Rad;   // yaw and pitch: 30 degrees a second at full deflection
+    public const float DRIFT_TURN = 2.5f;    // the drift brake: the nose turns this many times faster (75 degrees a second)
+    public const float DRIFT_BRAKE = 2f;     // ... and the retros bleed speed at this many times engine thrust
     public const float REPAIR_RATE = 6f;
     public const float WARP_DUR = 8.6f;
     public const float WARP_LOAD_AT = 4.3f;   // the screen is black from 4.2 s to 5.4 s; the zone swaps underneath
@@ -1018,8 +1020,10 @@ public class Ship : MonoBehaviour
         }
         yaw = Mathf.Clamp(yaw, -1f, 1f);
         pitchUp = Mathf.Clamp(pitchUp, -1f, 1f);
-        transform.Rotate(Vector3.up, yaw * TURN * dt * Mathf.Rad2Deg, Space.Self);
-        transform.Rotate(Vector3.right, -pitchUp * TURN * dt * Mathf.Rad2Deg, Space.Self);
+        drifting = flying && Input.GetKey(KeyCode.Space);
+        float turn = TURN * (drifting ? DRIFT_TURN : 1f);   // the drift: the nose swings much faster
+        transform.Rotate(Vector3.up, yaw * turn * dt * Mathf.Rad2Deg, Space.Self);
+        transform.Rotate(Vector3.right, -pitchUp * turn * dt * Mathf.Rad2Deg, Space.Self);
         transform.Rotate(Vector3.forward, roll * 0.6f * dt * Mathf.Rad2Deg, Space.Self);
 
         // throttle: W raises, S lowers, X cuts; holding S at zero fires the retros
@@ -1030,7 +1034,7 @@ public class Ship : MonoBehaviour
             if (Input.GetKey(KeyCode.X)) throttle = 0f;
         }
         // the drift brake: hold Space and the engine cuts (the throttle setting is kept for the release), the retros bleed
-        // speed at full engine thrust, and the ship carries on along its momentum while the nose is swung wherever you like
+        // speed at twice engine thrust, and the ship carries on along its momentum while the nose swings two and a half times faster than usual
         drifting = flying && Input.GetKey(KeyCode.Space);
         float abMult = State.Stat("thrusters").mult;
         afterburning = flying && throttle > 0f && !drifting && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && abMult > 1f && State.fuel > 0f;
@@ -1052,7 +1056,7 @@ public class Ship : MonoBehaviour
                 float sp = vel.magnitude;
                 if (sp > 1f)
                 {
-                    float f = Mathf.Min(sp, eng.thrust * (drifting ? 1f : 0.4f) * dt);
+                    float f = Mathf.Min(sp, eng.thrust * (drifting ? DRIFT_BRAKE : 0.4f) * dt);
                     vel -= vel / sp * f;
                     State.fuel = Mathf.Max(0f, State.fuel - Data.FUEL_BURN * 0.35f * dt);
                     braking = true;

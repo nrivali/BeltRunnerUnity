@@ -711,6 +711,7 @@ namespace UnityEngine
     }
     public enum AudioDataLoadState { Unloaded, Loading, Loaded, Failed }
     public static class AudioSettings { public static int outputSampleRate => 48000; }
+    public static class Cursor { public static bool visible = true; }
     public enum AudioReverbPreset { Off, Generic, Hangar, Room }
     public class AudioSource : Behaviour
     {
