@@ -20,6 +20,7 @@ public class Game : MonoBehaviour
     public Drones drones;
     public Sparks sparks;
     public Explosions explosions;
+    public SpeedLines speedLines;
     public Raiders raiders;
     float _dishToastT = -100f;
     public List<Pickup> Drops { get { return _drops; } }
@@ -77,6 +78,7 @@ public class Game : MonoBehaviour
         belt = new Belt();
         sparks = new Sparks();
         explosions = new Explosions(this);
+        speedLines = new SpeedLines();
         raiders = new Raiders(this);
         _pickups = new GameObject("Pickups").transform;
         var cgo = new GameObject("CargoShip");
@@ -528,6 +530,7 @@ public class Game : MonoBehaviour
         belt.Tick(dt, ship.TruePos, ship.nearRocks);   // the rails' drift time, fragments cooling, free rocks and scrap coasting, broken rocks growing back
         sparks.Tick(dt, worldOffset);
         explosions.Tick(dt, worldOffset);
+        speedLines.Tick(dt, ship.TruePos, ship.Forward, ship.vel, ship.afterburning && !ship.docked && !ship.InCinematic, worldOffset, cam);
         if (ship.warp == null) belt.UpdateLod0(ship.TruePos, ship.nearRocks);   // the rocks close to the ship draw their finest mesh
         if (colony != null) colony.Tick(dt);
         lighting.Update(ship.TruePos, carrier.truePos);
