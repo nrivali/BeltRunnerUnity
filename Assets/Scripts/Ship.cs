@@ -7,8 +7,8 @@ using UnityEngine;
 /// space; true world coordinates are its position plus the floating origin.
 public class Ship : MonoBehaviour
 {
-    public const float TURN = 40f * Mathf.Deg2Rad;   // yaw and pitch: 40 degrees a second at full deflection (30 until 2026-09-15)
-    public const float DRIFT_TURN = 50f / 40f;   // the drift: the nose turns at 50 degrees a second (the usual 40)
+    public const float TURN = 30f * Mathf.Deg2Rad;   // yaw and pitch: 30 degrees a second at full deflection
+    public const float DRIFT_TURN = 50f / 30f;   // the drift: the nose turns at 50 degrees a second (the usual 30)
     public const float REPAIR_RATE = 6f;
     public const float WARP_DUR = 8.6f;
     public const float WARP_LOAD_AT = 4.3f;   // the screen is black from 4.2 s to 5.4 s; the zone swaps underneath
