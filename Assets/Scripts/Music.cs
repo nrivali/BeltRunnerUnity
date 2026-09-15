@@ -22,7 +22,7 @@ public class Music : MonoBehaviour
     public const int RATE = 22050;
     public const int CHUNK = 256;
     const int TABLE = 2048;
-    public const float OUT_GAIN = 0.55f;
+    public const float OUT_GAIN = 0.85f;   // was 0.55: the music sits louder under the game now
     const float PAD_REF = 110f;
     const float PAD_LOOP = 4f;
 
