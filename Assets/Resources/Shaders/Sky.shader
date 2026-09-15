@@ -15,6 +15,7 @@ Shader "BeltRunner/Sky"
         _SunRadius ("Sun radius (rad)", Float) = 0.009
         _StarGain ("Star gain", Float) = 1
         _DiscGain ("Disc gain", Float) = 6
+        _SkyGain ("Sky gain (the whole backdrop and the sun)", Float) = 1
     }
     SubShader
     {
@@ -29,7 +30,7 @@ Shader "BeltRunner/Sky"
             #include "UnityCG.cginc"
 
             float4 _BaseColor, _NebulaA, _NebulaB, _BandColor, _SunColor, _SunDir;
-            float _SunRadius, _StarGain, _DiscGain;
+            float _SunRadius, _StarGain, _DiscGain, _SkyGain;
 
             struct v2f
             {
@@ -135,7 +136,7 @@ Shader "BeltRunner/Sky"
                 // falls away smoothly a long way out
                 float halo = 1.3 * exp(-r * 1.3) + 0.45 * exp(-r * 0.5) + 0.08 * exp(-r * 0.16);   // tighter: the wide term mostly gone
                 col += float3(1.0, 0.97, 0.92) * disc * _DiscGain + float3(1.0, 0.55, 0.26) * halo * 0.7;
-                return float4(col, 1.0);
+                return float4(col * _SkyGain, 1.0);
             }
             ENDCG
         }

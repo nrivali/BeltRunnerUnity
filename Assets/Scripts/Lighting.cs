@@ -92,8 +92,10 @@ public class Lighting
             sky.SetColor("_SunColor", Color.Lerp(p.color, Color.white, 0.15f));
             sky.SetColor("_BaseColor", Color.Lerp(z.bg, Color.black, 0.65f));   // space is black; the zone's tint is a whisper
             sky.SetFloat("_DiscGain", 1.6f);
+            sky.SetFloat("_SkyGain", 1f);
             DynamicGI.UpdateEnvironment();
             sky.SetFloat("_DiscGain", 6f);
+            sky.SetFloat("_SkyGain", 0.5f);   // the backdrop and the sun's disc at half brightness on screen; the sun light on the assets is untouched (the user's call, 2026-09-15)
         }
     }
 
