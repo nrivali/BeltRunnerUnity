@@ -16,7 +16,7 @@ public static class RockLookPreview
     static string output;
     static int frame;
     static int shot;
-    static readonly string[] shots = { "ores", "copper", "barren", "distance", "unlit", "shapes", "mining-heat" };
+    static readonly string[] shots = { "ores", "copper", "barren", "distance", "unlit", "shapes", "mining-heat", "shapes-2" };
     static readonly string[] shapes = { "lumpy", "chunk", "boulder", "cratered", "jagged", "potato", "shard", "slab" };
     static MethodInfo colorMethod;
     static ShadowQuality savedShadows;
@@ -68,9 +68,9 @@ public static class RockLookPreview
         throw new Exception("Missing shape " + shape);
     }
 
-    static void Draw(string shape, int ore, Vector3 position, float radius, int lod, Quaternion rotation)
+    static void Draw(string shape, int ore, Vector3 position, float radius, int lod, Quaternion rotation, int variant = 0)
     {
-        int key = Key(shape);
+        int key = Key(shape) + variant;
         var matrix = Matrix4x4.TRS(position, rotation, Vector3.one * radius);
         if (belt.ore.Count == 0) belt.ore.Add(ore); else belt.ore[0] = ore;
         var color = (Color)colorMethod.Invoke(belt, new object[] { 0 });
@@ -95,6 +95,12 @@ public static class RockLookPreview
         {
             for (int i = 0; i < 3; i++)
                 Draw("lumpy", 1, new Vector3((i - 1) * 540, 0, 0), 250 / (1 + i), i, Quaternion.Euler(15, 28, 10));
+        }
+        else if (shot == 7)
+        {
+            var remaining = new[] { "pancake", "cluster", "spindle", "bean", "wedge", "hollow", "hollow", "cratered" };
+            for (int i = 0; i < remaining.Length; i++)
+                Draw(remaining[i], 1, new Vector3((i % 4 - 1.5f) * 385, (0.5f - i / 4) * 420, 0), 150, 0, Quaternion.Euler(15, 38, 10), i >= 6 ? 1 : 0);
         }
         else
         {
@@ -177,6 +183,25 @@ public static class RockLookPreview
         var lines = new System.Text.StringBuilder();
         lines.AppendLine(belt.DrawReport());
         lines.AppendLine("Color space: " + QualitySettings.activeColorSpace);
+        // Validate the meshes after glTFast import and Belt's resource lookup, so a missing LOD cannot
+        // silently pass a render by falling back to the older procedural mesh.
+        if (belt.libraryShapes != 28) throw new Exception("Expected all 28 asteroid variants.");
+        for (int lod = 0; lod < 3; lod++)
+        {
+            int total = 0, smallest = int.MaxValue, largest = 0;
+            for (int key = 0; key < 28; key++)
+            {
+                var mesh = belt.MeshFor(key, lod);
+                if (mesh == null || mesh.subMeshCount != 2 || mesh.normals.Length != mesh.vertexCount || mesh.tangents.Length != mesh.vertexCount || mesh.uv.Length != mesh.vertexCount)
+                    throw new Exception("Incomplete asteroid geometry key=" + key + " lod=" + lod);
+                int count = mesh.triangles.Length / 3;
+                if (lod == 0 && count < 30000) throw new Exception("Detailed asteroid LOD did not load: " + key);
+                total += count;
+                smallest = Math.Min(smallest, count);
+                largest = Math.Max(largest, count);
+            }
+            lines.AppendLine("LOD " + lod + ": 28 meshes, triangles " + smallest + ".." + largest + ", total " + total);
+        }
         var model = Resources.Load<GameObject>("Models/asteroids_lod1");
         var mf = model.GetComponentsInChildren<MeshFilter>(true)[0];
         lines.AppendLine("Mesh " + mf.name + " vertices=" + mf.sharedMesh.vertexCount + " tangents=" + mf.sharedMesh.tangents.Length);

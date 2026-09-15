@@ -1,0 +1,38 @@
+[
+  {
+    "file": "asteroids_lod0.glb",
+    "bytes": 100005464,
+    "sha256": "96c281cf223e102f57a989889e73c19944bb1c5b7c66df737fdab12b53ed5f65",
+    "previous_sha256": "611074417718259e9ef5eb4f79822fd9a096eb6582b61552a41b544c41f27598",
+    "models": 28,
+    "triangles_min": 46324,
+    "triangles_max": 50402,
+    "triangles_total": 1365858,
+    "dimension_ratio_min": 0.761140794895482,
+    "dimension_ratio_max": 1.3286982756876637
+  },
+  {
+    "file": "asteroids_lod1.glb",
+    "bytes": 24085500,
+    "sha256": "26ba1d69b1ec11a648ca6208fdc137e59f002ed774cea47a2158097a448c0555",
+    "previous_sha256": "f91ed4f050a1c0128ac175f578d62e25aa2097f893d3ba3e80e113d7e504d16a",
+    "models": 28,
+    "triangles_min": 2308,
+    "triangles_max": 2606,
+    "triangles_total": 69322,
+    "dimension_ratio_min": 0.7489395044547633,
+    "dimension_ratio_max": 1.3093311718399496
+  },
+  {
+    "file": "asteroids_lod2.glb",
+    "bytes": 21483104,
+    "sha256": "c199f9c9f75625d717201a708888ee5ba338f3395ee8a2024df24171d140115c",
+    "previous_sha256": "efddb2f997cc3b30be8a013a88daa3c4a8e028c292dc6f105dec1f5da411fe4f",
+    "models": 28,
+    "triangles_min": 560,
+    "triangles_max": 652,
+    "triangles_total": 16854,
+    "dimension_ratio_min": 0.7677219250606836,
+    "dimension_ratio_max": 1.2461060113071183
+  }
+]
