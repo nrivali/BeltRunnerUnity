@@ -1,0 +1,41 @@
+{
+  "design": "boulder_B",
+  "configuration": {
+    "seed": 73119,
+    "scale": [
+      1.18,
+      0.93,
+      1.06
+    ],
+    "planes": 19,
+    "fractures": 4,
+    "chip": 7.8,
+    "pattern": "network"
+  },
+  "generator": "5.2.1 LTS",
+  "sculpt_triangles": 1310720,
+  "texture_resolution": 4096,
+  "meshes": [
+    {
+      "lod": 0,
+      "triangles": 60000,
+      "vertices": 30002,
+      "nonmanifold_edges": 0,
+      "volume": 3.784800694794793
+    },
+    {
+      "lod": 1,
+      "triangles": 3000,
+      "vertices": 1502,
+      "nonmanifold_edges": 0,
+      "volume": 3.770751633202187
+    },
+    {
+      "lod": 2,
+      "triangles": 720,
+      "vertices": 362,
+      "nonmanifold_edges": 0,
+      "volume": 3.7223199911916716
+    }
+  ]
+}

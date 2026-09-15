@@ -1,0 +1,41 @@
+{
+  "design": "potato_A",
+  "configuration": {
+    "seed": 86234,
+    "scale": [
+      1.46,
+      0.84,
+      1.03
+    ],
+    "planes": 27,
+    "fractures": 3,
+    "chip": 6.6,
+    "pattern": "ribbons"
+  },
+  "generator": "5.2.1 LTS",
+  "sculpt_triangles": 1310720,
+  "texture_resolution": 4096,
+  "meshes": [
+    {
+      "lod": 0,
+      "triangles": 60000,
+      "vertices": 30002,
+      "nonmanifold_edges": 0,
+      "volume": 4.359095329172837
+    },
+    {
+      "lod": 1,
+      "triangles": 3000,
+      "vertices": 1502,
+      "nonmanifold_edges": 0,
+      "volume": 4.341688032236127
+    },
+    {
+      "lod": 2,
+      "triangles": 720,
+      "vertices": 362,
+      "nonmanifold_edges": 0,
+      "volume": 4.296383667784033
+    }
+  ]
+}

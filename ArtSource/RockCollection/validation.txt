@@ -1,0 +1,44 @@
+Unity 6000.6.0f1; NVIDIA GeForce RTX 5070 Ti
+Isolated editor, real Kessler lighting and runtime Post; 1600x1000, FOV 62; no Game.Boot or saves.
+boulder_B LOD 0: 60000 triangles, one material.
+boulder_B LOD 1: 3000 triangles, one material.
+boulder_B LOD 2: 720 triangles, one material.
+boulder_B stone: 4096x4096 BC7
+boulder_B normal: 4096x4096 BC7
+boulder_B surface: 4096x4096 BC7
+cratered_A LOD 0: 60000 triangles, one material.
+cratered_A LOD 1: 3000 triangles, one material.
+cratered_A LOD 2: 720 triangles, one material.
+cratered_A stone: 4096x4096 BC7
+cratered_A normal: 4096x4096 BC7
+cratered_A surface: 4096x4096 BC7
+potato_A LOD 0: 60000 triangles, one material.
+potato_A LOD 1: 3000 triangles, one material.
+potato_A LOD 2: 720 triangles, one material.
+potato_A stone: 4096x4096 BC7
+potato_A normal: 4096x4096 BC7
+potato_A surface: 4096x4096 BC7
+slab_A LOD 0: 60000 triangles, one material.
+slab_A LOD 1: 3000 triangles, one material.
+slab_A LOD 2: 720 triangles, one material.
+slab_A stone: 4096x4096 BC7
+slab_A normal: 4096x4096 BC7
+slab_A surface: 4096x4096 BC7
+shard_A LOD 0: 60000 triangles, one material.
+shard_A LOD 1: 3000 triangles, one material.
+shard_A LOD 2: 720 triangles, one material.
+shard_A stone: 4096x4096 BC7
+shard_A normal: 4096x4096 BC7
+shard_A surface: 4096x4096 BC7
+boulder_B point-only specular energy=0.000000
+boulder_B: sunlight=0.09503; cast shadow=0.00050; sun off=0.00000; bright-probe max delta=0.000000; mining heat=0.13428
+boulder_A point-only specular energy=0.000000
+boulder_A: sunlight=0.08697; cast shadow=0.00036; sun off=0.00000; bright-probe max delta=0.000000; mining heat=0.11884
+chunk_A point-only specular energy=0.000000
+chunk_A: sunlight=0.16738; cast shadow=0.00007; sun off=0.00000; bright-probe max delta=0.000000; mining heat=0.10113
+Passed: sunlit, cast-shadow, sun-off, hostile reflection probe and mining-heat checks for new, prototype and legacy rock materials.
+
+Standard Windows player: build succeeded, 0 errors, 1045 MB.
+Verified Assembly-CSharp.dll contains 0.9.127-unity.
+Latest baseline: 85eea56 (Claude raider strafing commit), preserved with prior lighting/planet edits.
+No smoke run, Play Mode, player launch or save access.

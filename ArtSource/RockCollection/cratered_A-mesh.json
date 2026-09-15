@@ -1,0 +1,41 @@
+{
+  "design": "cratered_A",
+  "configuration": {
+    "seed": 44278,
+    "scale": [
+      1.08,
+      0.94,
+      1.04
+    ],
+    "planes": 32,
+    "fractures": 2,
+    "chip": 8.4,
+    "pattern": "pockets"
+  },
+  "generator": "5.2.1 LTS",
+  "sculpt_triangles": 1310720,
+  "texture_resolution": 4096,
+  "meshes": [
+    {
+      "lod": 0,
+      "triangles": 60000,
+      "vertices": 30002,
+      "nonmanifold_edges": 0,
+      "volume": 3.0581828081583224
+    },
+    {
+      "lod": 1,
+      "triangles": 3000,
+      "vertices": 1502,
+      "nonmanifold_edges": 0,
+      "volume": 3.0492612556842125
+    },
+    {
+      "lod": 2,
+      "triangles": 720,
+      "vertices": 362,
+      "nonmanifold_edges": 0,
+      "volume": 3.016236489519374
+    }
+  ]
+}

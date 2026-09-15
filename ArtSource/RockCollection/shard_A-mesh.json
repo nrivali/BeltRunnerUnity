@@ -1,0 +1,41 @@
+{
+  "design": "shard_A",
+  "configuration": {
+    "seed": 57203,
+    "scale": [
+      0.6,
+      1.84,
+      0.62
+    ],
+    "planes": 15,
+    "fractures": 3,
+    "chip": 7.1,
+    "pattern": "plates"
+  },
+  "generator": "5.2.1 LTS",
+  "sculpt_triangles": 1310720,
+  "texture_resolution": 4096,
+  "meshes": [
+    {
+      "lod": 0,
+      "triangles": 60000,
+      "vertices": 30002,
+      "nonmanifold_edges": 0,
+      "volume": 2.369796139818968
+    },
+    {
+      "lod": 1,
+      "triangles": 3000,
+      "vertices": 1502,
+      "nonmanifold_edges": 0,
+      "volume": 2.35543593148276
+    },
+    {
+      "lod": 2,
+      "triangles": 720,
+      "vertices": 362,
+      "nonmanifold_edges": 0,
+      "volume": 2.3341492330710767
+    }
+  ]
+}

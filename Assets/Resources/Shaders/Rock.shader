@@ -32,9 +32,10 @@ Shader "BeltRunner/Rock"
         LOD 200
 
         CGPROGRAM
-        #pragma surface surf Standard vertex:vert finalcolor:haze addshadow fullforwardshadows
+        #pragma surface surf SunlitMetallic exclude_path:deferred vertex:vert finalcolor:haze addshadow fullforwardshadows
         #pragma multi_compile_instancing
         #pragma target 3.5
+        #include "RockSunlight.cginc"
 
         float _BeltTime;
         float4 _HeatPos0, _HeatPos1;   // the laser spots in scene space, w = radius

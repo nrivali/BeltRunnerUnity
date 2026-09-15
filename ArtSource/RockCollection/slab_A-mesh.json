@@ -1,0 +1,41 @@
+{
+  "design": "slab_A",
+  "configuration": {
+    "seed": 19276,
+    "scale": [
+      1.53,
+      1.12,
+      0.4
+    ],
+    "planes": 18,
+    "fractures": 3,
+    "chip": 9.5,
+    "pattern": "strata"
+  },
+  "generator": "5.2.1 LTS",
+  "sculpt_triangles": 1310720,
+  "texture_resolution": 4096,
+  "meshes": [
+    {
+      "lod": 0,
+      "triangles": 60000,
+      "vertices": 30002,
+      "nonmanifold_edges": 0,
+      "volume": 2.3934411843622745
+    },
+    {
+      "lod": 1,
+      "triangles": 3000,
+      "vertices": 1502,
+      "nonmanifold_edges": 0,
+      "volume": 2.3789520235826056
+    },
+    {
+      "lod": 2,
+      "triangles": 720,
+      "vertices": 362,
+      "nonmanifold_edges": 0,
+      "volume": 2.360097729020045
+    }
+  ]
+}

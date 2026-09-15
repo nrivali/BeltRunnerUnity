@@ -1,4 +1,4 @@
-// Dedicated material for the single Blender sculpt prototype. Shared world motion and heat
+// Shared material for Blender-sculpted rocks with matched unique atlases. Shared world motion and heat
 // follow Rock.shader; explicit dielectric reflectance keeps dark basalt from looking waxy
 // in this game's gamma-colour renderer followed by its ACES post effect.
 Shader "BeltRunner/SculptRock"
@@ -12,6 +12,8 @@ Shader "BeltRunner/SculptRock"
         _BumpMap ("Baked sculpt RGB normal", 2D) = "bump" {}
         _MetalRough ("R cavity / G roughness / B ore", 2D) = "white" {}
         _BumpScale ("Sculpt normal strength", Float) = 1
+        _PackedAlbedo ("Reconstruct neutral metal from packed roughness", Float) = 0
+        _Brightness ("Stone brightness", Float) = 1.25
         _StoneReflectance ("Basalt reflectance", Range(0,0.1)) = 0.025
     }
     SubShader
@@ -19,11 +21,12 @@ Shader "BeltRunner/SculptRock"
         Tags { "RenderType"="Opaque" }
         LOD 200
         CGPROGRAM
-        #pragma surface surf StandardSpecular vertex:vert finalcolor:haze addshadow fullforwardshadows
+        #pragma surface surf SunlitSpecular exclude_path:deferred vertex:vert finalcolor:haze addshadow fullforwardshadows
         #pragma multi_compile_instancing
         #pragma target 3.5
+        #include "RockSunlight.cginc"
         sampler2D _MainTex, _StoneTex, _BumpMap, _MetalRough;
-        float _BumpScale, _StoneReflectance, _BeltTime, _HazeDensity;
+        float _BumpScale, _StoneReflectance, _PackedAlbedo, _Brightness, _BeltTime, _HazeDensity;
         float4 _HazeColor, _HeatPos0, _HeatPos1, _HeatAmt;
         float4 _OreFinish[8];
         UNITY_INSTANCING_BUFFER_START(Props)
@@ -66,6 +69,16 @@ Shader "BeltRunner/SculptRock"
             float3 surface=tex2D(_MetalRough,IN.uv_MainTex).rgb;
             float ore=surface.b*step(.5,index);
             float3 albedo=index==0?tex2D(_StoneTex,IN.uv_MainTex).rgb:tex2D(_MainTex,IN.uv_MainTex).rgb;
+            // The collection stores only stone, normal and packed surface maps. Its neutral
+            // metal albedo and roughness share the same authored grain, avoiding a fourth 4K map.
+            if (_PackedAlbedo > .5)
+            {
+                float metalValue = .40 + saturate((surface.g - .63) / .29) * .39;
+                #ifdef UNITY_COLORSPACE_GAMMA
+                    metalValue = LinearToGammaSpace(float3(metalValue,metalValue,metalValue)).r;
+                #endif
+                albedo = lerp(tex2D(_StoneTex,IN.uv_MainTex).rgb,metalValue.xxx,ore);
+            }
             float3 color=tint.rgb;
             #ifndef UNITY_COLORSPACE_GAMMA
                 color=GammaToLinearSpace(color);
@@ -80,7 +93,7 @@ Shader "BeltRunner/SculptRock"
             // Specular workflow gives the stone its own low reflectance; ore takes the
             // established mineral colour and reflectivity, with almost no diffuse component.
             float metallic=ore*_OreFinish[index].y;
-            o.Albedo=albedo*.36*(1-metallic)*(1-h*.55);
+            o.Albedo=albedo*.36*(1-metallic)*(1-h*.55)*_Brightness;
             o.Specular=lerp(_StoneReflectance.xxx,metal,metallic);
             o.Smoothness=1-clamp(roughness,.16,1);
             o.Normal=normal;o.Occlusion=surface.r;
