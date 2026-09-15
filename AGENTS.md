@@ -17,13 +17,8 @@ Rules for anyone (person or agent) working here:
 - Anything the code needs at run time that Unity only ships when an asset references it (a shader, an instancing
   variant, a font) gets an asset under `Assets/Resources` or a line in `Build.cs`. The first player build drew no rocks
   because the build stripped the rock shader, then its instancing variants; both are now pinned there.
-- Verify in proportion to the change (the smoke run is slow, so it is not for every build). The editor is at
-  `C:\Program Files\Unity 6000.6.0f1\Editor\Unity.exe`; see README for the commands.
-  - Assets, text or tuning numbers only (voice clips, sfx, wording, a constant): `dotnet build tools/check` and the
-    player build. No smoke run; a green build proves the assets packed.
-  - Code in one system (HUD layout, a refit, the audio mix, a menu): stub check and the build. Add the smoke run only
-    if the change touches start-up, save/load, docking or the tutorial flow, which are what the smoke checks exercise.
-  - Cross-cutting code (a new subsystem, edits to `Ship`, `Game` or `GameState`, anything with a cutscene): stub check,
-    build and the full smoke run before claiming it works.
+- Verify with `dotnet build tools/check` and the player build. The smoke run (`-smoke`) is only run when the user asks
+  for it (2026-09-15: "dont run smoke tests after prompts unless told so"); never run it on your own after a change. The
+  editor is at `C:\Program Files\Unity 6000.6.0f1\Editor\Unity.exe`; see README for the commands.
   - The build fails with "used by another process" while a player is running; check `tasklist` for `BeltRunner.exe`
     and never kill one that was launched without `-smoke` (that is the user playing).
