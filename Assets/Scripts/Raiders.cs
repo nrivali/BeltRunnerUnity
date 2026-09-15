@@ -234,11 +234,7 @@ public class Raiders
         // the blast, with distance: full inside 600 u, 6 dB a doubling beyond, never below 24 dB down (a kill is always heard)
         float bd = (r.pos - game.ship.TruePos).magnitude;
         Audio.Play("boom", Mathf.Max(-24f, bd <= 600f ? 0f : -20f * Mathf.Log10(bd / 600f)));
-        if (game.sparks != null)
-        {
-            game.sparks.Burst(r.pos, 260, 420f, Data.Hex("#ff8a3a"), 1.6f);
-            game.sparks.Burst(r.pos, 90, 180f, Data.Hex("#ffe0a0"), 2.4f);
-        }
+        if (game.explosions != null) game.explosions.Raider(r.pos, r.vel);   // the flash, the fireball, the ring, the smoke, the embers
         if (byPlayer)
         {
             kills++;

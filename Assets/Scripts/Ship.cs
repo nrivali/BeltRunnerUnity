@@ -313,7 +313,7 @@ public class Ship : MonoBehaviour
 
     /// A soft radial glow texture for the sprites (the browser's texSoft / exhaustTex).
     static Texture2D _soft;
-    static Texture2D SoftTexture()
+    public static Texture2D SoftTexture()
     {
         if (_soft != null) return _soft;
         _soft = new Texture2D(64, 64, TextureFormat.RGBA32, false);
@@ -2014,9 +2014,10 @@ public class Ship : MonoBehaviour
 /// A sprite that always faces the camera (the browser's billboarded sprites).
 public class FaceCamera : MonoBehaviour
 {
+    public float roll;   // degrees about the view axis, for billboards that should not all sit the same way
     void LateUpdate()
     {
         var cam = Camera.main;
-        if (cam != null) transform.rotation = cam.transform.rotation;
+        if (cam != null) transform.rotation = roll != 0f ? cam.transform.rotation * Quaternion.AngleAxis(roll, Vector3.forward) : cam.transform.rotation;
     }
 }

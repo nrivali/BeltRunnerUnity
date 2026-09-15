@@ -66,12 +66,15 @@ public class Sparks
 
     /// burst(p, count, spd, colour, sz): sparks fly out in every direction at a quarter to the whole of `spd`, live
     /// half a second to a second and a half, 1.4 to 3.2 units wide times `sz`.
-    public void Burst(Vector3 p, int count, float spd, Color c, float sz)
+    public void Burst(Vector3 p, int count, float spd, Color c, float sz) { Burst(p, count, spd, c, sz, Vector3.zero); }
+
+    /// A burst carrying a base velocity (a wreck's momentum): every spark gets it on top of its own throw.
+    public void Burst(Vector3 p, int count, float spd, Color c, float sz, Vector3 baseVel)
     {
         for (int k = 0; k < count; k++)
         {
             if (_pos.Count >= MAX) Drop(0);
-            var d = Random.onUnitSphere * Random.Range(spd * 0.25f, spd);
+            var d = baseVel + Random.onUnitSphere * Random.Range(spd * 0.25f, spd);
             _pos.Add(p + Random.insideUnitSphere * 3f);
             _vel.Add(d);
             _col.Add(c);
