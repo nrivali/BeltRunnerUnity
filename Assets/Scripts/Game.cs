@@ -37,6 +37,7 @@ public class Game : MonoBehaviour
     Transform _pickups;
     GameObject _planet;
     Vector3 _planetTrue;
+    const float PLANET_GAIN = 0.5f;   // the planet's surface reflectance scale: 50% brightness (the user's call, 2026-09-15)
     float _cullT, _saveT;
     readonly List<Pickup> _drops = new List<Pickup>();
 
@@ -205,9 +206,14 @@ public class Game : MonoBehaviour
             {
                 mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 // the surface sits a step down under this sun, so the day side keeps its detail and the limb glow reads
-                if (z.planetName != "Ferron") foreach (var pm in mr.materials) if (pm.HasProperty("_Color")) pm.color = pm.color * 0.7f;
+                if (z.planetName != "Ferron") foreach (var pm in mr.materials) if (pm.HasProperty("_Color")) pm.color = pm.color * PLANET_GAIN;
             }
-            if (z.planetName == "Ferron") DryPlanet.Configure(_planet);
+            if (z.planetName == "Ferron")
+            {
+                DryPlanet.Configure(_planet);
+                // the surface at half brightness (the user's call, 2026-09-15), on a copy so the shared asset is untouched
+                foreach (var mr in _planet.GetComponentsInChildren<MeshRenderer>(true)) { var pm = mr.material; if (pm.HasProperty("_Color")) pm.SetColor("_Color", pm.GetColor("_Color") * PLANET_GAIN); }
+            }
             Atmosphere(_planet.transform, r, z);
             BuildSpecks(_planet.transform, r);
         }

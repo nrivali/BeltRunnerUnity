@@ -24,6 +24,7 @@ Shader "BeltRunner/Rock"
         _DetailNormalMap ("Chipped rock RGB normal", 2D) = "bump" {}
         _DetailSurface ("Crevice occlusion / mineral variation / height", 2D) = "white" {}
         _DetailStrength ("Chipped rock relief", Range(0, 2)) = 0
+        _Brightness ("Stone brightness", Float) = 1.25
     }
     SubShader
     {
@@ -51,6 +52,7 @@ Shader "BeltRunner/Rock"
         float4 _StoneColor;
         sampler2D _DetailNormalMap, _DetailSurface;
         float _DetailStrength;
+        float _Brightness;
         float4 _OreFinish[8];   // roughness, metallic; index zero is barren, then Data.ORE_KEYS
         float _HazeDensity;    // set by Lighting: the belt's haze with distance, on the rock alone
         float4 _HazeColor;
@@ -173,7 +175,7 @@ Shader "BeltRunner/Rock"
             float h = saturate(IN.heat) * (0.92 + 0.08 * sin(_Time.y * 7.0 + IN.worldPos.x * 0.05 + IN.worldPos.y * 0.07));
             // Dry, diffuse regolith around reflective mineral facets. Preserve the authored roughness;
             // making the entire rock glossy turns its fine normal detail into sparkling noise.
-            o.Albedo = col * lerp(0.28, 1.0, exposedOre) * (1.0 - h * 0.55);
+            o.Albedo = col * lerp(0.28, 1.0, exposedOre) * (1.0 - h * 0.55) * _Brightness;
             float2 finish = _OreFinish[finishIndex].xy;
             float roughness = _Library > 0.5 ? mr.g * lerp(1.0, finish.x, ore) : _Roughness * mr.g;
             o.Metallic = _Library > 0.5 ? mr.b * finish.y * ore : _Metallic * mr.b;
