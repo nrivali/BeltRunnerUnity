@@ -231,7 +231,9 @@ public class Raiders
         raiders.Remove(r);
         if (respawn) _pending.Add(new Pending { pos = r.pos, home = r.home, t = 3f, frozen = r.frozen });
         if (r.node != null) Shatter(r);
-        Audio.Play("boom");
+        // the blast, with distance: full inside 600 u, 6 dB a doubling beyond, never below 24 dB down (a kill is always heard)
+        float bd = (r.pos - game.ship.TruePos).magnitude;
+        Audio.Play("boom", Mathf.Max(-24f, bd <= 600f ? 0f : -20f * Mathf.Log10(bd / 600f)));
         if (game.sparks != null)
         {
             game.sparks.Burst(r.pos, 260, 420f, Data.Hex("#ff8a3a"), 1.6f);
