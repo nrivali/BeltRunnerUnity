@@ -97,7 +97,7 @@ public class Raiders
         public Raider target;
         public Transform node;
     }
-    public const float ROCKET_SPEED = 2400f, ROCKET_ACCEL = 1800f, ROCKET_KICK = 300f, ROCKET_TURN = 140f * Mathf.Deg2Rad, ROCKET_LIFE = 12f, ROCKET_HIT_R = 70f;
+    public const float ROCKET_SPEED = 2400f, ROCKET_ACCEL = 1800f, ROCKET_KICK = 300f, ROCKET_TURN = 70f * Mathf.Deg2Rad, ROCKET_LIFE = 12f, ROCKET_HIT_R = 70f;
     public readonly List<Rocket> rockets = new List<Rocket>();
     Material _rocketBody, _rocketFlame, _rocketNose;
     readonly List<Transform> _rocketPool = new List<Transform>();
