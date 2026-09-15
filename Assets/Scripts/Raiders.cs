@@ -70,7 +70,7 @@ public class Raiders
     class Pending { public Vector3 pos, home; public float t; public bool frozen; }
     readonly List<Pending> _pending = new List<Pending>();
     Transform _root;
-    Material _hull, _trim, _boltRed, _boltCyan;
+    Material _hull, _trim, _boltRed, _boltCyan, _boltGlowPlayer, _boltGlowRaider;
     Mesh _boltMesh;
     readonly List<Transform> _boltPool = new List<Transform>();
     bool _warned;
@@ -87,10 +87,13 @@ public class Raiders
         _trim.color = Data.Hex("#ff2e63");
         _trim.EnableKeyword("_EMISSION");
         _trim.SetColor("_EmissionColor", Data.Hex("#ff2e63") * 1.5f);
+        // the raiders' bolts are amber; the player's are a hot red with a glow round each, so they read at range
         _boltRed = new Material(Game.Sh("BeltRunner/Spark"));
-        _boltRed.SetColor("_Color", new Color(1f, 0.29f, 0.29f, 0.9f));
+        _boltRed.SetColor("_Color", new Color(1f, 0.62f, 0.22f, 0.9f));
         _boltCyan = new Material(Game.Sh("BeltRunner/Spark"));
-        _boltCyan.SetColor("_Color", new Color(0.37f, 0.83f, 0.94f, 0.9f));
+        _boltCyan.SetColor("_Color", new Color(1f, 0.22f, 0.16f, 1f));
+        _boltGlowPlayer = Ship.SoftMaterial(new Color(1f, 0.18f, 0.12f, 0.6f));
+        _boltGlowRaider = Ship.SoftMaterial(new Color(1f, 0.6f, 0.2f, 0.4f));
     }
 
     public void Clear()
@@ -247,19 +250,33 @@ public class Raiders
         else game.Toast("Cargo ship guns downed a raider", false);
     }
 
+    /// A bolt: a root (pointed along the flight), a core cylinder under it and a glow quad that faces the camera.
+    /// The player's is 26 long, 1.6 across, with a 14 u glow; a raider's 14 long, 0.6 across, with an 8 u glow.
     Transform BoltNode(bool player)
     {
-        foreach (var t in _boltPool) if (!t.gameObject.activeSelf) { t.gameObject.SetActive(true); t.GetComponent<MeshRenderer>().sharedMaterial = player ? _boltCyan : _boltRed; return t; }
-        var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-        Object.Destroy(go.GetComponent<Collider>());
-        go.name = "Bolt";
-        go.transform.SetParent(_root, false);
-        go.transform.localScale = new Vector3(1.2f, 7f, 1.2f);   // 14 long, 0.6 across
-        var mr = go.GetComponent<MeshRenderer>();
-        mr.sharedMaterial = player ? _boltCyan : _boltRed;
-        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        _boltPool.Add(go.transform);
-        return go.transform;
+        Transform t = null;
+        foreach (var p in _boltPool) if (!p.gameObject.activeSelf) { t = p; break; }
+        if (t == null)
+        {
+            var go = new GameObject("Bolt");
+            go.transform.SetParent(_root, false);
+            var core = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            Object.Destroy(core.GetComponent<Collider>());
+            core.name = "Core";
+            core.transform.SetParent(go.transform, false);
+            core.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            Ship.GlowQuad(go.transform, Vector3.zero, 1f, _boltGlowPlayer, "Glow");
+            t = go.transform;
+            _boltPool.Add(t);
+        }
+        t.gameObject.SetActive(true);
+        var c = t.GetChild(0);
+        c.localScale = player ? new Vector3(3.2f, 13f, 3.2f) : new Vector3(1.2f, 7f, 1.2f);
+        c.GetComponent<MeshRenderer>().sharedMaterial = player ? _boltCyan : _boltRed;
+        var g = t.GetChild(1);
+        g.localScale = Vector3.one * (player ? 14f : 8f);
+        g.GetComponent<MeshRenderer>().sharedMaterial = player ? _boltGlowPlayer : _boltGlowRaider;
+        return t;
     }
 
     public void Fire(Vector3 from, Vector3 dir, float dmg, bool player)
