@@ -371,7 +371,7 @@ public class Audio : MonoBehaviour
             s = new Sure_ { src = Src("Sure " + name), raw = raw };
             _sure[name] = s;
         }
-        if (s.trimmed == null && s.raw.loadState == AudioDataLoadState.Loaded) s.trimmed = TrimHead(s.raw);
+        if (s.trimmed == null && s.raw.loadState == AudioDataLoadState.Loaded) s.trimmed = TrimHead(s.raw, 0f, true);
         float db;
         if (!GAIN_DB.TryGetValue(name, out db)) db = -5f;
         s.src.volume = 1f;
@@ -405,7 +405,7 @@ public class Audio : MonoBehaviour
     }
 
     /// A copy of a clip without the silence at its head (and tail): `cutSec` off the head first, then the first and last frames that carry anything.
-    static AudioClip TrimHead(AudioClip c, float cutSec = 0f)
+    static AudioClip TrimHead(AudioClip c, float cutSec = 0f, bool normalize = false)
     {
         int ch = c.channels, n = c.samples, rate = c.frequency;
         var d = new float[n * ch];
@@ -421,6 +421,13 @@ public class Audio : MonoBehaviour
         // a two-millisecond fade in so the cut does not click
         int f = Mathf.Min(len, rate / 500);
         for (int i = 0; i < f; i++) for (int k = 0; k < ch; k++) o[i * ch + k] *= (i + 1f) / f;
+        if (normalize)
+        {
+            // peak-normalize to 0.95: a generated clip can come out quiet, and a marker has to be heard over the guns
+            float peak = 0f;
+            for (int i = 0; i < o.Length; i++) peak = Mathf.Max(peak, Mathf.Abs(o[i]));
+            if (peak > 1e-4f) { float g = 0.95f / peak; for (int i = 0; i < o.Length; i++) o[i] *= g; }
+        }
         var s = AudioClip.Create(c.name + "_trim", len, ch, rate, false);
         s.SetData(o, 0);
         Debug.Log("audio: " + c.name + " trimmed · " + (a * 1000f / rate).ToString("0") + " ms of silence off the head, " + (len * 1000f / rate).ToString("0") + " ms kept of " + (n * 1000f / rate).ToString("0"));

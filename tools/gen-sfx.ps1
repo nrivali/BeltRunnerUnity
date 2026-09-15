@@ -1,4 +1,4 @@
-# Sound effects for the Unity port, made with the ElevenLabs sound-generation endpoint into Assets/Resources/Sfx/<name>.mp3.
+﻿# Sound effects for the Unity port, made with the ElevenLabs sound-generation endpoint into Assets/Resources/Sfx/<name>.mp3.
 # The API key is read from the sibling BeltRunner repo's git-ignored elevenlabs.key and never written anywhere. Run from
 # the repo root:
 #   powershell -ExecutionPolicy Bypass -File tools/gen-sfx.ps1            (skips clips whose mp3 exists)
@@ -14,7 +14,7 @@ $clips=@(
   @{name='shield_down'; dur=1.4; text='sci-fi spaceship energy shield collapsing, a sharp electric crack then a falling power-down whine with a fizzing tail, no music'},
   # shield_out.mp3 (DepletedShields.mp3), shield_charge.mp3 (ShieldRecharge.mp3) and blaster.mp3 (Blaster.mp3) are the user's own clips, 2026-09-14, not generated here
   # the hit marker: a punchy tick on a hit, a sting on the kill
-  @{name='hit_marker';  dur=0.5; text='punchy sci-fi hit marker, a crisp bright metallic tick over a short deep thump, very short and satisfying, no music'},
+  @{name='hit_marker';  dur=0.5; text='loud punchy arcade hit marker, a sharp bright metallic click with a hard short thump, instant attack, very short, satisfying, no music'},
   @{name='kill_marker'; dur=0.9; text='satisfying sci-fi kill confirmation, a sharp metallic crack then a short bright descending two-note sting, no music'},
   @{name='shield_up';   dur=1.6; text='sci-fi spaceship energy shield recharging and snapping back on, a rising electric charge swell ending in a clean bright lock-in chime, no music'}
 )
