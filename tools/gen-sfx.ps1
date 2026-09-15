@@ -18,6 +18,8 @@ $clips=@(
   @{name='kill_marker'; dur=0.9; text='arcade kill confirmation, a deep punchy bass thump with a crisp high snap layered on top, one single hit, very short, satisfying, no melody, no music'},
   # a raider opening the throttle: a whoosh and roar that passes
   @{name='raider_boost'; dur=1.8; text='spaceship afterburner igniting and roaring past, a sharp whoosh into a deep rumbling roar that fades, no music'},
+  # a raider's engine close by: the bed under a fight
+  @{name='raider_engine'; dur=4.0; loop=$true; text='small spaceship engine under steady thrust, a soft low hum with a light turbine whine, seamless loop, quiet, no music'},
   @{name='shield_up';   dur=1.6; text='sci-fi spaceship energy shield recharging and snapping back on, a rising electric charge swell ending in a clean bright lock-in chime, no music'}
 )
 foreach ($c in $clips) {

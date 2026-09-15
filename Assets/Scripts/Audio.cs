@@ -17,12 +17,12 @@ public class Audio : MonoBehaviour
         { "radio_on", -6f }, { "radio_off", -7f }, { "pa_chime", -6f }, { "dock", -3f }, { "chime", -6f }, { "cash", -4f }, { "stow", -4f }, { "pickup", -7f },
         { "rock_break", -3f }, { "hit", -3f }, { "shield_down", -2f }, { "shield_up", -3f }, { "blaster", -18.5f }, { "hit_marker", -12f }, { "kill_marker", -2f }, { "raider_boost", -4f },  { "laser_on", -6f }, { "laser_off", -8f }, { "laser_bite", -7f }, { "radar_ping", -6f }, { "warp_charge", -4f }, { "warp_jump", -2f },
     };
-    static readonly string[] LOOP_NAMES = { "engine_idle", "engine_thrust", "engine_boost", "retro", "laser_beam", "laser_cut", "space_hum", "shield_out", "shield_charge" };
+    static readonly string[] LOOP_NAMES = { "engine_idle", "engine_thrust", "engine_boost", "retro", "laser_beam", "laser_cut", "space_hum", "shield_out", "shield_charge", "raider_engine" };
 
     public static Audio I;
 
     // loops whose clip gets a seamless seam once its audio data is decoded (the mp3s carry encoder padding, which clicks)
-    static readonly string[] SEAMLESS = { "shield_out", "shield_charge" };
+    static readonly string[] SEAMLESS = { "shield_out", "shield_charge", "raider_engine" };
     readonly List<string> _pendingSeam = new List<string>();
 
     class Loop
@@ -195,6 +195,14 @@ public class Audio : MonoBehaviour
         var s = AudioClip.Create(c.name + "_seamless", outLen, ch, rate, false);
         s.SetData(o, 0);
         return s;
+    }
+
+    /// The nearest raider's engine: a subtle hum that is only there when one is close. `near` is its distance in world
+    /// units; full inside 250 u, gone by 1,200 u; a boosting raider is half again as loud.
+    public void RaiderEngine(float near, bool boosting)
+    {
+        float f = Mathf.Clamp01(1f - (near - 250f) / 950f);
+        LoopTarget("raider_engine", 0.11f * f * f * (boosting ? 1.5f : 1f), 0.25f);
     }
 
     /// The shield beds: the shield-down loop while it sits at zero, the recharge loop while it climbs (a hit restarts the

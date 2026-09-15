@@ -62,6 +62,8 @@ public class Raiders
     public readonly List<Raider> raiders = new List<Raider>();
     public readonly List<Bolt> bolts = new List<Bolt>();
     public int threat;              // raiders attacking right now
+    public float nearest = 1e9f;    // the nearest living raider's distance from the ship (for its engine sound)
+    public bool nearestBoosting;
     public int kills, shotsFired, hitsTaken;   // for the smoke run
     public int hitsLanded;
     public float hitFlash;    // the hit marker: 1 the frame a player bolt lands, fading over HIT_FLASH seconds
@@ -346,10 +348,13 @@ public class Raiders
         bool nearDepot = carrier != null && !carrier.hold && (sp - carrier.truePos).magnitude < SAFE_R;
         bool canAttack = flying && ship.CanFly && !nearDepot;
         threat = 0;
+        nearest = 1e9f;
+        nearestBoosting = false;
         for (int i = raiders.Count - 1; i >= 0; i--)
         {
             var r = raiders[i];
             float d = (r.pos - sp).magnitude;
+            if (d < nearest) { nearest = d; nearestBoosting = r.boosting; }
             r.sinceHit += dt;
             if (r.sinceHit >= 10f && r.shield < r.maxShield) r.shield = Mathf.Min(r.maxShield, r.shield + 10f * dt);
             if (r.state == "idle" && canAttack && d < ENGAGE)
