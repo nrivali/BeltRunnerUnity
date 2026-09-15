@@ -31,7 +31,8 @@ public class Hud : MonoBehaviour
     Ui.Blips _blips;
     Ui.Reticle _reticle;
     RectTransform _reticleRt;
-    Ui.Marker _marker, _fieldMarker, _leadPip;
+    Ui.Marker _marker, _fieldMarker;
+    readonly List<Ui.Marker> _leadPips = new List<Ui.Marker>();   // one LEAD pip per raider within gun reach
     Ui.Crosshair _crosshair;
     RectTransform _crosshairRt;
     readonly List<Ui.Marker> _droneMarkers = new List<Ui.Marker>();
@@ -135,7 +136,6 @@ public class Hud : MonoBehaviour
         _crosshair = _crosshairRt.gameObject.AddComponent<Ui.Crosshair>();
         _crosshair.raycastTarget = false;
         _crosshairRt.gameObject.SetActive(false);
-        _leadPip = Ui.Marker.Make(_root, Ui.AMBER2, true);
         BuildStatus();
         BuildReadouts();
         BuildTarget();
@@ -1561,17 +1561,24 @@ public class Hud : MonoBehaviour
             // the crosshair stands in for the mouse: the pointer hides while it shows and no panel wants clicks
             Cursor.visible = !(_crosshairRt.gameObject.activeSelf && !InvOpen && !MapOpen && !MenuVisible && !_services.gameObject.activeSelf);
             _crosshair.SetHit(game.raiders != null ? game.raiders.hitFlash : 0f, game.raiders != null && game.raiders.hitKill);
-            var lr = ship.lockKind == "raider" && ship.lockRaider != null && !ship.lockRaider.dead ? ship.lockRaider : ship.raiderTarget;
-            if (lr != null)
+            // a LEAD pip on every raider within gun reach: where to put the crosshair for a bolt fired now to meet it
+            int li = 0;
+            if (game.raiders != null)
             {
-                var lead = ship.LeadPoint(lr);
-                Vector2 lp;
-                bool lBehind = Project(ship.AimPointFor(lead), out lp);   // where to put the crosshair, not where the lead point is
-                if (!lBehind && OnScreen(lp)) _leadPip.Place(lp - new Vector2(0f, 38f), false, 0f, "LEAD"); else _leadPip.Hide();
+                float gunReach = ship.GunReach;
+                foreach (var r in game.raiders.raiders)
+                {
+                    if (r.dead || (r.pos - ship.LaserOrigin()).magnitude > gunReach) continue;
+                    Vector2 lp;
+                    bool lBehind = Project(ship.AimPointFor(ship.LeadPoint(r)), out lp);   // where to put the crosshair, not where the lead point is
+                    if (lBehind || !OnScreen(lp)) continue;
+                    if (li >= _leadPips.Count) _leadPips.Add(Ui.Marker.Make(_root, Ui.AMBER2, true));
+                    _leadPips[li++].Place(lp - new Vector2(0f, 38f), false, 0f, "LEAD");
+                }
             }
-            else _leadPip.Hide();
+            for (; li < _leadPips.Count; li++) _leadPips[li].Hide();
         }
-        else { _crosshairRt.gameObject.SetActive(false); _leadPip.Hide(); Cursor.visible = true; }
+        else { _crosshairRt.gameObject.SetActive(false); foreach (var p in _leadPips) p.Hide(); Cursor.visible = true; }
         // the reticle on the target
         if (hasTarget && showFlight && ship.cut == null)
         {
@@ -1581,15 +1588,7 @@ public class Hud : MonoBehaviour
             _reticleRt.anchoredPosition = sp;
             _reticle.Set(ship.laserOn, ship.lockKind == "rock" && ship.lockRock == ship.target);   // locked on: heavier, wider corners
         }
-        else if (ship.raiderTarget != null && showFlight && ship.cut == null)
-        {
-            Vector2 sp;
-            bool behind = Project(ship.raiderTarget.pos - game.worldOffset, out sp);
-            _reticleRt.gameObject.SetActive(!behind);
-            _reticleRt.anchoredPosition = sp;
-            _reticle.Set(ship.gunFiring, ship.lockKind == "raider" && ship.lockRaider == ship.raiderTarget);
-        }
-        else _reticleRt.gameObject.SetActive(false);
+        else _reticleRt.gameObject.SetActive(false);   // raiders carry no reticle: the LEAD pip is the gunnery aid
         // raiders on the attack carry a red marker
         var rl = showFlight && !docked && !hold && game.raiders != null ? game.raiders.raiders : null;
         int nr = 0;
