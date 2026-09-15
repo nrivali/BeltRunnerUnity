@@ -14,7 +14,10 @@ using UnityEngine;
 public class Music : MonoBehaviour
 {
     public static Music I;
-    public Action<string> onGroove, onTrack;
+    public Action<string> onGroove, onTrack, onCombat;
+    /// Set by the main thread every frame: raiders are attacking. The render thread cuts to the combat track on the
+    /// next step and drifts back six seconds after it clears.
+    public volatile bool combat;
 
     public const int RATE = 22050;
     public const int CHUNK = 256;
@@ -71,6 +74,13 @@ public class Music : MonoBehaviour
     static float[][] B(params float[][] rows) { return rows; }
     static float[] Bp(float step, float mult) { return new[] { step, mult }; }
 
+    // the combat track: fast, minor, a kick on every beat, a driving sawtooth bass, square arps, stabs and a lead
+    static readonly Track COMBAT = new Track { name = "Vanguard", bpm = 156, pad = "strings", padCut = 520f, lfo = 0.14f, subWave = "sawtooth", echo = 2, ambient = new Ambient(), scale = AEO, melodyWave = "sawtooth",
+        chords = new[] { Ch(33, 45, 48, 52, 55, 60), Ch(31, 43, 46, 50, 53, 58), Ch(36, 48, 51, 55, 58, 63), Ch(32, 44, 48, 51, 55, 60) },
+        groove = new Groove { kick = new[] { 0, 2, 4, 6 }, fill = true, snare = new[] { 2, 6 }, hat = "16", openHat = new[] { 1, 5 }, rim = new[] { 3, 7 }, bassWave = "sawtooth",
+            bass = B(Bp(0, 1f), Bp(1, 1f), Bp(2, 1f), Bp(3, 1f), Bp(4, 1.5f), Bp(5, 1f), Bp(6, 2f), Bp(7, 1.5f)), arpWave = "square", arpVol = 0.035f, arp = new[] { 0, 4, 2, 4, 0, 4, 3, 5 },
+            stab = new[] { 0, 3, 6 }, stabWave = "sawtooth", lead = true } };
+
     static readonly Track[] TRACKS =
     {
         new Track { name = "Drift", bpm = 112, pad = "warm", padCut = 520f, lfo = 0.06f, subWave = "sine", echo = 3, ambient = new Ambient { sparkle = 0.07f, sparkleWave = "sine", wind = 0.012f }, scale = DOR, melodyWave = "sine",
@@ -121,6 +131,9 @@ public class Music : MonoBehaviour
     string _mode = "ambient";
     float _modeUntil;
     int _chord, _track;
+    // the fight: what to go back to, and when the all-clear lets the combat track go
+    int _trackBefore;
+    float _combatEnd = -1f;
     List<Voice> _voices = new List<Voice>();
     List<Pad> _pads = new List<Pad>();
     float _padGain, _padGainTarget = 0.16f, _padGainTau = 4f, _padGainWait = 0.5f;
@@ -205,6 +218,7 @@ public class Music : MonoBehaviour
         foreach (var e in ev)
         {
             if (e[0] == "groove") { if (onGroove != null) onGroove(e[1]); }
+            else if (e[0] == "combat") { if (onCombat != null) onCombat(e[1]); }
             else if (onTrack != null) onTrack(e[1]);
         }
     }
@@ -342,7 +356,7 @@ public class Music : MonoBehaviour
         _modeUntil = Range(120f, 200f);
     }
 
-    Track K { get { return TRACKS[_track]; } }
+    Track K { get { return _mode == "combat" ? COMBAT : TRACKS[_track]; } }
     float T { get { return (float)_pos / RATE; } }
 
     // ---- the track: pad recipe, filter, sub, echo time, first chord
@@ -514,8 +528,37 @@ public class Music : MonoBehaviour
         var a = k.ambient;
         int bar = s % 8;
         float t = T;
-        if (s % 32 == 0 && s > 0) SetChord((_chord + 1) % k.chords.Length, _mode == "groove" ? 0.05f : 1.5f);
-        if (bar == 0 && t > _modeUntil)
+        if (s % 32 == 0 && s > 0) SetChord((_chord + 1) % k.chords.Length, _mode != "ambient" ? 0.05f : 1.5f);
+        // the fight: cut to the combat track the step raiders attack; six seconds after the all-clear, on a bar, drift back
+        if (combat && _mode != "combat")
+        {
+            _trackBefore = _track;
+            _mode = "combat";
+            _combatEnd = -1f;
+            _grooveTarget = 1f;
+            _grooveTau = 0.35f;
+            ApplyTrack(0.25f);
+            k = K; g = k.groove; a = k.ambient;
+            QueueEvent("combat", k.name);
+        }
+        else if (!combat && _mode == "combat")
+        {
+            if (_combatEnd < 0f) _combatEnd = t + 6f;
+            else if (t >= _combatEnd && bar == 0)
+            {
+                _mode = "ambient";
+                _modeUntil = t + Range(90f, 160f);
+                _grooveTarget = 0f;
+                _grooveTau = 3f;
+                _track = _trackBefore;
+                _combatEnd = -1f;
+                ApplyTrack(3f);
+                k = K; g = k.groove; a = k.ambient;
+                QueueEvent("track", k.name);
+            }
+        }
+        else if (combat) _combatEnd = -1f;
+        if (_mode != "combat" && bar == 0 && t > _modeUntil)
         {
             if (_mode == "ambient")
             {

@@ -110,6 +110,7 @@ public class Game : MonoBehaviour
         // the comm-channel toasts for the soundtrack
         Music.I.onGroove = n => { if (started) hud.Toast("♪ " + n + " · groove on the comm channel", false); };
         Music.I.onTrack = n => { if (started) hud.Toast("♪ Now drifting: " + n, false); };
+        Music.I.onCombat = n => { if (started) hud.Toast("♪ " + n + " · combat", false); };
         LoadZone(Data.ZoneById(_smoke ? "kessler" : State.zoneId));
         SpawnInZone();
         ship.UpdateCamera(1f);
@@ -539,6 +540,7 @@ public class Game : MonoBehaviour
         }
         Audio.I.Engine(ship.throttle, ship.afterburning, ship.braking, ship.docked || ship.InCinematic);
         bool inFlight = !ship.docked && !ship.InCinematic && ship.CanFly;
+        if (Music.I != null) Music.I.combat = raiders != null && raiders.threat > 0 && !ship.docked;   // the combat track
         Audio.I.ShieldLoop(State.shield <= 0f && inFlight, State.sinceHit >= Data.SHIELD_WAIT && State.shield < Data.SHIELD_MAX && inFlight);
         Audio.I.RaiderEngine(raiders != null && inFlight ? raiders.nearest : 1e9f, raiders != null && raiders.nearestBoosting);
         Audio.I.RaiderBoost(raiders != null && inFlight ? raiders.nearestBoost : 1e9f);

@@ -55,7 +55,8 @@ Shield is fixed at 50 for every fit (no refit yet).
   - Speed 820 + 90 × danger → 865 at Kessler. Bounty 80 + 120 × danger → 140.
   - Holds: min(rich pockets, round(3 + 6 × danger)) → 6 at Kessler, 3 elsewhere. Raiders per hold: 1 + random(0 ..
     min(3, 1 + floor(danger))) → 1 or 2 at Kessler, 1 elsewhere.
-- Engage a flying ship within 9,000 u (4,500 m); give up beyond 14,000 u, or when the ship is disabled or docked.
+- Engage a flying ship within 9,000 u (4,500 m); the music cuts to the combat track (Vanguard, 156 bpm) while any
+  raider attacks and drifts back six seconds after the last one stops; give up beyond 14,000 u, or when the ship is disabled or docked.
 - The cargo ship's guns cover 9,000 u: raiders inside lose 30 health/s and never engage there.
 - Manoeuvres: run in (weaving) until inside 600 u; strafe at a radius of 200–500 u for 2–4 s, speed capped so the
   circle holds; then 50% a long run at full thrust to a point 2,500–5,000 u away (1,250–2,500 m) and a fresh run back in, else 90% another strafe / 10% a short
