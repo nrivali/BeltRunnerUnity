@@ -1168,7 +1168,9 @@ public class Ship : MonoBehaviour
             _lockT += dt;
             float auth = Mathf.Clamp01(_lockT / 0.4f);
             auth = auth * auth * (3f - 2f * auth);
-            var L = transform.InverseTransformPoint(LockPos() - game.worldOffset) - new Vector3(0f, 0f, 20f);
+            // a locked raider is steered onto by its LEAD point, so the nose sits where a bolt fired now would meet it
+            var steerAt = lockKind == "raider" && lockRaider != null && !lockRaider.dead ? LeadPoint(lockRaider) : LockPos();
+            var L = transform.InverseTransformPoint(steerAt - game.worldOffset) - new Vector3(0f, 0f, 20f);
             float ey = Mathf.Atan2(L.x, L.z);
             float ep = Mathf.Atan2(L.y, Mathf.Sqrt(L.x * L.x + L.z * L.z));
             yaw = Mathf.Clamp(ey * 5f, -1f, 1f) * auth;
