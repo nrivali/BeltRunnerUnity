@@ -650,41 +650,42 @@ public class Hud : MonoBehaviour
         RefreshWindow();
     }
 
-    /// One upgrade row: name and pips, the description with the next level in bold, the price button on the right (and
-    /// the test's minus). Built once per tab and kept in _rows; UpdateRows keeps it current, a purchase lights it.
+    /// One upgrade row, a single line: name and pips on the left, the description (the next level in bold) from
+    /// DESC_X, the price button on the right (and the test's minus). Built once per tab and kept in _rows; UpdateRows
+    /// keeps it current, a purchase lights it. Eleven ship refits fit the window without much scrolling.
+    const float DESC_X = 250f, BUY_W = 100f, ROW_H = 28f;
     void RefitRow(Ui.Flow f, string key, bool depot, string name, int total, bool first)
     {
-        if (!first) { f.Rule(); f.Gap(13f); }
+        if (!first) { f.Rule(); f.Gap(4f); }
         float top = f.y;
         var row = new UpRow { key = key, depot = depot, pips = new Image[total] };
-        var bgRt = Ui.Rect("RowBg", f.parent, Ui.TL, Ui.TL, new Vector2(f.x - 12f, f.y + 8f), new Vector2(f.w + 24f, 10f));
+        var bgRt = Ui.Rect("RowBg", f.parent, Ui.TL, Ui.TL, new Vector2(f.x - 12f, f.y + 3f), new Vector2(f.w + 24f, 10f));
         row.bg = Ui.MakeBox(bgRt, Ui.A(Ui.AMBER, 0f), Ui.A(Ui.AMBER, 0f), 1f);
         bgRt.SetAsFirstSibling();
-        var n = Ui.Label(f.parent, name, "display", 16, Ui.TEXT);
-        Ui.At(n.rectTransform, Ui.TL, Ui.TL, new Vector2(f.x, f.y), new Vector2(300f, 20f));
-        float px = f.x + Ui.Measure(n) + 12f;
+        var n = Ui.Label(f.parent, name, "display", 15, Ui.TEXT, TextAnchor.MiddleLeft);
+        Ui.At(n.rectTransform, Ui.TL, Ui.TL, new Vector2(f.x, top), new Vector2(DESC_X - 10f, ROW_H));
+        float px = f.x + Ui.Measure(n) + 10f;
         for (int j = 0; j < total; j++)
         {
-            var pip = Ui.Rect("Pip", f.parent, Ui.TL, Ui.TL, new Vector2(px + j * 13f, f.y - 5f), new Vector2(8f, 8f));
+            var pip = Ui.Rect("Pip", f.parent, Ui.TL, Ui.TL, new Vector2(px + j * 12f, top - (ROW_H - 7f) * 0.5f), new Vector2(7f, 7f));
             row.pips[j] = Ui.Fill(pip, Ui.LINE2);
         }
-        f.y -= 23f;
         bool test = !depot && State.sandbox;
-        row.desc = f.Para(" ", "body", 13, Ui.MUTED, 0f, TextAnchor.UpperLeft, 0f, f.w - 118f - 14f - (test ? 48f : 0f));
-        row.desc.rectTransform.sizeDelta = new Vector2(row.desc.rectTransform.sizeDelta.x, 36f);   // two lines, whatever the text does
-        f.y = top - 23f - 36f;
-        float rowH = top - f.y;
+        float descW = f.w - DESC_X - BUY_W - 14f - (test ? 48f : 0f);
+        row.desc = Ui.Label(f.parent, " ", "body", 13, Ui.MUTED, TextAnchor.MiddleLeft, true);
+        Ui.At(row.desc.rectTransform, Ui.TL, Ui.TL, new Vector2(f.x + DESC_X, top), new Vector2(descW, ROW_H));
+        f.y = top - ROW_H;
         var k2 = key;
-        row.buy = Ui.Button(f.parent, "0 cr", () => { if (depot) BuyDepot(k2); else Buy(k2); }, true, true, 118f, 14);
-        row.buy.rt.anchoredPosition = new Vector2(f.x + f.w - 118f, top - (rowH - row.buy.Height) * 0.5f);
+        row.buy = Ui.Button(f.parent, "0 cr", () => { if (depot) BuyDepot(k2); else Buy(k2); }, true, true, BUY_W, 13, 12f, 5f);
+        row.buy.rt.anchoredPosition = new Vector2(f.x + f.w - BUY_W, top - (ROW_H - row.buy.Height) * 0.5f);
         if (test)
         {
-            row.minus = Ui.Button(f.parent, "−", () => Downgrade(k2), false, true, 40f, 14);
-            row.minus.rt.anchoredPosition = new Vector2(f.x + f.w - 118f - 48f, top - (rowH - row.minus.Height) * 0.5f);
+            row.minus = Ui.Button(f.parent, "−", () => Downgrade(k2), false, true, 40f, 13, 12f, 5f);
+            row.minus.rt.anchoredPosition = new Vector2(f.x + f.w - BUY_W - 48f, top - (ROW_H - row.minus.Height) * 0.5f);
         }
-        bgRt.sizeDelta = new Vector2(f.w + 24f, rowH + 16f);
+        bgRt.sizeDelta = new Vector2(f.w + 24f, ROW_H + 6f);
         _rows.Add(row);
-        f.Gap(13f);
+        f.Gap(4f);
     }
 
     void LightRow(string key)
