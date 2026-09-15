@@ -124,7 +124,7 @@ public class Ship : MonoBehaviour
     public Recovery recovery;
     public bool disabled;
     bool _lowHullWarned;
-    int _fuelStage;   // Vega's fuel warnings given so far on this tank: 1 at 50%, 2 at 25%, 3 at 5%; drops back as the tank refills
+    int _fuelStage;   // Vega's fuel warnings given so far on this tank: 1 at 50%, 2 at 25%, 3 at 10%; drops back as the tank refills
     public const float RECOVER_DUR = 3.2f;
     public const float RECOVER_AT = 1.6f;
     public bool CanFly { get { return !disabled && recovery == null; } }
@@ -1080,17 +1080,17 @@ public class Ship : MonoBehaviour
         }
     }
 
-    /// Vega calls the fuel at 50%, 25% and 5% of the tank, once each on the way down; a refill above a mark re-arms it.
+    /// Vega calls the fuel at 50%, 25% and 10% of the tank, once each on the way down; a refill above a mark re-arms it.
     void TickFuelWarnings()
     {
         float tank = State.Stat("tank").cap;
         if (tank <= 0f) return;
         float f = State.fuel / tank;
-        if (f > 0.5f) _fuelStage = 0; else if (f > 0.25f && _fuelStage > 1) _fuelStage = 1; else if (f > 0.05f && _fuelStage > 2) _fuelStage = 2;
+        if (f > 0.5f) _fuelStage = 0; else if (f > 0.25f && _fuelStage > 1) _fuelStage = 1; else if (f > 0.1f && _fuelStage > 2) _fuelStage = 2;
         if (docked || !game.started || recovery != null) return;
-        if (f <= 0.05f && _fuelStage < 3) { _fuelStage = 3; Audio.Say("vega_fuel5"); game.Toast("Vega · fuel critical, 5% · call recovery or coast home", true); }
-        else if (f <= 0.25f && _fuelStage < 2) { _fuelStage = 2; Audio.Say("vega_fuel25"); game.Toast("Vega · fuel at 25% · think about heading back", true); }
-        else if (f <= 0.5f && _fuelStage < 1) { _fuelStage = 1; Audio.Say("vega_fuel50"); game.Toast("Vega · fuel at 50%", false); }
+        if (f <= 0.1f && _fuelStage < 3) { _fuelStage = 3; Audio.Say("vega_fuel10"); game.Toast("Vega · fuel critical, 10%", true); }
+        else if (f <= 0.25f && _fuelStage < 2) { _fuelStage = 2; Audio.Say("vega_fuel25"); game.Toast("Vega · fuel low, 25%", true); }
+        else if (f <= 0.5f && _fuelStage < 1) { _fuelStage = 1; Audio.Say("vega_fuel50"); game.Toast("Vega · fuel, 50%", false); }
     }
 
     public string RecoveryStatus()

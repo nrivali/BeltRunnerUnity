@@ -41,9 +41,9 @@ foreach ($id in $lines.Keys){
 }
 # Vega's warnings and calls outside the tutorial: vega_<id>.mp3, read calm and clear
 $vega=[ordered]@{
-  fuel50 = "Vega here. Fuel is at fifty percent. Plenty left, but keep the cargo ship in mind."
-  fuel25 = "Fuel at twenty-five percent. Start thinking about heading back to the cargo ship."
-  fuel5  = "Fuel critical, five percent. Cut the throttle and call recovery, or coast home now."
+  fuel50 = "Fuel, fifty percent."
+  fuel25 = "Fuel low, twenty-five percent."
+  fuel10 = "Fuel critical, ten percent."
 }
 foreach ($id in $vega.Keys){
   if ($Only.Count -gt 0 -and $Only -notcontains $id) { continue }
