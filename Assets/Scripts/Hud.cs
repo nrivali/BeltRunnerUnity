@@ -270,7 +270,7 @@ public class Hud : MonoBehaviour
         new object[] { new[] { "LMB" }, "Hold to fire the selected weapon (L too). The laser cuts only what the crosshair is on: aim the nose at a rock" },
         new object[] { new[] { "Wheel" }, "Swap between the mining laser and the autocannon" },
         new object[] { new[] { "R" }, "Radar pulse" },
-        new object[] { new[] { "Q" }, "Lock the crosshair on whatever the mouse is over · hover another target and press Q to switch · otherwise press Q to release" },
+        new object[] { new[] { "Q", "MMB" }, "Lock the crosshair on whatever the mouse is over · hover another target and press Q to switch · otherwise press Q to release" },
         new object[] { new[] { "F" }, "Flashlight on · off in flight · the upgrade tabs when docked" },
         new object[] { new[] { "T" }, "Out of fuel · recovery to the cargo ship (15% of credits)" },
         new object[] { new[] { "E" }, "Approach control within 2,250 m of the cargo ship · deposit ore on the pad" },

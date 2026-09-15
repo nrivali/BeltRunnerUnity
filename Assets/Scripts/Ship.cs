@@ -767,7 +767,7 @@ public class Ship : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.G)) ToggleOvercharge();
         if (Input.GetKeyDown(KeyCode.F)) ToggleTorch();
         if (Input.GetKeyDown(KeyCode.E)) StartApproach();
-        if (Input.GetKeyDown(KeyCode.Q)) ToggleLock();
+        if (Input.GetKeyDown(KeyCode.Q) || Input.GetMouseButtonDown(2)) ToggleLock();   // Q or the middle mouse button
         if (Input.GetKeyDown(KeyCode.T)) CallRecovery();
     }
 

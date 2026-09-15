@@ -216,6 +216,7 @@ namespace UnityEngine
         public static bool GetKey(KeyCode k) => false;
         public static bool GetKeyDown(KeyCode k) => false;
         public static bool GetMouseButton(int b) => false;
+        public static bool GetMouseButtonDown(int b) => false;
     }
 
     public enum Space { World, Self }
