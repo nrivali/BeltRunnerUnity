@@ -20,7 +20,7 @@ public class Tutorial
     {
         new Step("launch", "Welcome aboard", "Vega here, your ship's assistant. Press W on the pad and approach control taxis you out of the hangar; the ship is yours the moment it lets go.", "press W to launch"),
         new Step("steer", "Take the stick", "The mouse steers. W and S work the throttle, A and D roll, X cuts the throttle. Open her up and give me a turn.", "open the throttle and turn", false, "controls"),
-        new Step("hud", "Ship and world", "Bottom centre is your ship: hull, fuel, speed, thrust and cargo. Top right is the world: zone, laser, radar, and whatever you are looking at.", null, false, "status", "readout"),
+        new Step("hud", "Ship and world", "The band along the bottom: SHIP is your hull, shield and fuel. FLIGHT is your speed and thrust, and the way back to the cargo ship. TARGET is whatever you are looking at or locked on, and the weapon in hand. CARGO is the hold.", null, false, "status", "readout"),
         new Step("radar", "Find ore", "Press R to pulse the radar. Every rock it reaches is marked for a while. Ore shows as coloured veins and crystals; plain grey rock is barren, so do not waste the laser on it.", "press R", false, "readout"),
         new Step("lock", "Lock a copper rock", "Find a copper rock (orange veins), put the mouse on it and press Q to lock it. The target panel shows its size and what is left in it.", "press Q on a copper rock", false, "target"),
         new Step("mine", "Cut it", "Get within laser reach and hold the left mouse button (L too). The dish under the nose cuts while you hold. When the rock breaks, fly through the glow and the ore comes aboard.", "collect copper", false, "target"),
