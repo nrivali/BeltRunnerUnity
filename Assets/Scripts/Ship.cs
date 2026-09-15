@@ -694,13 +694,11 @@ public class Ship : MonoBehaviour
     /// The steering curve: a small dead zone, then a curve that starts gentle and ends at full rate.
     public static float Shape(float v)
     {
-        // the mouse response (2026-09-15, quicker on the user's call): a small dead zone, the full turn rate reached
-        // at 55% of the way to the screen's edge, and a straighter curve so the nose moves as soon as the mouse does
         float m = Mathf.Abs(v);
-        const float dz = 0.025f, full = 0.55f;
+        const float dz = 0.06f;
         if (m < dz) return 0f;
-        float t = Mathf.Min(1f, (m - dz) / (full - dz));
-        return Mathf.Sign(v) * t * (0.65f + 0.35f * t);
+        float t = Mathf.Min(1f, (m - dz) / (1f - dz));
+        return Mathf.Sign(v) * t * (0.4f + 0.6f * t);
     }
 
     /// A level heading (no roll) with the nose along `d`.
