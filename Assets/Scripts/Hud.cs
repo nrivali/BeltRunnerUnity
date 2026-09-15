@@ -74,6 +74,7 @@ public class Hud : MonoBehaviour
     bool _winWant;
     public bool instantUi;   // the smoke run: the window shows at once, no ease, so its screenshots catch it
     float _winK, _bodyK, _credShown = -1f;
+    Vector2 _bodyHome;   // the viewport's resting anchored position: the tab slide is relative to it (zero would shift a stretched rect)
     // the upgrade rows, kept and updated in place (a purchase lights its row instead of rebuilding the tab)
     class UpRow { public string key; public bool depot; public Image[] pips; public Text desc; public Ui.Btn buy, minus; public Ui.Box bg; public float flash; }
     readonly List<UpRow> _rows = new List<UpRow>();
@@ -461,6 +462,7 @@ public class Hud : MonoBehaviour
         _winScroll = Ui.Scroll.Make(_win, 0f, 64f, 0f, 137f);
         _winGroup = _win.gameObject.AddComponent<CanvasGroup>();
         _bodyGroup = _winScroll.viewport.gameObject.AddComponent<CanvasGroup>();
+        _bodyHome = _winScroll.viewport.anchoredPosition;
         _win.gameObject.SetActive(false);
     }
 
@@ -481,7 +483,7 @@ public class Hud : MonoBehaviour
         _bodyK = instantUi ? 1f : Mathf.Lerp(_bodyK, 1f, 1f - Mathf.Exp(-13f * dt));
         if (_bodyK > 0.995f) _bodyK = 1f;
         _bodyGroup.alpha = _bodyK;
-        _winScroll.viewport.anchoredPosition = new Vector2(0f, _bodyK >= 1f ? 0f : -Mathf.Round((1f - _bodyK) * 14f));
+        _winScroll.viewport.anchoredPosition = _bodyHome + new Vector2(0f, _bodyK >= 1f ? 0f : -Mathf.Round((1f - _bodyK) * 14f));
         if (_credShown < 0f) _credShown = State.credits;
         _credShown = Mathf.Lerp(_credShown, State.credits, 1f - Mathf.Exp(-9f * dt));
         if (Mathf.Abs(_credShown - State.credits) < 0.6f) _credShown = State.credits;
