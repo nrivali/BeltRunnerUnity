@@ -264,7 +264,7 @@ public class Raiders
                 {
                     string k = keys[Random.Range(0, keys.Count)];
                     float u = i == 0 && Random.value < 0.25f ? Random.Range(40f, 60f) : Random.Range(10f, 30f);
-                    var at = r.pos + Random.insideUnitSphere * 16f;
+                    var at = r.pos - game.worldOffset + Random.insideUnitSphere * 16f;   // pickups live in scene coordinates
                     var drift = r.vel * 0.5f + Random.onUnitSphere * Random.Range(20f, 60f);
                     game.SpawnPickup(k, Mathf.Round(u), at, drift);
                     lumps++;
