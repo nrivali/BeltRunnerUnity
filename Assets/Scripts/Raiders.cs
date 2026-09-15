@@ -253,18 +253,24 @@ public class Raiders
             kills++;
             State.credits += r.bounty;
             State.earned += r.bounty;
-            string drop = "";
-            if (Random.value < 0.35f)
+            // the loot: one to three lumps of outer-belt ore thrown from the wreck, drifting on with its way, to be flown
+            // through and collected like any ore (a quarter of the time one of them is a big one)
+            int lumps = 0;
+            var keys = new List<string>(game.zone.belts[2].Keys);
+            if (keys.Count > 0)
             {
-                var keys = new List<string>(game.zone.belts[2].Keys);
-                if (keys.Count > 0)
+                int n = Random.Range(1, 4);
+                for (int i = 0; i < n; i++)
                 {
                     string k = keys[Random.Range(0, keys.Count)];
-                    float u = Mathf.Min(Random.Range(8f, 28f), State.CargoRoom(k));
-                    if (u > 0.5f) { State.AddCargo(k, u); drop = " · salvaged " + Mathf.FloorToInt(u) + " " + Data.ORES[Data.OreIndex(k)].name; }
+                    float u = i == 0 && Random.value < 0.25f ? Random.Range(40f, 60f) : Random.Range(10f, 30f);
+                    var at = r.pos + Random.insideUnitSphere * 16f;
+                    var drift = r.vel * 0.5f + Random.onUnitSphere * Random.Range(20f, 60f);
+                    game.SpawnPickup(k, Mathf.Round(u), at, drift);
+                    lumps++;
                 }
             }
-            game.Toast("Raider destroyed · +" + Data.Fmt(r.bounty) + " cr bounty" + drop, false);
+            game.Toast("Raider destroyed · +" + Data.Fmt(r.bounty) + " cr bounty" + (lumps > 0 ? " · " + lumps + " lump" + (lumps > 1 ? "s" : "") + " of salvage adrift" : ""), false);
         }
         else game.Toast("Cargo ship guns downed a raider", false);
     }

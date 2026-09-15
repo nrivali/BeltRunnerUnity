@@ -18,7 +18,7 @@ The numbers as the code has them today. World units (u) are what the code uses; 
 | Turn rate | 30°/s yaw and pitch, 50°/s in the drift | 30°/s |
 | Damage per second landed | 48 | 24 |
 | Time to strip shield + hull (100) | ~4.2 s of raider hits | ~2.1 s of player hits |
-| Bounty | | 140 cr, plus 35% chance of 8–28 u of outer-belt ore |
+| Bounty | | 140 cr paid at the kill, plus 1–3 lumps of outer-belt ore (10–30 u each; 25% the first is 40–60) thrown from the wreck to be collected |
 
 ## Player refits (Autocannon and the rest)
 
