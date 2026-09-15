@@ -16,7 +16,7 @@ The numbers as the code has them today. World units (u) are what the code uses; 
 | Hit box | Ship radius (SHIP_R) × 0.8 | 60 u for bolts (hull is 28 u for the reticle and ranges; the model is drawn at twice its original size) |
 | Top speed | 500 u/s (250 m/s), ×2 on the afterburner from the start, up to ×5 with the refits | 865 u/s, ×1.25 (1,081) on the boost (runs in from beyond 900 u and long runs out), capped on a strafe to hold the circle |
 | Thrust | 328 u/s² | 220 u/s² accel (352 on the boost), 320 u/s² braking |
-| Turn rate | 30°/s yaw and pitch, 50°/s in the drift | 30°/s |
+| Turn rate | 40°/s yaw and pitch, 50°/s in the drift | 30°/s |
 | Damage per second landed | 48 | 24 |
 | Time to strip shield + hull (100) | ~4.2 s of raider hits | ~2.1 s of player hits |
 | Bounty | | 140 cr paid at the kill, plus 1–3 lumps of outer-belt ore (10–30 u each; 25% the first is 40–60) thrown from the wreck to be collected |
