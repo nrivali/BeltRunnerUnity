@@ -1696,7 +1696,7 @@ public class Hud : MonoBehaviour
         _readouts.gameObject.SetActive(showFlight);
         _controls.gameObject.SetActive(showFlight && !docked && _controlsShown);
         _prompt.gameObject.SetActive(showFlight && !docked && segs.Count > 0);
-        _target.gameObject.SetActive(showFlight && !docked);
+        _target.gameObject.SetActive(showFlight);   // up in the hangar too, reading "No target"
         if (inCut && _tutBox.gameObject.activeSelf) _tutBox.gameObject.SetActive(false);
         _barTop.gameObject.SetActive(inCut);
         _barBot.gameObject.SetActive(inCut);
@@ -1838,7 +1838,7 @@ public class Hud : MonoBehaviour
         // the hangar window fills the screen between a top margin and the status pane; the tutorial card, which is only
         // there at the start of the game, draws over its corner rather than the window making room for it
         float topInset = 30f;
-        float bottomInset = 18f + 67f + 16f;
+        float bottomInset = 18f + BAND_H + 16f;   // the hangar window stops above the HUD band
         float winH = Mathf.Min(760f, _canvasSize.y - topInset - bottomInset);
         var wantSize = new Vector2(Mathf.Min(1100f, _canvasSize.x - 60f), winH);
         var wantPos = new Vector2(0f, (bottomInset - topInset) * 0.5f);
