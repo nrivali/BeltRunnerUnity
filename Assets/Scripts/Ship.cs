@@ -1892,17 +1892,8 @@ public class Ship : MonoBehaviour
         _gunCd -= dt;
         _gunWarnT -= dt;
         var gun = State.Stat("gun");
-        // the gun aims where the mouse is: the point on the mouse ray at gun range from the dish, held to the forward half
+        // the gun aims straight down the nose, like the laser: the mouse steers the ship and the nose is the aim
         aimDir = fwd;
-        if (mouseSteer && cam != null)
-        {
-            var ray = cam.ScreenPointToRay(Input.mousePosition);
-            var originScene = origin - game.worldOffset;
-            float camD = (originScene - ray.origin).magnitude;
-            var pt = ray.GetPoint(camD + GunReach);
-            var dir = (pt - originScene).normalized;
-            if (Vector3.Dot(dir, fwd) > 0f) aimDir = dir;
-        }
         if (game.raiders != null && (target < 0 || weapon == "gun"))
         {
             float gunReach = gun.reach > 0f ? gun.reach : 1800f;

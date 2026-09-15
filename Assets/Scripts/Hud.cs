@@ -1717,22 +1717,14 @@ public class Hud : MonoBehaviour
         // the gunnery crosshair: where a bolt goes, at gun range; and the lead pip: where to put it for the locked raider
         if (showFlight && !docked && ship.cut == null && ship.CanFly)
         {
-            // the crosshair: on the mouse with the gun (that is where the bolts go); on the nose ray at the laser's reach with
-            // the laser (that is where the beam goes: the mouse steers the ship, so the nose is the aim)
+            // the crosshair sits on the nose ray with either weapon (the mouse steers the ship; the nose is the aim): at the
+            // distance of the raider in the sights, so it meets the LEAD pip when the aim is right, else at the weapon's reach
+            float cDist = ship.weapon == "gun" ? ship.GunReach : State.Stat("range").reach;
+            var cRaider = ship.lockKind == "raider" && ship.lockRaider != null && !ship.lockRaider.dead ? ship.lockRaider : ship.raiderTarget;
+            if (cRaider != null && !cRaider.dead) cDist = Mathf.Max(60f, (ship.LeadPoint(cRaider) - ship.LaserOrigin()).magnitude);
             Vector2 cp;
-            bool cOn;
-            if (ship.weapon == "gun")
-            {
-                var mp = Input.mousePosition;
-                cp = new Vector2(mp.x, mp.y) / _canvas.scaleFactor;
-                cOn = OnScreen(cp);
-            }
-            else
-            {
-                bool cBehind = Project(ship.LaserOrigin() + ship.Forward * State.Stat("range").reach - game.worldOffset, out cp);
-                cOn = !cBehind && OnScreen(cp);
-            }
-            _crosshairRt.gameObject.SetActive(cOn);
+            bool cBehind = Project(ship.LaserOrigin() + ship.Forward * cDist - game.worldOffset, out cp);
+            _crosshairRt.gameObject.SetActive(!cBehind && OnScreen(cp));
             _crosshairRt.anchoredPosition = cp;
             _crosshair.Set(ship.gunFiring || ship.laserOn);
             // the crosshair stands in for the mouse: the pointer hides while it shows and no panel wants clicks
@@ -1747,7 +1739,7 @@ public class Hud : MonoBehaviour
                 {
                     if (r.dead || (r.pos - ship.LaserOrigin()).magnitude > gunReach) continue;
                     Vector2 lp;
-                    bool lBehind = Project(ship.AimPointFor(ship.LeadPoint(r)), out lp);   // where to put the crosshair, not where the lead point is
+                    bool lBehind = Project(ship.LeadPoint(r) - game.worldOffset, out lp);   // the lead point itself: fly the nose onto it
                     if (lBehind || !OnScreen(lp)) continue;
                     if (li >= _leadPips.Count) _leadPips.Add(Ui.Marker.Make(_root, Ui.AMBER2, true));
                     _leadPips[li++].Place(lp - new Vector2(0f, 38f), false, 0f, "LEAD");
