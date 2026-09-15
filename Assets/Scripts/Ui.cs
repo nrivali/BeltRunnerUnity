@@ -773,9 +773,15 @@ public static class Ui
             _w[i] = UnityEngine.Random.Range(1f, 2.2f);
         }
 
-        /// `k` is the intensity 0..1; `dt` steps the streaks outward, faster with `speed` (0..1).
-        public void Set(float k, float dt, float speed)
+        Vector2 _origin;   // the vanishing point, as a fraction of the half-size off centre: it leads into a turn
+        float _bank;       // degrees: the spokes tip with the bank
+
+        /// `k` is the intensity 0..1; `dt` steps the streaks outward, faster with `speed` (0..1); `origin` moves the
+        /// vanishing point (fractions of the half-size) and `bank` tips the whole field (degrees).
+        public void Set(float k, float dt, float speed, Vector2 origin, float bank)
         {
+            _origin = origin;
+            _bank = bank;
             if (!_seeded) { for (int i = 0; i < N; i++) { Seed(i); _r[i] = UnityEngine.Random.Range(0.05f, 1f); } _seeded = true; }
             _k = k;
             if (k <= 0.005f) { SetVerticesDirty(); return; }
@@ -792,13 +798,14 @@ public static class Ui
             vh.Clear();
             if (_k <= 0.005f) return;
             var rect = GetPixelAdjustedRect();
-            var c = rect.center;
+            var c = rect.center + new Vector2(_origin.x * rect.width * 0.5f, _origin.y * rect.height * 0.5f);
             float half = new Vector2(rect.width, rect.height).magnitude * 0.5f;
+            float bankRad = _bank * Mathf.Deg2Rad;
             for (int i = 0; i < N; i++)
             {
                 float r0 = _r[i], r1 = Mathf.Min(1.05f, r0 + _len[i]);
                 if (r0 < 0.1f) continue;   // the centre stays clear
-                var d = new Vector2(Mathf.Cos(_ang[i]), Mathf.Sin(_ang[i]));
+                var d = new Vector2(Mathf.Cos(_ang[i] + bankRad), Mathf.Sin(_ang[i] + bankRad));
                 var a = c + d * r0 * half;
                 var b = c + d * r1 * half;
                 // faint near the centre, brightest two thirds out, gone at the edge

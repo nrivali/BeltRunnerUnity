@@ -1665,7 +1665,10 @@ public class Hud : MonoBehaviour
         bool burning = ship.afterburning && !docked && ship.cut == null && ship.warp == null;
         _speedK = Mathf.Lerp(_speedK, burning ? 1f : 0f, 1f - Mathf.Exp(-(burning ? 3f : 2f) * dt));
         var engS = State.Stat("engine");
-        _speed.Set(_speedK, dt, engS.max > 0f ? Mathf.Clamp01(ship.vel.magnitude / (engS.max * 3f)) : 0.5f);
+        // the streaks react to the turn: the vanishing point leads into it (a quarter of the half-width at full yaw, a
+        // fifth of the half-height at full pitch) and the field tips with the bank
+        _speed.Set(_speedK, dt, engS.max > 0f ? Mathf.Clamp01(ship.vel.magnitude / (engS.max * 3f)) : 0.5f,
+            new Vector2(ship.camYaw * 0.25f, ship.camPitch * 0.2f), -ship.camYaw * 14f - ship.camRoll * 7f);
         // side panels follow the window
         _services.sizeDelta = new Vector2(Mathf.Min(580f, _canvasSize.x * 0.52f), 0f);
         _inv.sizeDelta = new Vector2(Mathf.Min(520f, _canvasSize.x * 0.48f), 0f);

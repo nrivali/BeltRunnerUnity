@@ -134,7 +134,8 @@ public class Ship : MonoBehaviour
     // the camera feel: this frame's control deflections (for the swing and the bank) and the eased camera state
     public const float FOV = 62f;
     float _ctlYaw, _ctlPitch, _ctlRoll;
-    float _fov = FOV, _camYaw, _camPitch, _camRoll;
+    float _fov = FOV;
+    public float camYaw, camPitch, camRoll;   // the eased control deflections the camera swing uses (the HUD reads them too)
     public bool rdown;
 
     // the beam's heat effect (the browser's heatFx): the spot on the stone takes 30 s to reach white heat and cools off
@@ -2067,18 +2068,18 @@ public class Ship : MonoBehaviour
         // the turn: the chase camera hangs back on the outside of the turn, the look point leads into it, and the frame
         // banks a little with the yaw (roll input tips it too); everything eased so it settles rather than snaps
         float k = 1f - Mathf.Exp(-5f * dt);
-        _camYaw = Mathf.Lerp(_camYaw, CanFly ? _ctlYaw : 0f, k);
-        _camPitch = Mathf.Lerp(_camPitch, CanFly ? _ctlPitch : 0f, k);
-        _camRoll = Mathf.Lerp(_camRoll, CanFly ? _ctlRoll : 0f, k);
+        camYaw = Mathf.Lerp(camYaw, CanFly ? _ctlYaw : 0f, k);
+        camPitch = Mathf.Lerp(camPitch, CanFly ? _ctlPitch : 0f, k);
+        camRoll = Mathf.Lerp(camRoll, CanFly ? _ctlRoll : 0f, k);
         // free look turns the camera relative to the hull; the chase offset stays rigid on the ship's position
         var lq = _camQ * Quaternion.AngleAxis(lookYaw * Mathf.Rad2Deg, Vector3.up) * Quaternion.AngleAxis(lookPitch * Mathf.Rad2Deg, Vector3.right);
         var f = lq * Vector3.forward;
         var u = lq * Vector3.up;
         var r = lq * Vector3.right;
-        float bank = (-_camYaw * 14f - _camRoll * 7f) * Mathf.Deg2Rad;
+        float bank = (-camYaw * 14f - camRoll * 7f) * Mathf.Deg2Rad;
         u = (Mathf.Cos(bank) * u + Mathf.Sin(bank) * r).normalized;   // the bank: tip the up vector about the view axis
-        var camPos = transform.position - f * 88f * s + u * 30f * s - r * _camYaw * 30f * s - u * _camPitch * 18f * s;
-        var look = transform.position + f * 140f * s + u * 10f * s + r * _camYaw * 60f * s + u * _camPitch * 40f * s;
+        var camPos = transform.position - f * 88f * s + u * 30f * s - r * camYaw * 30f * s - u * camPitch * 18f * s;
+        var look = transform.position + f * 140f * s + u * 10f * s + r * camYaw * 60f * s + u * camPitch * 40f * s;
         if (shake > 0f)
         {
             shake = Mathf.Max(0f, shake - dt * 1.8f);
