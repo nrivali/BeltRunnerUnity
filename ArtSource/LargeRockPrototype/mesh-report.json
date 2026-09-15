@@ -1,0 +1,28 @@
+{
+  "generator": "5.2.1 LTS",
+  "sculpt_triangles": 1310720,
+  "texture_resolution": 4096,
+  "meshes": [
+    {
+      "lod": 0,
+      "triangles": 60000,
+      "vertices": 30002,
+      "nonmanifold_edges": 0,
+      "volume": 3.416634473184034
+    },
+    {
+      "lod": 1,
+      "triangles": 3000,
+      "vertices": 1502,
+      "nonmanifold_edges": 0,
+      "volume": 3.4012448893889564
+    },
+    {
+      "lod": 2,
+      "triangles": 720,
+      "vertices": 362,
+      "nonmanifold_edges": 0,
+      "volume": 3.365129269557376
+    }
+  ]
+}

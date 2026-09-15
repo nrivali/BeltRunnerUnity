@@ -1,0 +1,14 @@
+Unity 6000.6.0f1; GPU NVIDIA GeForce RTX 5070 Ti
+One of 28 variants replaced: boulder_A. Original 28 keys, instancing, orbit, radii and ore palette retained.
+Real Kessler lighting + runtime Post composite; 1600x1000, 4x MSAA, FOV 62
+LOD 0: 42220 -> 60000 triangles; 2 -> 1 material draws.
+LOD 1: 2508 -> 3000 triangles; 2 -> 1 material draws.
+LOD 2: 646 -> 720 triangles; 2 -> 1 material draws.
+Sculpt material=BeltRunner/SculptRock
+albedo: 4096x4096 BC7; 42.7 MiB native texture allocation
+stone: 4096x4096 BC7; 42.7 MiB native texture allocation
+normal: 4096x4096 BC7; 42.7 MiB native texture allocation
+surface: 4096x4096 BC7; 42.7 MiB native texture allocation
+Synchronized editor render+post+GPU readback wall time, not player FPS or isolated GPU time. 8 warm-up renders, 20 interleaved samples per version; median reported.
+1 close LOD asteroid(s): old 1.34 ms; prototype 1.35 ms.
+24 close LOD asteroid(s): old 2.66 ms; prototype 2.77 ms.

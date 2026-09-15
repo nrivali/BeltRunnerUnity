@@ -164,6 +164,7 @@ public class Belt
         _subMats = new Material[RockMeshes.SHAPES.Length * 2][];
         _tints = new bool[RockMeshes.SHAPES.Length * 2][];
         int fromLib = LoadLibrary();
+        LargeRockPrototype.Apply(_meshes, _subMats, _tints, OreFinishes);
         for (int s = 0; s < RockMeshes.SHAPES.Length; s++)
         {
             for (int v = 0; v < 2; v++)
