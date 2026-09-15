@@ -848,6 +848,56 @@ public static class Ui
         }
     }
 
+    // ---- the weapon pictures: line drawings in the HUD's colours, in a 60 x 60 space centred on the rect
+    public class WeaponIcon : MaskableGraphic
+    {
+        public string kind = "laser";
+        public void Set(string k) { if (k != kind) { kind = k; SetVerticesDirty(); } }
+
+        protected override void OnPopulateMesh(VertexHelper vh)
+        {
+            vh.Clear();
+            var r = GetPixelAdjustedRect();
+            var c = r.center;
+            var ink = A(GLOW_TEXT, 0.95f);
+            var dim = A(CYAN, 0.55f);
+            var hot = AMBER;
+            if (kind == "gun")
+            {
+                // the autocannon: a receiver block, a long barrel with a muzzle brake, a mount below, and two bolts leaving it
+                Rectangle(vh, new Rect(c.x - 26f, c.y - 7f, 16f, 14f), dim);
+                Outline(vh, new[] { new Vector2(c.x - 26f, c.y - 7f), new Vector2(c.x - 10f, c.y - 7f), new Vector2(c.x - 10f, c.y + 7f), new Vector2(c.x - 26f, c.y + 7f) }, 1.2f, ink);
+                Line(vh, new Vector2(c.x - 10f, c.y + 2f), new Vector2(c.x + 16f, c.y + 2f), 1.4f, ink);
+                Line(vh, new Vector2(c.x - 10f, c.y - 2f), new Vector2(c.x + 16f, c.y - 2f), 1.4f, ink);
+                Rectangle(vh, new Rect(c.x + 14f, c.y - 4f, 6f, 8f), ink);
+                Line(vh, new Vector2(c.x + 16f, c.y - 6f), new Vector2(c.x + 16f, c.y + 6f), 1.2f, ink);
+                Line(vh, new Vector2(c.x - 20f, c.y - 7f), new Vector2(c.x - 20f, c.y - 16f), 1.4f, dim);
+                Line(vh, new Vector2(c.x - 26f, c.y - 16f), new Vector2(c.x - 12f, c.y - 16f), 1.4f, dim);
+                Line(vh, new Vector2(c.x + 22f, c.y), new Vector2(c.x + 28f, c.y), 2.4f, hot);
+                Line(vh, new Vector2(c.x + 31f, c.y), new Vector2(c.x + 34f, c.y), 2.4f, A(hot, 0.6f));
+            }
+            else
+            {
+                // the mining laser: a dish (an arc) on its mount with the feed at the focus, and the beam going out right
+                const int N = 14;
+                var arc = new Vector2[N];
+                for (int i = 0; i < N; i++)
+                {
+                    float t = -1f + 2f * i / (N - 1);
+                    arc[i] = new Vector2(c.x - 14f + t * t * 10f, c.y + t * 20f);   // a parabola opening to the right
+                }
+                for (int i = 0; i + 1 < N; i++) Line(vh, arc[i], arc[i + 1], 1.5f, ink);
+                Line(vh, new Vector2(c.x - 12f, c.y), new Vector2(c.x - 2f, c.y), 1.2f, dim);
+                Rectangle(vh, new Rect(c.x - 4f, c.y - 2.5f, 5f, 5f), hot);
+                Line(vh, new Vector2(c.x - 14f, c.y), new Vector2(c.x - 24f, c.y - 6f), 1.4f, dim);
+                Line(vh, new Vector2(c.x - 24f, c.y - 6f), new Vector2(c.x - 24f, c.y - 18f), 1.4f, dim);
+                Line(vh, new Vector2(c.x - 30f, c.y - 18f), new Vector2(c.x - 18f, c.y - 18f), 1.4f, dim);
+                Line(vh, new Vector2(c.x + 1f, c.y), new Vector2(c.x + 30f, c.y), 4f, A(hot, 0.25f));
+                Line(vh, new Vector2(c.x + 1f, c.y), new Vector2(c.x + 30f, c.y), 1.6f, hot);
+            }
+        }
+    }
+
     // ---- the pointer dot: a small pale disc with a dark rim that stands in for the mouse pointer in flight
     public class Dot : MaskableGraphic
     {

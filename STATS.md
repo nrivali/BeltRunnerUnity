@@ -15,7 +15,7 @@ The numbers as the code has them today. World units (u) are what the code uses; 
 | Hit box | Ship radius (SHIP_R) × 0.8 | 60 u for bolts (hull is 28 u for the reticle and ranges; the model is drawn at twice its original size) |
 | Top speed | 500 u/s (250 m/s), ×2 on the afterburner from the start, up to ×5 with the refits | 865 u/s, ×1.25 (1,081) on the boost (runs in from beyond 900 u and long runs out), capped on a strafe to hold the circle |
 | Thrust | 328 u/s² | 220 u/s² accel (352 on the boost), 320 u/s² braking |
-| Turn rate | 30°/s yaw and pitch | 30°/s |
+| Turn rate | 30°/s yaw and pitch, 50°/s in the drift | 30°/s |
 | Damage per second landed | 48 | 24 |
 | Time to strip shield + hull (100) | ~4.2 s of raider hits | ~2.1 s of player hits |
 | Bounty | | 140 cr, plus 35% chance of 8–28 u of outer-belt ore |
@@ -43,7 +43,7 @@ Shield is fixed at 50 for every fit (no refit yet).
   speed). Drag 0.32/s while thrusting, 0.064/s at zero throttle (coasts about
   15 × speed in distance: from top speed about 3,900 m; the S retros do the stopping).
 - Retros (S at zero throttle): 0.4 × thrust. Drift (hold Space): engine cuts, no retros, the ship coasts on at the
-  coasting drag, turn rate ×2 (60°/s), nose swings free: for turning round, not stopping.
+  coasting drag, turn rate 50°/s (the usual 30), nose swings free: for turning round, not stopping.
 - Both weapons fire straight down the nose; the mouse steers. Every raider in reach carries a LEAD pip, drawn at the
   crosshair's distance along the line to the lead point; a Q or MMB lock on a raider steers the nose onto that point.
 - Losing: hull 0 → a death animation (the raiders' six ends: 30% the blast, else a wreck tumbling for 2.6–4.5 s), then

@@ -43,6 +43,7 @@ public class Hud : MonoBehaviour
     Text _speedUnit;
     // the WEAPON pane: two rows (the laser, the cannon), the equipped one lit, and the cannon's heat under them
     RectTransform _weaponPane, _wHeatRt;
+    Ui.WeaponIcon _wIcon;
     Ui.Box _wBox1, _wBox2;
     Text _wName1, _wName2, _wHeatT;
     Ui.SegBar _wHeat;
@@ -211,8 +212,8 @@ public class Hud : MonoBehaviour
     //   SHIP   300   hull, shield, fuel and the hold, two by two
     //   FLIGHT 300   speed and thrust, the cargo ship's distance, the field, the radar, the threat
     //   TARGET 300   what the crosshair or the lock is on: name, size, range, health, the warning
-    //   WEAPON 200   the two weapons with their keys, the equipped one lit, the cannon's heat
-    const float BAND_LEFT = -565f;
+    //   WEAPON 240   a picture of the equipped weapon, the two weapons with their keys, the equipped one lit, the heat
+    const float BAND_LEFT = -585f;
 
     RectTransform BandPane(string name, float left, float w, out Ui.Pane pane)
     {
@@ -280,14 +281,18 @@ public class Hud : MonoBehaviour
     void BuildWeaponPane()
     {
         Ui.Pane p;
-        _weaponPane = BandPane("Weapon", BAND_LEFT + 930f, 200f, out p);
+        _weaponPane = BandPane("Weapon", BAND_LEFT + 930f, 240f, out p);
+        // the picture on the left, the rows on the right
+        var ic = Ui.Rect("Icon", _weaponPane, Ui.TL, Ui.TL, new Vector2(12f, -8f), new Vector2(64f, 60f));
+        _wIcon = ic.gameObject.AddComponent<Ui.WeaponIcon>();
+        _wIcon.raycastTarget = false;
         WeaponRow(-12f, "1", "Mining laser", out _wBox1, out _wName1);
         WeaponRow(-42f, "2", "Autocannon", out _wBox2, out _wName2);
         var he = Ui.Eyebrow(_weaponPane, "Heat", Ui.HUD_DIM);
         Ui.At(he.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -74f), new Vector2(60f, 14f));
         _wHeatT = Ui.Glow(Ui.Label(_weaponPane, "", "mono", 11, Ui.GLOW_TEXT, TextAnchor.UpperRight), Ui.A(Ui.HUD_GLOW, 0.35f));
         Ui.At(_wHeatT.rectTransform, Ui.TR, Ui.TR, new Vector2(-14f, -74f), new Vector2(120f, 14f));
-        _wHeatRt = Ui.Rect("Heat", _weaponPane, Ui.TL, Ui.TL, new Vector2(14f, -90f), new Vector2(172f, 5f));
+        _wHeatRt = Ui.Rect("Heat", _weaponPane, Ui.TL, Ui.TL, new Vector2(14f, -90f), new Vector2(212f, 5f));
         _wHeat = _wHeatRt.gameObject.AddComponent<Ui.SegBar>();
         _wHeat.segmented = false;
         _wHeat.track = new Color(0.078f, 0.098f, 0.212f);
@@ -297,11 +302,11 @@ public class Hud : MonoBehaviour
 
     void WeaponRow(float y, string key, string name, out Ui.Box box, out Text label)
     {
-        var row = Ui.Rect("Weapon " + key, _weaponPane, Ui.TL, Ui.TL, new Vector2(14f, y), new Vector2(172f, 26f));
+        var row = Ui.Rect("Weapon " + key, _weaponPane, Ui.TL, Ui.TL, new Vector2(84f, y), new Vector2(142f, 26f));
         box = Ui.MakeBox(row, Ui.A(Ui.CYAN, 0.04f), Ui.HUD_FAINT, 1f);
         Ui.Chip(row, key, true, new Vector2(6f, -5f));
         label = Ui.Label(row, name, "display", 13, Ui.HUD_DIM, TextAnchor.MiddleLeft);
-        Ui.At(label.rectTransform, Ui.TL, Ui.TL, new Vector2(34f, 0f), new Vector2(130f, 26f));
+        Ui.At(label.rectTransform, Ui.TL, Ui.TL, new Vector2(34f, 0f), new Vector2(106f, 26f));
     }
 
     // ---- bottom left: the flight controls list (.hud-bl .controls), C hides it
@@ -1614,6 +1619,7 @@ public class Hud : MonoBehaviour
         _row2.text = Kv("RADAR", radar) + "   THREAT " + threatTxt;
         // WEAPON: the equipped row lit amber, the other dim; the heat reads for the cannon
         bool gunUp = ship.weapon == "gun";
+        _wIcon.Set(ship.weapon);
         _wBox1.Set(gunUp ? Ui.A(Ui.CYAN, 0.04f) : Ui.A(Ui.AMBER, 0.16f), gunUp ? Ui.HUD_FAINT : Ui.AMBER);
         _wBox2.Set(gunUp ? Ui.A(Ui.AMBER, 0.16f) : Ui.A(Ui.CYAN, 0.04f), gunUp ? Ui.AMBER : Ui.HUD_FAINT);
         _wName1.color = gunUp ? Ui.HUD_DIM : Ui.GLOW_TEXT;

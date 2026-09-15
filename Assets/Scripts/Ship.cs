@@ -8,7 +8,7 @@ using UnityEngine;
 public class Ship : MonoBehaviour
 {
     public const float TURN = 30f * Mathf.Deg2Rad;   // yaw and pitch: 30 degrees a second at full deflection
-    public const float DRIFT_TURN = 2f;      // the drift brake: the nose turns this many times faster (60 degrees a second)
+    public const float DRIFT_TURN = 50f / 30f;   // the drift: the nose turns at 50 degrees a second (the usual 30)
     public const float REPAIR_RATE = 6f;
     public const float WARP_DUR = 8.6f;
     public const float WARP_LOAD_AT = 4.3f;   // the screen is black from 4.2 s to 5.4 s; the zone swaps underneath
@@ -1212,7 +1212,7 @@ public class Ship : MonoBehaviour
             if (Input.GetKey(KeyCode.X)) throttle = 0f;
         }
         // the drift: hold Space and the engine cuts (the throttle setting is kept for the release) and the ship coasts on
-        // along its momentum while the nose swings twice as fast as usual; it is for turning round, not for stopping
+        // along its momentum while the nose swings at 50° a second, against the usual 30; it is for turning round, not for stopping
         drifting = flying && Input.GetKey(KeyCode.Space);
         float abMult = State.Stat("thrusters").mult;
         afterburning = flying && throttle > 0f && !drifting && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && abMult > 1f && State.fuel > 0f;
