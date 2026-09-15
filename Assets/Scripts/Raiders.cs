@@ -490,7 +490,7 @@ public class Raiders
                         hitsLanded++;
                         hitFlash = 1f;
                         hitKill = r.dead;
-                        Audio.Sure("hit_marker");   // the kill has the boom; no separate sting   // the hit marker: a punchy tick, a sting on the kill
+                        Audio.Sure(r.dead ? "kill_marker" : "hit_marker");   // the hit marker: a punchy tick, a sting on the kill   // the hit marker: a punchy tick, a sting on the kill
                         b.life = 0f;
                         break;
                     }
