@@ -41,9 +41,9 @@ Shield is fixed at 50 for every fit (no refit yet).
 
 - Newtonian: thrust along the nose, velocity persists; the throttle sets the speed cap (half throttle holds half the top
   speed). Drag 0.32/s while thrusting, 0.064/s at zero throttle (coasts about
-  15 × speed in distance: from top speed about 3,900 m; the retros and the drift brake do the stopping).
-- Retros (S at zero throttle): 0.4 × thrust. Drift brake (hold Space): engine cuts, retros at 10 × thrust (a stop from base top speed in 0.15 s), turn rate ×2 (60°/s), drag stays
-  at the thrusting value, nose swings free.
+  15 × speed in distance: from top speed about 3,900 m; the S retros do the stopping).
+- Retros (S at zero throttle): 0.4 × thrust. Drift (hold Space): engine cuts, no retros, the ship coasts on at the
+  coasting drag, turn rate ×2 (60°/s), nose swings free: for turning round, not stopping.
 - Q lock on a raider steers the ship to keep the nose on it; the mouse still aims the gun. The LEAD pip marks where to
   put the crosshair for a bolt fired now to meet the raider.
 - Losing: hull 0 → a death animation (the raiders' six ends: 30% the blast, else a wreck tumbling for 2.6–4.5 s), then
