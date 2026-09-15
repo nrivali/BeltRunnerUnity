@@ -22,3 +22,5 @@ Rules for anyone (person or agent) working here:
   editor is at `C:\Program Files\Unity 6000.6.0f1\Editor\Unity.exe`; see README for the commands.
   - The build fails with "used by another process" while a player is running; check `tasklist` for `BeltRunner.exe`
     and never kill one that was launched without `-smoke` (that is the user playing).
+
+- Use one playable Windows build: `Builds/Windows/BeltRunner.exe`. Do not create asset-specific or review build folders (user preference, 2026-09-15). If it is running, wait for the user to close it before rebuilding; never kill their game.

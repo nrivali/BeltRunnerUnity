@@ -1,0 +1,9 @@
+{
+  "mesh_vertices": 130562,
+  "source_packed": true,
+  "relative_maps": {
+    "dry_albedo": "//../../Assets/Resources/Planets/Dry/dry_albedo.png",
+    "dry_normal": "//../../Assets/Resources/Planets/Dry/dry_normal.png",
+    "dry_surface": "//../../Assets/Resources/Planets/Dry/dry_surface.png"
+  }
+}

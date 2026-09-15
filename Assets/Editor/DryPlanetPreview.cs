@@ -12,7 +12,8 @@ public static class DryPlanetPreview
     static GameObject planet;
     static Lighting lighting;
     static int frame, shot;
-    static readonly string[] shots = { "orbit", "terrain", "far-side", "terminator", "night" };
+    static bool baseline;
+    static readonly string[] shots = { "orbit", "terrain", "far-side", "terminator", "night", "belt-distance", "far-distance", "seam", "north-pole" };
     static string output;
     static ShadowQuality shadows;
     static ShadowResolution resolution;
@@ -53,13 +54,15 @@ public static class DryPlanetPreview
         AssetDatabase.SaveAssets();
     }
 
+    public static void RenderBaseline() { baseline=true; Render(); }
+
     public static void Render()
     {
         if (!Application.isBatchMode) throw new InvalidOperationException("Run this preview in a batch editor.");
         Prepare();
         shadows=QualitySettings.shadows; resolution=QualitySettings.shadowResolution;
         cascades=QualitySettings.shadowCascades; shadowDistance=QualitySettings.shadowDistance;
-        output=Path.GetFullPath("Logs/dry-planet-preview");
+        output=Path.GetFullPath(baseline?"Logs/planet-detail-before":"Logs/planet-detail-after");
         Directory.CreateDirectory(output);
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         camera=new GameObject("Planet preview camera").AddComponent<Camera>();
@@ -112,9 +115,12 @@ public static class DryPlanetPreview
         if(++frame<20)return;
         try
         {
-            camera.fieldOfView=shot==1?33:39;
+            camera.fieldOfView=shot>=5 && shot<=6?62:shot==1?33:39;
             Vector3 view=shot==2?new Vector3(0,.2f,1):shot==3?new Vector3(-1,.25f,-.1f):shot==4?-Data.ZONE_KESSLER.sunDir.normalized:new Vector3(0,.16f,-1);
-            camera.transform.position=view.normalized*(shot==1?1030:1450);
+            if(shot==7)view=new Vector3(1,.15f,0);
+            if(shot==8)view=new Vector3(.02f,1,0);
+            float range=shot==5?400*Data.DEPOT_ORBIT/(Data.ZONE_KESSLER.planetR*Data.PLANET_SCALE):shot==6?3200:shot==1?1030:1450;
+            camera.transform.position=view.normalized*range;
             camera.transform.rotation=Quaternion.LookRotation(-camera.transform.position,Vector3.up);
             var previous=RenderTexture.active;var rt=new RenderTexture(1600,1000,24,RenderTextureFormat.ARGBHalf);rt.antiAliasing=4;
             camera.targetTexture=rt;camera.Render();
@@ -128,7 +134,7 @@ public static class DryPlanetPreview
             UnityEngine.Object.DestroyImmediate(image);UnityEngine.Object.DestroyImmediate(rt);UnityEngine.Object.DestroyImmediate(composite);
             Debug.Log("dry-planet preview: "+shots[shot]);
             frame=15;if(++shot<shots.Length)return;
-            File.AppendAllText(Path.Combine(output,"validation.txt"),"Five editor views rendered through the actual runtime Post.OnRenderImage composite.\n");Finish(0);
+            File.AppendAllText(Path.Combine(output,"validation.txt"),shots.Length+" editor views rendered through the actual runtime Post.OnRenderImage composite. Belt-distance uses the game FOV and carrier-orbit/planet-radius ratio.\n");Finish(0);
         }
         catch(Exception ex){Debug.LogException(ex);Finish(1);}
     }
@@ -143,11 +149,7 @@ public static class DryPlanetPreview
 
     public static void BuildPlayer()
     {
-        Prepare();Build.RockMaterialAsset();
-        var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{
-            scenes=new[]{"Assets/Scenes/Main.unity"},locationPathName="Builds/DryPlanet/BeltRunner.exe",
-            target=BuildTarget.StandaloneWindows64,options=BuildOptions.None});
-        Debug.Log("dry-planet build: "+report.summary.result+" errors="+report.summary.totalErrors);
-        if(report.summary.result!=UnityEditor.Build.Reporting.BuildResult.Succeeded)EditorApplication.Exit(1);
+        Prepare();
+        Build.Player();
     }
 }

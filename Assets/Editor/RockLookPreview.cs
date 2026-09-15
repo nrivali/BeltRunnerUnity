@@ -282,15 +282,6 @@ public static class RockLookPreview
 
     public static void BuildReviewPlayer()
     {
-        Build.RockMaterialAsset();
-        var result = BuildPipeline.BuildPlayer(new BuildPlayerOptions
-        {
-            scenes = new[] { "Assets/Scenes/Main.unity" },
-            locationPathName = "Builds/RockDetail/BeltRunner.exe",
-            target = BuildTarget.StandaloneWindows64,
-            options = BuildOptions.None
-        });
-        Debug.Log("rock-preview build: " + result.summary.result + " errors=" + result.summary.totalErrors);
-        if (result.summary.result != UnityEditor.Build.Reporting.BuildResult.Succeeded) EditorApplication.Exit(1);
+        Build.Player();
     }
 }

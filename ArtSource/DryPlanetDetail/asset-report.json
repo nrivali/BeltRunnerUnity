@@ -1,0 +1,16 @@
+{
+  "vertices": 130562,
+  "triangles": 261120,
+  "nonmanifold_edges": 0,
+  "radius_min": 0.9960310724624433,
+  "radius_max": 0.9994478294849396,
+  "source_size": [
+    1774,
+    887
+  ],
+  "map_size": [
+    4096,
+    2048
+  ],
+  "water": false
+}

@@ -1,0 +1,28 @@
+{
+  "date_utc": "2026-09-15T18:51:28.971198+00:00",
+  "version": "0.9.125-unity",
+  "validated_base_commit": "ca1931aff353ed1e4d3ee6dd385d44198aaff0f9",
+  "runtime_sha256": {
+    "Assets/Resources/Models/ferron.glb": "CF8C1262FF9759200A0833F5C36A7CF81D9AC91CF1DA2854A5E4CAE4A0183985",
+    "Assets/Resources/Shaders/DryPlanet.shader": "73C3160226CEEB2286B2A7887F202DD78C7543FC45A30A23AB14D36D539E569D",
+    "Assets/Resources/Planets/Dry/dry_albedo.png": "44D14FA3E33FB27E7A79AF4A4520F063E42DB5811B8269617360D0DB3BDE44AF",
+    "Assets/Resources/Planets/Dry/dry_normal.png": "3B9A55F86F22F052E363F70800A0AFF8198272D5A2F6EBE26708BF687A904640",
+    "Assets/Resources/Planets/Dry/dry_surface.png": "69497A7DF7E156F11CD068DCBB0C3AA8215678FA9A340D66888D7780F2D51629"
+  },
+  "preserved_sha256": {
+    "Assets/Scripts/Game.cs": "6C2DF92E009D17BF055302CE79338C5AE424F2B7AE015BC914296DD80D851577",
+    "Assets/Scripts/Lighting.cs": "9E93A5E040F0EE7BC01270B241FCEDC19629628C7B98A8F9AB0B7D11F664BCB0",
+    "Assets/Resources/Shaders/Post.shader": "D715E3256DA6D9319F8DAC10B8D2874A0608818EF9AE8818F2501C3B2CF2E002",
+    "Assets/Resources/Models/homeworld.glb": "6D457FDAAFF87FFC2E494AAF54EC80B425AF6085C51DBEAEBBCDD90802F83EF5",
+    "Assets/Resources/Models/homeworld.glb.meta": "1738D32A88A840627D652129DCCFB4A6B5BF8EF427277DDDA392FDBB6FA26DA0",
+    "Assets/Resources/Models/ferron.glb.meta": "8433FB63F68C14AFE30145280E5AFDA3D4FA0B435B324DA83DA43E9E56CEADD5"
+  },
+  "latest_sky_sha256": "3DD76666B890BF0AEB662EE0A990315949C1C568CAF2E95E16C6D0DF9F60CE5C",
+  "dotnet_compile": "Passed; zero warnings/errors",
+  "windows_build": "build: Succeeded \u00c2\u00b7 0 errors \u00c2\u00b7 629 MB \u00c2\u00b7 C:/Users/rival/Documents/BeltRunnerUnity/Builds/Windows/BeltRunner.exe",
+  "player": "Builds/Windows/BeltRunner.exe",
+  "smoke_test": false,
+  "player_save_operations": false,
+  "mesh_triangle_budget_change": 0,
+  "texture_memory_budget_change": 0
+}
