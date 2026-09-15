@@ -17,9 +17,8 @@ public static class Data
     public const float SHIP_R = 16f * SHIP_SCALE;
     public const float PULSE_CD = 5f;
     public const float PULSE_TIME = 2.6f;
-    public const float SHIELD_MAX = 50f;      // the ship's shield: soaks damage first, recharges after SHIELD_WAIT quiet seconds
+    public const float SHIELD_MAX = 50f;      // the ship's shield at the base refit (State.ShieldMax is the fitted one): soaks damage first, recharges after SHIELD_WAIT quiet seconds
     public const float SHIELD_WAIT = 10f;
-    public const float SHIELD_RATE = SHIELD_MAX / 3f;   // points a second: empty to full in three seconds
     public const string VERSION = "0.9.120-unity";
     /// The cargo ship: its orbit round the planet (inside the ring belt), fuel supply and repair-parts store, and 50-slot storage.
     public const float DEPOT_ORBIT = 925000f;
@@ -98,6 +97,8 @@ public static class Data
         { "scanner", new Upgrade { name = "Scanner", levels = new[] { L(range: 28000), L(range: 46000), L(range: 74000), L(range: 135000) }, costs = new float[] { 400, 1800, 6000 } } },
         { "range", new Upgrade { name = "Laser range", levels = new[] { L(reach: 2500), L(reach: 3500), L(reach: 5000), L(reach: 7000) }, costs = new float[] { 2500, 9000, 25000 } } },
         { "hull", new Upgrade { name = "Hull plating", levels = new[] { L(hp: 50), L(hp: 80), L(hp: 125), L(hp: 200), L(hp: 300) }, costs = new float[] { 250, 900, 3000, 9000 } } },
+        // the shield: hp = the points it soaks before the hull; it always recharges empty to full in three seconds
+        { "shield", new Upgrade { name = "Shield", levels = new[] { L(hp: 50), L(hp: 80), L(hp: 120), L(hp: 170), L(hp: 240) }, costs = new float[] { 500, 1800, 5500, 14000 } } },
         { "thrusters", new Upgrade { name = "Afterburner", levels = new[] { L(mult: 2), L(mult: 3), L(mult: 4), L(mult: 5) }, costs = new float[] { 3000, 9000, 24000 } } },
         { "overcharge", new Upgrade { name = "Laser overcharge", levels = new[] { L(mult: 1f), L(mult: 1.5f), L(mult: 2f), L(mult: 2.5f), L(mult: 3f) }, costs = new float[] { 600, 2200, 7000, 18000 } } },
         // the autocannon (combat), fitted from the start: rate = shots a second, reach = range in world units, mult = damage a shot
@@ -105,7 +106,7 @@ public static class Data
         // seeker rockets (combat), fitted from the start: slots = the magazine (restocked on the pad), rate = the reload in seconds, reach = how far one goes after a raider
         { "rocket", new Upgrade { name = "Seeker rockets", levels = new[] { L(slots: 4, rate: 6, reach: 12000), L(slots: 6, rate: 5, reach: 14000), L(slots: 8, rate: 4, reach: 16000), L(slots: 10, rate: 3, reach: 18000) }, costs = new float[] { 1200, 4000, 11000 } } },
     };
-    public static readonly string[] UPGRADE_KEYS = { "laser", "cargo", "engine", "tank", "scanner", "range", "hull", "thrusters", "overcharge", "gun", "rocket" };
+    public static readonly string[] UPGRADE_KEYS = { "laser", "cargo", "engine", "tank", "scanner", "range", "hull", "shield", "thrusters", "overcharge", "gun", "rocket" };
 
     /// Cargo ship upgrades, bought at the services panel; they work whether or not you are docked. Level 0 = not
     /// installed. The dish on the mast breaks rocks near the carrier and leaves their ore adrift; collector drones fly
@@ -160,6 +161,7 @@ public static class Data
             case "scanner": return Fm(L.range) + " m scan";
             case "range": return Fm(L.reach) + " m laser reach";
             case "hull": return L.hp + " hull points";
+            case "shield": return L.hp + " shield points";
         }
         return "";
     }

@@ -1623,11 +1623,11 @@ public class Hud : MonoBehaviour
         float tank = State.Stat("tank").cap;
         float ff = State.fuel / tank;
         _gFuel.Show(ff, Mathf.FloorToInt(State.fuel) + " / " + Mathf.RoundToInt(tank), ff < 0.2f ? Ui.RED : Ui.CYAN);
-        float sf = State.shield / Data.SHIELD_MAX;
-        bool charging = State.sinceHit >= Data.SHIELD_WAIT && State.shield < Data.SHIELD_MAX;
+        float sf = State.shield / State.ShieldMax;
+        bool charging = State.sinceHit >= Data.SHIELD_WAIT && State.shield < State.ShieldMax;
         // the wait: a countdown to the recharge while the shield is down and the last hit is under ten seconds old
-        string tail = charging ? " ↑" : State.shield < Data.SHIELD_MAX ? " · " + (Data.SHIELD_WAIT - State.sinceHit).ToString("0.0") + " s" : "";
-        _gShield.Show(sf, Mathf.CeilToInt(State.shield) + " / " + Mathf.RoundToInt(Data.SHIELD_MAX) + tail, sf < 0.25f ? Ui.AMBER : Data.Hex("#8fe8ff"));
+        string tail = charging ? " ↑" : State.shield < State.ShieldMax ? " · " + (Data.SHIELD_WAIT - State.sinceHit).ToString("0.0") + " s" : "";
+        _gShield.Show(sf, Mathf.CeilToInt(State.shield) + " / " + Mathf.RoundToInt(State.ShieldMax) + tail, sf < 0.25f ? Ui.AMBER : Data.Hex("#8fe8ff"));
         float tv = ship.braking ? 1f : ship.throttle;
         _gThr.Show(tv, ship.drifting ? "DRIFT" : ship.braking ? "RETRO" : Mathf.RoundToInt(ship.throttle * 100f) + "%", ship.braking ? Ui.CYAN : (ship.afterburning ? Ui.AMBER2 : Ui.AMBER));
         int us = State.UsedSlots();

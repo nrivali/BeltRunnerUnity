@@ -8,7 +8,7 @@ The numbers as the code has them today. World units (u) are what the code uses; 
 | | Player (base fit) | Raider (Kessler, danger 0.5) |
 |---|---|---|
 | Hull | 50 | 50 |
-| Shield | 50, recharges empty to full in 3 s after 10 s without a hit; sounds when it is stripped, while it is down, and while it recharges (cut by a hit); a breathing red edge on screen while it is down | 50, recharges 10/s after 10 s without a hit |
+| Shield | 50 at the base refit (80, 120, 170, 240 with the Shield refit), recharges empty to full in 3 s after 10 s without a hit; sounds when it is stripped, while it is down, and while it recharges (cut by a hit); a breathing red edge on screen while it is down | 50, recharges 10/s after 10 s without a hit |
 | Gun | Autocannon: 8 dmg, 6 shots/s, 10,000 u (5,000 m); overheats after 5 s of continuous fire, locked out until cooled below 40% (4 s from full to cold) | 4 dmg, 6 shots/s, 6,000 u (3,000 m) reach |
 | Bolt speed | 5,000 u/s (dies after 2.2 s, 11,000 u) | 2,600 u/s (dies after 2.6 s, 6,760 u) |
 | Rockets | Seeker rockets: 4 aboard (restocked on the pad), one per trigger pull, 6 s reload; 2,400 u/s (accelerating at 1,800 u/s² from the ship's speed plus 300), turning 70°/s onto the raider with a velocity lead, 12 s of flight; contact within 70 u destroys the raider outright with the blast; goes after the locked raider, else the nearest within 30° of the nose, else the nearest within 12,000 u (6,000 m) | none |
@@ -28,6 +28,7 @@ The numbers as the code has them today. World units (u) are what the code uses; 
 | Autocannon | 8 dmg · 6/s → 12 · 7/s → 18 · 8/s → 26 · 10/s, 5,000 m at every level | 900, 3,200, 9,000 |
 | Seeker rockets (magazine · reload · chase) | 4 · 6 s · 6,000 m → 6 · 5 s · 7,000 m → 8 · 4 s · 8,000 m → 10 · 3 s · 9,000 m | 1,200, 4,000, 11,000 |
 | Hull plating | 50 → 80 → 125 → 200 → 300 | 250, 900, 3,000, 9,000 |
+| Shield | 50 → 80 → 120 → 170 → 240, always empty to full in 3 s | 500, 1,800, 5,500, 14,000 |
 | Engines (thrust · top speed, u) | 328 · 500 → 438 · 640 → 562 · 800 → 718 · 980 → 922 · 1,220 (250 m/s base on the readout) | 300, 1,100, 3,500, 10,000 |
 | Afterburner | ×2 (fitted from the start) → ×3 → ×4 → ×5 speed on Shift, heavy fuel burn | 3,000, 9,000, 24,000 |
 | Fuel tank | 100 → 160 → 250 → 400 → 600 | 150, 600, 2,000, 6,000 |

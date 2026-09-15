@@ -62,6 +62,10 @@ public static class State
         Load();
     }
 
+    /// The shield at the fitted refit, and its recharge rate (empty to full in three seconds at any level).
+    public static float ShieldMax { get { return Stat("shield").hp; } }
+    public static float ShieldRate { get { return ShieldMax / 3f; } }
+
     /// The level entry of a refit, e.g. Stat("engine").max
     public static Data.Level Stat(string key)
     {
@@ -84,7 +88,7 @@ public static class State
     {
         sinceHit += dt;
         bool wasOut = shield <= 0f;
-        if (sinceHit >= Data.SHIELD_WAIT && shield < Data.SHIELD_MAX) shield = Mathf.Min(Data.SHIELD_MAX, shield + Data.SHIELD_RATE * dt);
+        if (sinceHit >= Data.SHIELD_WAIT && shield < ShieldMax) shield = Mathf.Min(ShieldMax, shield + ShieldRate * dt);
         if (wasOut && shield > 0f) Audio.Play("shield_up");   // the recharge starting from nothing: the shield coming back
     }
 
@@ -367,6 +371,7 @@ public static class State
         credits -= c;
         up[key] = i + 1;
         if (key == "hull") hull = Stat("hull").hp;
+        if (key == "shield") shield = ShieldMax;
         Save();
         msg = u.name + " upgraded to Lv" + (i + 2);
         return true;
@@ -388,7 +393,7 @@ public static class State
 
     // ---- the save file: the browser's field names, written by JsonUtility through a mirror of the save object
     [Serializable] public class Bag { public float iron, copper, gold, platinum, crystal, cobalt, beryl; }
-    [Serializable] public class Ups { public int laser, cargo, engine, tank, scanner, range, hull, thrusters, overcharge, gun, rocket; }
+    [Serializable] public class Ups { public int laser, cargo, engine, tank, scanner, range, hull, shield, thrusters, overcharge, gun, rocket; }
     [Serializable] public class Dep { public int laser, collectors; }
     [Serializable] public class Settings { public bool sound = true; public float volume = 1f; public bool music = true; public float music_volume = 1f; public float hud = 1f; public bool controls = true; public int display = 1; }
     [Serializable]
@@ -423,7 +428,7 @@ public static class State
         {
             credits = credits, fuel = fuel, hull = hull, shield = shield, mined = mined, earned = earned, time = time, shipFuel = shipFuel, parts = parts,
             cargo = ToBag(cargo), store = ToBag(store), market = ToBag(market),
-            up = new Ups { laser = up["laser"], cargo = up["cargo"], engine = up["engine"], tank = up["tank"], scanner = up["scanner"], range = up["range"], hull = up["hull"], thrusters = up["thrusters"], overcharge = up["overcharge"], gun = up["gun"], rocket = up["rocket"] },
+            up = new Ups { laser = up["laser"], cargo = up["cargo"], engine = up["engine"], tank = up["tank"], scanner = up["scanner"], range = up["range"], hull = up["hull"], thrusters = up["thrusters"], overcharge = up["overcharge"], gun = up["gun"], rocket = up["rocket"], shield = up["shield"] },
             depot = new Dep { laser = depot["laser"], collectors = depot["collectors"] }, droneUnits = droneUnits,
             zone = zoneId, tut = tut, rockets = rockets, settings = new Settings { sound = soundOn, volume = volume, music = musicOn, music_volume = musicVolume, hud = hudScale, controls = controlsShown, display = display },
         };
@@ -448,7 +453,7 @@ public static class State
         credits = s.credits;
         fuel = s.fuel;
         hull = s.hull;
-        shield = Mathf.Clamp(s.shield, 0f, Data.SHIELD_MAX);
+        shield = Mathf.Max(0f, s.shield);   // clipped to the fitted shield once the refits are in, below
         shipFuel = Mathf.Min(Data.CARGO_FUEL_CAP, s.shipFuel);
         parts = Mathf.Min(Data.PARTS_CAP, s.parts);
         mined = s.mined;
@@ -465,9 +470,10 @@ public static class State
         {
             // an older save's hull was 100 at the first plating; it is 50 now
             up["laser"] = s.up.laser; up["cargo"] = s.up.cargo; up["engine"] = s.up.engine; up["tank"] = s.up.tank; up["scanner"] = s.up.scanner;
-            up["range"] = s.up.range; up["hull"] = s.up.hull; up["thrusters"] = s.up.thrusters; up["overcharge"] = s.up.overcharge; up["gun"] = s.up.gun; up["rocket"] = s.up.rocket;
+            up["range"] = s.up.range; up["hull"] = s.up.hull; up["thrusters"] = s.up.thrusters; up["overcharge"] = s.up.overcharge; up["gun"] = s.up.gun; up["rocket"] = s.up.rocket; up["shield"] = s.up.shield;
             foreach (var k in Data.UPGRADE_KEYS) up[k] = Mathf.Clamp(up[k], 0, Data.UPGRADES[k].levels.Length - 1);
         }
+        shield = Mathf.Min(shield, ShieldMax);
         if (s.depot != null)
         {
             depot["laser"] = Mathf.Clamp(s.depot.laser, 0, Data.DEPOT_UPGRADES["laser"].costs.Length);
