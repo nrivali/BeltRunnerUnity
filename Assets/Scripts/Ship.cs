@@ -104,6 +104,11 @@ public class Ship : MonoBehaviour
     // the autocannon (combat): the raider under the nose (or the locked one within the cone), the shot timer
     public Raiders.Raider raiderTarget;
     public bool gunFiring;
+    // the autocannon's heat: 0..1, full after GUN_HEAT_TIME of continuous fire, then a lockout until it cools below
+    // GUN_COOL_TO; it cools from full in GUN_COOL_TIME
+    public float gunHeat;
+    public bool gunOverheated;
+    public const float GUN_HEAT_TIME = 5f, GUN_COOL_TIME = 4f, GUN_COOL_TO = 0.4f;
     public Vector3 aimDir = Vector3.forward;   // where the gun points: down the mouse ray, within the forward half
     public string weapon = "laser";   // the scroll wheel swaps: "laser" cuts rock, "gun" is the autocannon
     float _gunCd, _gunWarnT;
@@ -1907,19 +1912,32 @@ public class Ship : MonoBehaviour
             }
             if (raiderTarget == null) raiderTarget = game.raiders.NearestInCone(origin, aimDir, gunReach, Mathf.Cos(4f * Mathf.Deg2Rad));
         }
-        if (firing && weapon == "gun")
+        // the heat: up while it fires, down while it does not; full is a lockout until it has cooled well down
+        bool wantGun = firing && weapon == "gun";
+        if (wantGun && !gunOverheated)
         {
-            // the cannon selected: bolts at the raider in the sights (led), or straight down the nose
+            gunHeat = Mathf.Min(1f, gunHeat + dt / GUN_HEAT_TIME);
+            if (gunHeat >= 1f) { gunOverheated = true; Audio.Play("laser_off", -2f); game.Toast("Autocannon overheated · let it cool", true); }
+        }
+        else
+        {
+            gunHeat = Mathf.Max(0f, gunHeat - dt / GUN_COOL_TIME);
+            if (gunOverheated && gunHeat <= GUN_COOL_TO) { gunOverheated = false; Audio.Play("chime", -6f); }
+        }
+        if (wantGun && !gunOverheated)
+        {
+            // the cannon selected: bolts straight down the nose
             gunFiring = true;
             if (_gunCd <= 0f)
             {
                 _gunCd = 1f / gun.rate;
-                game.raiders.Fire(origin, aimDir, gun.mult, true);   // at the crosshair: leading the target is the pilot's job
+                game.raiders.Fire(origin, aimDir, gun.mult, true);   // leading the target is the pilot's job
                 Audio.Shot("blaster");   // the user's own clip, on its own source so it lands on the shot
             }
             TickSpot(dt, false, _spotPos);
             return;
         }
+        if (wantGun) { TickSpot(dt, false, _spotPos); return; }   // overheated: the trigger does nothing until it cools
         if (firing && weapon == "laser" && raiderTarget != null && target < 0)
         {
             // the laser selected with a raider in the sights: a reminder, and no beam

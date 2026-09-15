@@ -41,6 +41,8 @@ public class Hud : MonoBehaviour
     readonly List<Ui.Marker> _raiderMarkers = new List<Ui.Marker>();
     RectTransform _status, _readouts, _target, _controls, _prompt, _notice, _toastBox, _version, _hoverLbl, _pointerDot;
     Text _speedUnit, _tWeapon;
+    Ui.SegBar _tHeat;
+    RectTransform _tHeatRt;
     const float BAND_H = 100f;   // the bottom band's panes are this tall
     Text _hoverTxt;
     Ui.Pane _statusPane;
@@ -268,6 +270,14 @@ public class Hud : MonoBehaviour
         // the weapon line shares the last row with the warning: the warning takes it while there is one
         _tWeapon = Ui.Glow(Ui.Label(_target, "", "mono", 11, Ui.HUD_DIM, TextAnchor.UpperLeft), Ui.A(Ui.HUD_GLOW, 0.35f));
         Ui.At(_tWeapon.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -72f), new Vector2(272f, 14f));
+        // the autocannon's heat bar under the weapon line
+        _tHeatRt = Ui.Rect("Heat", _target, Ui.TL, Ui.TL, new Vector2(14f, -88f), new Vector2(272f, 5f));
+        _tHeat = _tHeatRt.gameObject.AddComponent<Ui.SegBar>();
+        _tHeat.segmented = false;
+        _tHeat.track = new Color(0.078f, 0.098f, 0.212f);
+        _tHeat.fill = Ui.AMBER;
+        _tHeat.raycastTarget = false;
+        _tHeatRt.gameObject.SetActive(false);
         _target.gameObject.SetActive(false);
     }
 
@@ -1579,7 +1589,10 @@ public class Hud : MonoBehaviour
         string threatTxt = threat > 0 ? Ui.Col(threat + " raider" + (threat > 1 ? "s" : ""), Ui.RED) : Ui.Col("none", Ui.GLOW_TEXT);
         string weaponTxt = ship.weapon == "gun" ? "Autocannon" : "Laser";
         _row2.text = Kv("RADAR", radar) + "   THREAT " + threatTxt;
-        _tWeapon.text = Kv("WEAPON", weaponTxt);
+        _tWeapon.text = Kv("WEAPON", weaponTxt) + (ship.weapon == "gun" ? "   HEAT " + (ship.gunOverheated ? Ui.Col("OVERHEATED", Ui.RED) : Ui.Col(Mathf.RoundToInt(ship.gunHeat * 100f) + "%", ship.gunHeat > 0.75f ? Ui.AMBER : Ui.GLOW_TEXT)) : "");
+        bool heatOn = ship.weapon == "gun" && !docked && _tWeapon.gameObject.activeSelf;
+        if (_tHeatRt.gameObject.activeSelf != heatOn) _tHeatRt.gameObject.SetActive(heatOn);
+        if (heatOn) _tHeat.Set(ship.gunHeat, ship.gunOverheated ? Ui.RED : ship.gunHeat > 0.75f ? Ui.AMBER2 : Ui.AMBER);
         // the target: the panel follows the lock when there is one, else the crosshair target
         bool hasTarget = ship.target >= 0 && ship.target < belt.count && belt.alive[ship.target] && !docked;
         int panelRock = locked && ship.lockKind == "rock" ? ship.lockRock : (hasTarget ? ship.target : -1);
@@ -1633,6 +1646,7 @@ public class Hud : MonoBehaviour
             _tWarn.gameObject.SetActive(false);
         }
         _tWeapon.gameObject.SetActive(!_tWarn.gameObject.activeSelf);   // the warning takes the last row while there is one
+        if (_tWarn.gameObject.activeSelf && _tHeatRt.gameObject.activeSelf) _tHeatRt.gameObject.SetActive(false);
         // the hover label beside the cursor: what the mouse is over and how far it is
         var hv = ship.hover;
         if (hv != null && !docked && !inCut && started)
