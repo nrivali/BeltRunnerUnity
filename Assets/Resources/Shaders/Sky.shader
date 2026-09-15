@@ -93,11 +93,11 @@ Shader "BeltRunner/Sky"
                     float3 sp = d * 520.0;
                     float3 cell = floor(sp);
                     float h = hash(cell);
-                    if (h > 0.962)
+                    if (h > 0.978)
                     {
                         float3 c = float3(hash(cell + 1.0), hash(cell + 2.0), hash(cell + 3.0));
                         float dist = length(frac(sp) - 0.5 - (c - 0.5) * 0.5);
-                        float s = exp(-dist * dist * 16.0) * lerp(0.5, 1.3, hash(cell + 4.0)) * _StarGain;   // a gaussian a pixel or two wide, so no star falls between pixels
+                        float s = exp(-dist * dist * 30.0) * lerp(0.35, 0.8, hash(cell + 4.0)) * _StarGain;   // a small gaussian about a pixel wide: far, faint points
                         col += s * float3(0.9, 0.93, 1.0);
                     }
                 }
@@ -106,20 +106,20 @@ Shader "BeltRunner/Sky"
                     float3 sp = d * 250.0;
                     float3 cell = floor(sp);
                     float h = hash(cell);
-                    if (h > 0.986)
+                    if (h > 0.991)
                     {
                         float3 c = float3(hash(cell + 1.0), hash(cell + 2.0), hash(cell + 3.0));
                         float3 off = frac(sp) - 0.5 - (c - 0.5) * 0.5;
                         float dist = length(off);
                         float big = h > 0.9985 ? 1.0 : 0.0;
-                        float bright = lerp(1.7, 3.2, big);
-                        float s = exp(-dist * dist * (big > 0.5 ? 9.0 : 14.0)) * bright;
+                        float bright = lerp(1.1, 2.4, big);
+                        float s = exp(-dist * dist * (big > 0.5 ? 14.0 : 24.0)) * bright;
                         if (big > 0.5)
                         {
                             // the diffraction spikes: two thin crosses through the star, fading along their length
                             float ox = dot(off, u), oy = dot(off, w);
                             float spike = exp(-abs(ox) * 40.0) * exp(-abs(oy) * 7.0) + exp(-abs(oy) * 40.0) * exp(-abs(ox) * 7.0);
-                            s += spike * 0.9;
+                            s += spike * 0.5;
                         }
                         float hue = hash(cell + 5.0);
                         float3 sc = hue < 0.15 ? float3(0.98, 0.9, 0.8) : (hue > 0.85 ? float3(0.85, 0.9, 1.0) : float3(0.95, 0.96, 0.98));
