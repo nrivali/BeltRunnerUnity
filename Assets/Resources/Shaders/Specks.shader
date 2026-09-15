@@ -6,9 +6,9 @@ Shader "BeltRunner/Specks"
 {
     Properties
     {
-        _Color ("Colour", Color) = (0.6, 0.57, 0.55, 1)
+        _Color ("Albedo, as the rock shader's stone", Color) = (0.36, 0.34, 0.33, 1)
         _Size ("Size (px)", Float) = 1.5
-        _Gain ("Gain", Float) = 0.6
+        _Gain ("Gain", Float) = 1.0
         _PlanetR ("Planet radius (u)", Float) = 225000
         _NearFade ("Fade in from (u)", Float) = 120000
         _FarFade ("Fade in to (u)", Float) = 200000
@@ -59,16 +59,19 @@ Shader "BeltRunner/Specks"
                 float along = dot(q, s);
                 float3 perp = q - s * along;
                 float shadow = along < 0.0 ? smoothstep(_PlanetR * 0.98, _PlanetR * 1.04, length(perp)) : 1.0;
+                // the same light as the near rocks: the stone's albedo under the sun's colour and strength, and the share
+                // of the lit side the camera sees (full looking away from the sun, a dark silhouette looking into it)
                 float3 view = normalize(_WorldSpaceCameraPos - wp);
-                float lit = lerp(0.04, 1.0, shadow) * (0.55 + 0.45 * saturate(dot(view, s) * 0.5 + 0.5));
+                float phase = saturate(dot(view, s) * 0.5 + 0.5);
+                float lit = lerp(0.03, 1.0, shadow) * phase * 0.5;
                 // the size: pixels, a little more for a big rock, gone inside the draw distance and thinned far out
                 float r = v.uv1.x;
                 float fade = smoothstep(_NearFade, _FarFade, d) * saturate((r - 16.0) / 50.0);
                 float px = _Size * (0.7 + 0.5 * saturate(r / 70.0));
                 // every rock catches the sun its own way: a hash of its place varies the brightness a lot
                 float3 hp = frac(v.vertex.xyz * 37.13 + 0.17);
-                float vary = 0.35 + 0.65 * frac(hp.x * 91.7 + hp.y * 47.3 + hp.z * 13.9);
-                lit *= vary * vary;
+                float vary = 0.7 + 0.3 * frac(hp.x * 91.7 + hp.y * 47.3 + hp.z * 13.9);
+                lit *= vary;
                 o.pos = UnityObjectToClipPos(float4(v.vertex.xyz, 1.0));
                 o.pos.xy += v.uv * px * 2.0 / _ScreenParams.xy * o.pos.w;
                 o.uv = v.uv;
