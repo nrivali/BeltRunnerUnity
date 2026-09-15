@@ -1232,7 +1232,7 @@ public class Ship : MonoBehaviour
             vel -= tp / d * g * dt;
         }
         // drag, then the speed cap (thrust never pushes past it; anything above only falls away on drag)
-        float dragK = throttle > 0f || drifting ? 0.32f : 1.28f;   // the drift keeps the momentum: the retros do the slowing
+        float dragK = throttle > 0f || drifting ? 0.32f : 0.64f;   // the drift keeps the momentum: the retros do the slowing; at zero throttle the ship coasts twice as far as it did (drag halved from 1.28)
         vel *= Mathf.Exp(-dragK * dt);
         float sp2 = vel.magnitude;
         float lim = Mathf.Max(eng.max * mult, spBefore * Mathf.Exp(-dragK * dt));
