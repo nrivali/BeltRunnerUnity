@@ -368,7 +368,7 @@ public class Audio : MonoBehaviour
             raw.LoadAudioData();
         }
         // the trimmed copy, once the data is in: an mp3 opens on a run of encoder silence, which is the lag
-        if (_gunClip == null && raw.loadState == AudioDataLoadState.Loaded) _gunClip = TrimHead(raw);
+        if (_gunClip == null && raw.loadState == AudioDataLoadState.Loaded) _gunClip = TrimHead(raw, name == "blaster" ? 0.2f : 0f);
         float db;
         if (!GAIN_DB.TryGetValue(name, out db)) db = -5f;
         _gun.Stop();
@@ -379,14 +379,14 @@ public class Audio : MonoBehaviour
         Count(name);
     }
 
-    /// A copy of a clip without the silence at its head (and tail): the first and last frames that carry anything.
-    static AudioClip TrimHead(AudioClip c)
+    /// A copy of a clip without the silence at its head (and tail): `cutSec` off the head first, then the first and last frames that carry anything.
+    static AudioClip TrimHead(AudioClip c, float cutSec = 0f)
     {
         int ch = c.channels, n = c.samples, rate = c.frequency;
         var d = new float[n * ch];
         if (!c.GetData(d, 0)) return null;
         const float floor = 0.01f;
-        int a = 0, b = n - 1;
+        int a = Mathf.Min(n - 1, Mathf.RoundToInt(cutSec * rate)), b = n - 1;   // a fixed cut first (the blaster: 200 ms of build-up), then the silence
         while (a < n) { bool any = false; for (int k = 0; k < ch; k++) if (Mathf.Abs(d[a * ch + k]) > floor) { any = true; break; } if (any) break; a++; }
         while (b > a) { bool any = false; for (int k = 0; k < ch; k++) if (Mathf.Abs(d[b * ch + k]) > floor) { any = true; break; } if (any) break; b--; }
         int len = b - a + 1;
