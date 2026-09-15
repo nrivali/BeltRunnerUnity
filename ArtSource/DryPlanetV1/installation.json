@@ -1,0 +1,28 @@
+{
+  "created_utc": "2026-09-15T18:25:36.638236+00:00",
+  "version": "0.9.124-unity",
+  "validated_base_commit": "9747a792a02def03a7aca8dec173ed0f85e6d379",
+  "runtime_sha256": {
+    "Assets/Resources/Models/ferron.glb": "7E88897226BFBB97D4168ADA688916A56D317CD5206F2E58A8AAC8AC9D3F4B72",
+    "Assets/Resources/Planets/Dry/dry_albedo.png": "6FAB348236F27DA45A82F5C1805F4D4E94600BA29DDBCA32D6C9F3D98525FAA0",
+    "Assets/Resources/Planets/Dry/dry_normal.png": "CF95FEF7833C3AFF5B8471749E4BD14FC801B31B0F4C9F35290C8363C651A8DF",
+    "Assets/Resources/Planets/Dry/dry_surface.png": "22A1A8888F318880D1BFB1A34A252372BE2C6F26D447628137C58373FCB6EB35"
+  },
+  "preserved_sha256": {
+    "Assets/Resources/Models/homeworld.glb": "6D457FDAAFF87FFC2E494AAF54EC80B425AF6085C51DBEAEBBCDD90802F83EF5",
+    "Assets/Resources/Models/homeworld.glb.meta": "1738D32A88A840627D652129DCCFB4A6B5BF8EF427277DDDA392FDBB6FA26DA0",
+    "Assets/Resources/Models/ferron.glb.meta": "8433FB63F68C14AFE30145280E5AFDA3D4FA0B435B324DA83DA43E9E56CEADD5"
+  },
+  "shader_sha256": {
+    "Assets/Resources/Shaders/DryPlanet.shader": "BCB961F109AB0622A296CA791404967F943E4DE1C8455BEB6E6AF2D5D4325E58",
+    "Assets/Resources/Shaders/Post.shader": "D715E3256DA6D9319F8DAC10B8D2874A0608818EF9AE8818F2501C3B2CF2E002",
+    "Assets/Scripts/Lighting.cs": "9E93A5E040F0EE7BC01270B241FCEDC19629628C7B98A8F9AB0B7D11F664BCB0"
+  },
+  "build": {
+    "result": "Succeeded",
+    "errors": 0,
+    "path": "Builds/DryPlanet/BeltRunner.exe"
+  },
+  "dotnet_compile": "Passed, zero warnings or errors",
+  "verification": "Unity editor art renders and resource validation; no smoke test, Play Mode, Game boot or player save operations."
+}

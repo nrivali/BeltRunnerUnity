@@ -1,0 +1,6 @@
+{
+  "tool": "Built-in image_gen",
+  "asset": "imagegen-minerals.png",
+  "prompt": "Use case: photorealistic-natural.\nAsset type: physically based colour texture for a dry rocky planet in a Unity game.\nCreate one seamless square, top-down orthographic surface ALBEDO texture of weathered ochre sandstone and dark basalt, as if photographed from above a vast dry geological region. Intricate ancient bedrock plates, mineral variation, sedimentary ochre layers, muted reddish brown deposits, charcoal volcanic areas, dusty warm grey rock, and fine eroded fissures. Rich multiscale geological texture without loose scattered pebbles. Mostly medium warm grey and subdued ochre with restrained rust tones. Match the natural brown and charcoal dry-planet palette from the approved Belt Runner concept. Completely flat, diffuse, shadow-free neutral illumination; this will be wrapped over a procedural planet, so do not bake any directional light, shadows, highlights, ambient darkening, atmosphere, horizon, or perspective. Uniform crisp focus across the entire tile. No water, no ice, no vegetation, no blue patches, no clouds, no stars, no text, no globe or sphere. A full-bleed seamless repeating material tile, the highest available native resolution.",
+  "reference": "approved-concept.png"
+}

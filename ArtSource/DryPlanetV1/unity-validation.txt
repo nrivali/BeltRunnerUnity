@@ -1,0 +1,5 @@
+Terrain meshes=1 triangles=261120; normals, tangents, UVs and collision envelope passed.
+albedo: 4096x2048 BC7 mips=13 sRGB=True
+normal: 4096x2048 BC7 mips=13 sRGB=False
+surface: 4096x2048 BC7 mips=13 sRGB=False
+Five editor views rendered through the actual runtime Post.OnRenderImage composite.

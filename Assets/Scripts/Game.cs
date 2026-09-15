@@ -205,8 +205,9 @@ public class Game : MonoBehaviour
             {
                 mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 // the surface sits a step down under this sun, so the day side keeps its detail and the limb glow reads
-                foreach (var pm in mr.materials) if (pm.HasProperty("_Color")) pm.color = pm.color * 0.7f;
+                if (z.planetName != "Ferron") foreach (var pm in mr.materials) if (pm.HasProperty("_Color")) pm.color = pm.color * 0.7f;
             }
+            if (z.planetName == "Ferron") DryPlanet.Configure(_planet);
             Atmosphere(_planet.transform, r, z);
             BuildSpecks(_planet.transform, r);
         }
@@ -272,6 +273,7 @@ public class Game : MonoBehaviour
     /// tint pulled toward a pale haze, brightest at the sunlit limb.
     void Atmosphere(Transform planet, float r, Data.Zone z)
     {
+        if (z.planetName == "Ferron") { DryPlanet.AddAtmosphere(planet); return; }
         var sh = Shader.Find("BeltRunner/Atmo");
         if (sh == null) return;
         var a = GameObject.CreatePrimitive(PrimitiveType.Sphere);
