@@ -69,7 +69,6 @@ public class Hud : MonoBehaviour
     // the window's motion: it eases open and shut, a tab's contents slide in; the balance counts to its new value
     CanvasGroup _winGroup, _bodyGroup;
     bool _winWant;
-    float _cardInset = 30f;   // the tutorial card's clearance, last measured while the card was drawn
     public bool instantUi;   // the smoke run: the window shows at once, no ease, so its screenshots catch it
     float _winK, _bodyK, _credShown = -1f;
     // the upgrade rows, kept and updated in place (a purchase lights its row instead of rebuilding the tab)
@@ -1811,11 +1810,9 @@ public class Hud : MonoBehaviour
         // fifth of the half-height at full pitch) and the field tips with the bank
         _speed.Set(_speedK, dt, engS.max > 0f ? Mathf.Clamp01(ship.vel.magnitude / (engS.max * 3f)) : 0.5f,
             new Vector2(ship.camYaw * 0.25f, ship.camPitch * 0.2f), -ship.camYaw * 14f - ship.camRoll * 7f);
-        // the hangar window keeps clear of the tutorial card (below it while it shows) and of the status pane at the bottom
-        // (the card is judged by its step, not by whether it is drawn this frame: a cutscene hides it for a frame or two)
-        if (_tutBox != null && _tutBox.gameObject.activeSelf) _cardInset = -(_tutBox.anchoredPosition.y) + _tutBox.sizeDelta.y + 14f;   // measured while drawn, kept through a cutscene
-        bool cardUp = tutorial != null && tutorial.Active;   // a cutscene hides the card, but it comes straight back: keep its room
-        float topInset = cardUp ? _cardInset : 30f;
+        // the hangar window fills the screen between a top margin and the status pane; the tutorial card, which is only
+        // there at the start of the game, draws over its corner rather than the window making room for it
+        float topInset = 30f;
         float bottomInset = 18f + 67f + 16f;
         float winH = Mathf.Min(760f, _canvasSize.y - topInset - bottomInset);
         var wantSize = new Vector2(Mathf.Min(1100f, _canvasSize.x - 60f), winH);
