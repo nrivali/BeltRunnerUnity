@@ -70,5 +70,5 @@ Shield is fixed at 50 for every fit (no refit yet).
 ## Combat test (`combat-test.bat`, the `-combat` flag)
 
 - Sandbox: nothing reaches the save. Autocannon fitted (`-gun N` for level N), fuel and credits topped up every frame.
-- F9 jump to the next raider hold · F10 raiders hold their fire · F8 the refit panel anywhere, with a − on each row to
+- F9 clear the raiders and spawn three fresh 2,000–4,000 m out · F10 raiders hold their fire · F8 the refit panel anywhere, with a − on each row to
   take a level off. Killed raiders respawn where they died after 3 s.

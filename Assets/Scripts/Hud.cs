@@ -268,7 +268,7 @@ public class Hud : MonoBehaviour
         new object[] { new[] { "N" }, "Nav map · warp (docked in the cargo ship)" },
         new object[] { new[] { "C" }, "Hide · show this list" },
         new object[] { new[] { "F5" }, "Quick-save" },
-        new object[] { new[] { "F9" }, "Test · jump to the next raider hold" },
+        new object[] { new[] { "F9" }, "Test · spawn 3 raiders 2,000 to 4,000 m out" },
         new object[] { new[] { "F10" }, "Test · raiders hold their fire · again to let them fire" },
         new object[] { new[] { "F8" }, "Test · the refit panel anywhere · bottomless credits · − takes a level off" },
         new object[] { new[] { "Esc" }, "Pause · the menu with settings and controls" },

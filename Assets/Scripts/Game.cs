@@ -123,7 +123,7 @@ public class Game : MonoBehaviour
         {
             StartGame();
             JumpToHold();
-            hud.Toast("Combat test · sandbox, nothing is saved · F9 jumps to the next raider hold", false);
+            hud.Toast("Combat test · sandbox, nothing is saved · F9 spawns a fresh three", false);
         }
         else
         {
@@ -352,37 +352,32 @@ public class Game : MonoBehaviour
     }
 
     // ---- the combat test (-combat, and F9 at any time): the ship set down 1,500 u off a raider hold, facing it, with
-    // the autocannon fitted, so a fight starts within a second or two; F9 goes on to the next hold
+    // the autocannon fitted, so a fight starts within a second or two; F9 spawns a fresh three
     bool _combat;
     int _combatGun = 0;
-    int _holdIdx = -1;
     int _combatFrame;
 
+    /// The combat test's fight: every raider in the zone is cleared and three fresh ones are spawned 2,000 to 4,000 m
+    /// out (4,000 to 8,000 u) in random directions round the ship, homed on the ship's position so they engage at once.
+    /// The ship stays where it is (leaving the hangar first if docked) with the autocannon selected.
     public void JumpToHold()
     {
         if (ship.InCinematic || ship.recovery != null) { hud.Toast("Not during a cutscene", true); return; }
-        if (raiders == null || raiders.raiders.Count == 0) { hud.Toast("No raider holds in this zone", true); return; }
-        // the holds: one entry per distinct home
-        var homes = new List<Vector3>();
-        foreach (var r in raiders.raiders) { bool seen = false; foreach (var h in homes) if ((h - r.home).sqrMagnitude < 1f) { seen = true; break; } if (!seen) homes.Add(r.home); }
-        _holdIdx = (_holdIdx + 1) % homes.Count;
-        var home = homes[_holdIdx];
+        if (raiders == null) return;
         if (ship.docked) ship.LeaveHangar();
         raiders.respawn = true;  // a raider killed comes back three seconds on
         ship.weapon = "gun";
-        var scene = home - worldOffset;
-        var dir = (scene - ship.transform.position).normalized;
-        ship.transform.position = scene - dir * 1500f;
-        ship.transform.rotation = Ship.LevelHeading(dir);
-        ship.vel = Vector3.zero;
-        ship.throttle = 0f;
-        ship.exitPending = false;
         ship.ReleaseLock();
-        ship.UpdateCamera(1f);
-        int n = 0;
-        foreach (var r in raiders.raiders) if ((r.home - home).sqrMagnitude < 1f) n++;
-        Debug.Log("combat test: hold " + (_holdIdx + 1) + " of " + homes.Count + " · " + n + " raiders · gun Lv" + State.up["gun"] + " · at " + home.ToString("0"));
-        hud.Toast("Test · raider hold " + (_holdIdx + 1) + " of " + homes.Count + " · " + n + " raider" + (n > 1 ? "s" : "") + " · autocannon Lv" + State.up["gun"], false);
+        raiders.Clear();
+        var here = ship.TruePos;
+        for (int i = 0; i < 3; i++)
+        {
+            var dir = UnityEngine.Random.onUnitSphere;
+            if (Vector3.Dot(dir, ship.Forward) < -0.2f) dir = -dir;   // mostly ahead of the ship, never straight behind
+            raiders.Make(here + dir * UnityEngine.Random.Range(4000f, 8000f), here);
+        }
+        Debug.Log("combat test: 3 raiders spawned 4,000 to 8,000 u out · gun Lv" + State.up["gun"] + " · at " + here.ToString("0"));
+        hud.Toast("Test · 3 raiders inbound, 2,000 to 4,000 m out · autocannon Lv" + State.up["gun"], false);
     }
 
     /// A shader by name, falling back down a list a build always carries, so a missing one never stops the game.
