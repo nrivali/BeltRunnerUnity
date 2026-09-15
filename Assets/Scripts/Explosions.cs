@@ -77,6 +77,21 @@ public class Explosions
         }
     }
 
+    /// A lick of flame off a burning hull: a small bright puff that swells a little and dies fast.
+    public void Flame(Vector3 p, Vector3 v)
+    {
+        Add(p, v, 0f, Random.Range(0.25f, 0.45f), Random.Range(6f, 10f), Random.Range(16f, 26f),
+            new Color(1f, 0.8f, 0.45f, 0.9f), new Color(0.7f, 0.15f, 0.02f, 0f), true, _soft, Random.Range(-90f, 90f), 2);
+    }
+
+    /// A puff of smoke off a burning hull: dark, slow, swelling and thinning over a couple of seconds.
+    public void Smoke(Vector3 p, Vector3 v)
+    {
+        float g = Random.Range(0.14f, 0.26f);
+        Add(p, v, 0f, Random.Range(1.4f, 2.4f), Random.Range(8f, 14f), Random.Range(36f, 60f),
+            new Color(g * 1.3f, g * 1.1f, g, 0.6f), new Color(g, g, g, 0f), false, _soft, Random.Range(-40f, 40f), 2);
+    }
+
     void Add(Vector3 pos, Vector3 vel, float delay, float life, float s0, float s1, Color c0, Color c1, bool additive, Texture2D tex, float roll, int ease)
     {
         if (_fx.Count >= MAX) Kill(0);

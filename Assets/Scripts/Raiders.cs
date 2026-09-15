@@ -230,11 +230,11 @@ public class Raiders
         r.dead = true;
         raiders.Remove(r);
         if (respawn) _pending.Add(new Pending { pos = r.pos, home = r.home, t = 3f, frozen = r.frozen });
-        if (r.node != null) Shatter(r);
-        // the blast, with distance: full inside 600 u, 6 dB a doubling beyond, never below 24 dB down (a kill is always heard)
-        float bd = (r.pos - game.ship.TruePos).magnitude;
-        Audio.Play("boom", Mathf.Max(-24f, bd <= 600f ? 0f : -20f * Mathf.Log10(bd / 600f)));
-        if (game.explosions != null) game.explosions.Raider(r.pos, r.vel);   // the flash, the fireball, the ring, the smoke, the embers
+        if (r.node != null)
+        {
+            if (Random.value < BURN_CHANCE) StartBurn(r);   // it catches fire and tumbles on, out of control, and goes up later
+            else Explode(r.node, r.pos, r.vel);
+        }
         if (byPlayer)
         {
             kills++;
@@ -331,6 +331,7 @@ public class Raiders
         var carrier = game.carrier;
         var off = game.worldOffset;
         TickDebris(dt, off);
+        TickHulks(dt, off);
         var sp = ship.TruePos;
         bool flying = game.started && !ship.docked && ship.warp == null && ship.cut == null;
         bool nearDepot = carrier != null && !carrier.hold && (sp - carrier.truePos).magnitude < SAFE_R;
@@ -518,24 +519,84 @@ public class Raiders
 
     /// The raider comes apart: every hull piece becomes debris carrying the raider's velocity plus a shove outward from
     /// the blast (40 to 120 u/s) and a tumble; the exhaust glow goes out. The oldest debris is dropped past DEBRIS_MAX.
-    void Shatter(Raider r)
+    /// The blast at `pos`: the sound with distance (full inside 600 u, 6 dB a doubling beyond, never below 24 dB down,
+    /// so a kill is always heard), the explosion, and the hull coming apart.
+    void Explode(Transform node, Vector3 pos, Vector3 vel)
+    {
+        float bd = (pos - game.ship.TruePos).magnitude;
+        Audio.Play("boom", Mathf.Max(-24f, bd <= 600f ? 0f : -20f * Mathf.Log10(bd / 600f)));
+        if (game.explosions != null) game.explosions.Raider(pos, vel);   // the flash, the fireball, the ring, the smoke, the embers
+        Shatter(node, pos, vel);
+    }
+
+    // ---- the burning wreck: a killed raider that caught fire instead of blowing up. Out of control: it flies on with
+    // the momentum it had while a tumble builds, trailing flame, smoke and sparks, until the fuse runs out and it goes up.
+    public const float BURN_CHANCE = 0.45f;
+    class Hulk { public Transform node; public Vector3 pos, vel, axis; public float spin, fuse, flameT, smokeT, sparkT; public Material exhaust; }
+    readonly List<Hulk> _hulks = new List<Hulk>();
+
+    void StartBurn(Raider r)
+    {
+        var h = new Hulk
+        {
+            node = r.node, pos = r.pos, vel = r.vel + Random.insideUnitSphere * 20f, axis = Random.onUnitSphere,
+            spin = Random.Range(10f, 30f), fuse = Random.Range(3.5f, 8f), exhaust = r.exhaust
+        };
+        _hulks.Add(h);
+        float bd = (r.pos - game.ship.TruePos).magnitude;
+        Audio.Play("hit", Mathf.Max(-24f, bd <= 600f ? 0f : -20f * Mathf.Log10(bd / 600f)));   // the hit that did it: a metallic thud
+        if (game.sparks != null) game.sparks.Burst(r.pos, 80, 220f, Data.Hex("#ffb060"), 1.4f, r.vel);
+    }
+
+    void TickHulks(float dt, Vector3 off)
+    {
+        for (int i = _hulks.Count - 1; i >= 0; i--)
+        {
+            var h = _hulks[i];
+            h.fuse -= dt;
+            if (h.node == null) { _hulks.RemoveAt(i); continue; }
+            if (h.fuse <= 0f) { Explode(h.node, h.pos, h.vel); _hulks.RemoveAt(i); continue; }
+            // out of control: the tumble builds, the path drifts a little, the exhaust dies away
+            h.spin = Mathf.Min(220f, h.spin + 45f * dt);
+            h.axis = (h.axis + Random.insideUnitSphere * 0.4f * dt).normalized;
+            h.vel += Random.insideUnitSphere * 12f * dt;
+            h.pos += h.vel * dt;
+            h.node.position = h.pos - off;
+            h.node.Rotate(h.axis, h.spin * dt, Space.World);
+            if (h.exhaust != null) h.exhaust.SetColor("_Color", new Color(1f, 0.5f, 0.2f, Random.value < 0.5f ? 0.5f : 0.1f));
+            // the fire: flame puffs off the hull at a steady rate, smoke a little slower, sparks now and then
+            if (game.explosions != null)
+            {
+                h.flameT -= dt;
+                while (h.flameT <= 0f) { h.flameT += 0.045f; game.explosions.Flame(h.pos + Random.insideUnitSphere * 12f, h.vel + Random.insideUnitSphere * 12f); }
+                h.smokeT -= dt;
+                while (h.smokeT <= 0f) { h.smokeT += 0.11f; game.explosions.Smoke(h.pos + Random.insideUnitSphere * 10f, h.vel + Random.insideUnitSphere * 8f); }
+            }
+            h.sparkT -= dt;
+            if (h.sparkT <= 0f && game.sparks != null) { h.sparkT = Random.Range(0.08f, 0.3f); game.sparks.Burst(h.pos + Random.insideUnitSphere * 10f, Random.Range(3, 9), 120f, Data.Hex("#ffc070"), 1.2f, h.vel); }
+        }
+    }
+
+    public int HulkCount { get { return _hulks.Count; } }
+
+    void Shatter(Transform node, Vector3 pos, Vector3 vel)
     {
         var parts = new List<Transform>();
-        for (int i = 0; i < r.node.childCount; i++) parts.Add(r.node.GetChild(i));
+        for (int i = 0; i < node.childCount; i++) parts.Add(node.GetChild(i));
         foreach (var p in parts)
         {
             if (p.name == "Exhaust") { Object.Destroy(p.gameObject); continue; }
             p.SetParent(_root, true);   // keeps the world position, rotation and scale
-            var outward = (p.position + game.worldOffset - r.pos);
+            var outward = (p.position + game.worldOffset - pos);
             outward = outward.sqrMagnitude > 1e-4f ? outward.normalized : Random.onUnitSphere;
             var shove = outward * Random.Range(40f, 120f) + Random.insideUnitSphere * 30f;
             _debris.Add(new Debris
             {
-                node = p, pos = p.position + game.worldOffset, vel = r.vel + shove,
+                node = p, pos = p.position + game.worldOffset, vel = vel + shove,
                 axis = Random.onUnitSphere, rate = Random.Range(40f, 220f), life = DEBRIS_LIFE
             });
         }
-        Object.Destroy(r.node.gameObject);
+        Object.Destroy(node.gameObject);
         while (_debris.Count > DEBRIS_MAX) { Object.Destroy(_debris[0].node.gameObject); _debris.RemoveAt(0); }
     }
 

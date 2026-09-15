@@ -61,8 +61,9 @@ Shield is fixed at 50 for every fit (no refit yet).
   break (1.2–2.5 s). Jink when a player bolt is coming their way (miss under 138 u, within 2,500 u): 70% of the time,
   0.8 s hard turn, then 1.6 s cooldown.
 - Flight model: heading turns at most 30°/s, accel 220, braking 320, movement only along the nose.
-- Destroyed: the hull comes apart into debris that keeps the raider's velocity (plus a 40–120 u/s shove and a tumble)
-  and drifts for 60 s.
+- Destroyed: 55% blow up on the spot; 45% catch fire and lose control, tumbling on with their momentum and trailing
+  fire for 3.5–8 s before they go up. Either way the hull comes apart into debris that keeps the velocity (plus a
+  40–120 u/s shove and a tumble) and drifts for 60 s. The bounty is paid at the kill.
 
 ## Combat test (`combat-test.bat`, the `-combat` flag)
 
