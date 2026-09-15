@@ -1,4 +1,4 @@
-# Vega, the ship's onboard assistant: records the tutorial lines into Assets/Resources/Sfx/tut_<id>.mp3 with ElevenLabs.
+﻿# Vega, the ship's onboard assistant: records the tutorial lines into Assets/Resources/Sfx/tut_<id>.mp3 with ElevenLabs.
 # The lines must match Tutorial.cs word for word (the card shows the same text). The API key is read from the sibling
 # BeltRunner repo's git-ignored elevenlabs.key and never written anywhere. Run from the repo root:
 #   powershell -ExecutionPolicy Bypass -File tools/gen-voice.ps1            (skips lines whose mp3 exists)
@@ -49,8 +49,8 @@ foreach ($id in $vega.Keys){
   if ($Only.Count -gt 0 -and $Only -notcontains $id) { continue }
   $file=Join-Path $out ("vega_$id.mp3")
   if ((Test-Path $file) -and -not $Force) { "skip  vega_$id (exists)"; continue }
-  $text='[calm] [clear] '+($vega[$id] -replace '. ', '... ')
-  $body=@{text=$text; model_id='eleven_v3'; voice_settings=@{stability=0.35; similarity_boost=0.8}} | ConvertTo-Json -Depth 4
+  $text=($vega[$id] -replace '\. ', '... ')   # a straight read, no audio tag (an earlier version mangled every word with a bad regex)
+  $body=@{text=$text; model_id='eleven_v3'; voice_settings=@{stability=0.5; similarity_boost=0.8}} | ConvertTo-Json -Depth 4
   try {
     Invoke-WebRequest -Uri ("https://api.elevenlabs.io/v1/text-to-speech/$VOICE"+'?output_format=mp3_44100_96') -Method Post -Headers @{'xi-api-key'=$key; 'Content-Type'='application/json'; 'Accept'='audio/mpeg'} -Body ([Text.Encoding]::UTF8.GetBytes($body)) -OutFile $file | Out-Null
     $chars+=$text.Length; "made  vega_$id  $((Get-Item $file).Length) bytes"
