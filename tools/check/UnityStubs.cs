@@ -501,6 +501,7 @@ namespace UnityEngine
     public static class Application
     {
         public static string streamingAssetsPath => "";
+        public static bool isFocused => true;
         public static string persistentDataPath => System.IO.Path.GetTempPath();
         public static void Quit() { }
     }
@@ -726,7 +727,8 @@ namespace UnityEngine
     }
     public enum AudioDataLoadState { Unloaded, Loading, Loaded, Failed }
     public static class AudioSettings { public static int outputSampleRate => 48000; }
-    public static class Cursor { public static bool visible = true; }
+    public enum CursorLockMode { None, Locked, Confined }
+    public static class Cursor { public static bool visible = true; public static CursorLockMode lockState; }
     public enum AudioReverbPreset { Off, Generic, Hangar, Room }
     public class AudioSource : Behaviour
     {

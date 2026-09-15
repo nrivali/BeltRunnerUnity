@@ -514,6 +514,8 @@ public class Game : MonoBehaviour
     // ---- the frame
     void Update()
     {
+        // the pointer stays inside the game while it is being played; the pause menu and the start menu let it out
+        Cursor.lockState = started && !paused && Application.isFocused ? CursorLockMode.Confined : CursorLockMode.None;
         float dt = Mathf.Min(Time.deltaTime, 0.05f);
         if (Input.GetKeyDown(KeyCode.Escape))
         {
