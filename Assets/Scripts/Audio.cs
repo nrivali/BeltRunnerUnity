@@ -354,6 +354,32 @@ public class Audio : MonoBehaviour
     /// A gun shot: its own source, one-shot voices, so every shot plays through and lands on the shot however fast the gun fires.
     public static void Shot(string name, float extraDb = 0f) { if (I != null) I.GunShot(name, extraDb); }
 
+    /// A sound that must land: its own source (the pool of eight fills up in a fight, with two raiders zapping six times
+    /// a second), one-shot voices so it never cuts itself, the clip's silent head trimmed once the data is in.
+    public static void Sure(string name, float extraDb = 0f) { if (I != null) I.SureShot(name, extraDb); }
+
+    class Sure_ { public AudioSource src; public AudioClip raw, trimmed; }
+    readonly Dictionary<string, Sure_> _sure = new Dictionary<string, Sure_>();
+    void SureShot(string name, float extraDb)
+    {
+        Sure_ s;
+        if (!_sure.TryGetValue(name, out s))
+        {
+            var raw = Clip(name);
+            if (raw == null) return;
+            raw.LoadAudioData();
+            s = new Sure_ { src = Src("Sure " + name), raw = raw };
+            _sure[name] = s;
+        }
+        if (s.trimmed == null && s.raw.loadState == AudioDataLoadState.Loaded) s.trimmed = TrimHead(s.raw);
+        float db;
+        if (!GAIN_DB.TryGetValue(name, out db)) db = -5f;
+        s.src.volume = 1f;
+        s.src.pitch = 1f;
+        s.src.PlayOneShot(s.trimmed != null ? s.trimmed : s.raw, Lin(db + extraDb));
+        Count(name);
+    }
+
     AudioSource _gun;
     AudioClip _gunRaw, _gunClip;
     void GunShot(string name, float extraDb)
