@@ -20,6 +20,8 @@ $clips=@(
   @{name='raider_boost'; dur=1.8; text='spaceship afterburner igniting and roaring past, a sharp whoosh into a deep rumbling roar that fades, no music'},
   # a raider's engine close by: the bed under a fight
   @{name='raider_engine'; dur=4.0; loop=$true; text='small spaceship engine under steady thrust, a soft low hum with a light turbine whine, seamless loop, quiet, no music'},
+  # a raider's afterburner, sustained for as long as it boosts
+  @{name='raider_boost_loop'; dur=4.0; loop=$true; text='spaceship afterburner roaring at full power, deep rumbling roar with an airy exhaust rush, seamless loop, no music'},
   @{name='shield_up';   dur=1.6; text='sci-fi spaceship energy shield recharging and snapping back on, a rising electric charge swell ending in a clean bright lock-in chime, no music'}
 )
 foreach ($c in $clips) {

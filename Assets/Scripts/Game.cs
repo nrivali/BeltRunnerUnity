@@ -533,6 +533,7 @@ public class Game : MonoBehaviour
         bool inFlight = !ship.docked && !ship.InCinematic && ship.CanFly;
         Audio.I.ShieldLoop(State.shield <= 0f && inFlight, State.sinceHit >= Data.SHIELD_WAIT && State.shield < Data.SHIELD_MAX && inFlight);
         Audio.I.RaiderEngine(raiders != null && inFlight ? raiders.nearest : 1e9f, raiders != null && raiders.nearestBoosting);
+        Audio.I.RaiderBoost(raiders != null && inFlight ? raiders.nearestBoost : 1e9f);
         Audio.I.Laser(ship.firing && ship.weapon == "laser" && !ship.docked && !ship.InCinematic, ship.laserOn);   // the laser's sounds are the laser's: the gun has its own
         for (int i = _drops.Count - 1; i >= 0; i--)
         {

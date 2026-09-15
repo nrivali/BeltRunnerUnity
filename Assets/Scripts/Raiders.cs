@@ -64,6 +64,7 @@ public class Raiders
     public int threat;              // raiders attacking right now
     public float nearest = 1e9f;    // the nearest living raider's distance from the ship (for its engine sound)
     public bool nearestBoosting;
+    public float nearestBoost = 1e9f;   // the nearest boosting raider's distance (for the afterburner roar)
     public int kills, shotsFired, hitsTaken;   // for the smoke run
     public int hitsLanded;
     public float hitFlash;    // the hit marker: 1 the frame a player bolt lands, fading over HIT_FLASH seconds
@@ -350,11 +351,13 @@ public class Raiders
         threat = 0;
         nearest = 1e9f;
         nearestBoosting = false;
+        nearestBoost = 1e9f;
         for (int i = raiders.Count - 1; i >= 0; i--)
         {
             var r = raiders[i];
             float d = (r.pos - sp).magnitude;
             if (d < nearest) { nearest = d; nearestBoosting = r.boosting; }
+            if (r.boosting && d < nearestBoost) nearestBoost = d;
             r.sinceHit += dt;
             if (r.sinceHit >= 10f && r.shield < r.maxShield) r.shield = Mathf.Min(r.maxShield, r.shield + 10f * dt);
             if (r.state == "idle" && canAttack && d < ENGAGE)
