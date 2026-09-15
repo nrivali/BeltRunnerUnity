@@ -780,16 +780,21 @@ public class Ship : MonoBehaviour
         }
         if (game.raiders != null)
         {
+            // raiders are easy to pick: a generous circle round each (at least 150 px, or 2.5 times its drawn size), the one
+            // nearest the mouse on screen wins, and a raider beats any rock under the mouse
+            float bestPx = float.PositiveInfinity;
             foreach (var r in game.raiders.raiders)
             {
                 float cd = (camTrue - r.pos).magnitude;
-                if (cd > 120000f || cd >= bd) continue;
+                if (cd > 120000f) continue;
                 var sp = cam.WorldToScreenPoint(r.pos - game.worldOffset);
                 if (sp.z < 0f) continue;
-                float pr = Mathf.Max(10f, Raiders.RADIUS * (Screen.height * 0.5f) / (cd * f)) * 1.15f;
+                float pr = Mathf.Max(150f, Raiders.RADIUS * (Screen.height * 0.5f) / (cd * f) * 2.5f);
                 float dx = sp.x - m.x, dy = sp.y - m.y;
-                if (dx * dx + dy * dy > pr * pr) continue;
-                bd = cd;
+                float px = dx * dx + dy * dy;
+                if (px > pr * pr || px >= bestPx) continue;
+                bestPx = px;
+                bd = 0f;   // nothing else can beat a raider
                 best = new HoverInfo { kind = "raider", raider = r, dist = Mathf.Max(0f, (origin - r.pos).magnitude - Raiders.RADIUS), name = "Raider" };
             }
         }
