@@ -332,6 +332,7 @@ namespace UnityEngine
     public class Camera : Behaviour
     {
         public static Camera main => null;
+        public Vector3 WorldToViewportPoint(Vector3 p) => p;
         public CameraClearFlags clearFlags { get; set; }
         public Color backgroundColor { get; set; }
         public float nearClipPlane { get; set; }
@@ -547,6 +548,7 @@ namespace UnityEngine
     public class Texture2D : Texture
     {
         public Texture2D(int w, int h, TextureFormat f, bool mips) { }
+        public static Texture2D blackTexture => null;
         public void SetPixel(int x, int y, Color c) { }
         public Color GetPixel(int x, int y) => new Color();
         public void Apply() { }

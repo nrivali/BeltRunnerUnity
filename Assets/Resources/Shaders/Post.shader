@@ -12,6 +12,12 @@ Shader "BeltRunner/Post"
         _Intensity ("Glow intensity", Float) = 0.55
         _Burn ("Afterburner", Float) = 0
         _BurnCenter ("Afterburner centre", Vector) = (0.5, 0.5, 0, 0)
+        _Rays ("God rays", 2D) = "black" {}
+        _SunUV ("Sun in the frame (uv)", Vector) = (0.5, 0.5, 0, 0)
+        _RayThreshold ("Ray source threshold", Float) = 1.2
+        _RayLen ("Ray length (of the way to the sun)", Float) = 0.85
+        _RayDecay ("Ray decay per tap", Float) = 0.94
+        _RayGain ("Ray gain", Float) = 0
     }
     SubShader
     {
@@ -22,8 +28,11 @@ Shader "BeltRunner/Post"
         sampler2D _MainTex;
         float4 _MainTex_TexelSize;
         sampler2D _Bloom;
+        sampler2D _Rays;
         float _Exposure, _Threshold, _Intensity, _Burn;
         float4 _BurnCenter;
+        float4 _SunUV;
+        float _RayThreshold, _RayLen, _RayDecay, _RayGain;
 
         struct v2f
         {
@@ -127,7 +136,52 @@ Shader "BeltRunner/Post"
                 }
                 else c = tex2D(_MainTex, i.uv).rgb;
                 c += tex2D(_Bloom, i.uv).rgb * _Intensity;
+                c += tex2D(_Rays, i.uv).rgb * _RayGain;
                 return float4(aces(c * _Exposure), 1.0);
+            }
+            ENDCG
+        }
+        // 4: the god rays' source: what is bright near the sun's place in the frame (the disc and its glare), so a rock
+        // in front of the sun leaves a dark gap the rays stream round
+        Pass
+        {
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            float4 frag(v2f i) : SV_Target
+            {
+                float3 c = tex2D(_MainTex, i.uv).rgb;
+                float lum = max(c.r, max(c.g, c.b));
+                float k = saturate((lum - _RayThreshold) / max(lum, 1e-4));
+                float aspect = _MainTex_TexelSize.w / _MainTex_TexelSize.z;
+                float2 d = (i.uv - _SunUV.xy) * float2(1.0, aspect);
+                float m = 1.0 - smoothstep(0.10, 0.34, length(d));
+                return float4(c * k * m, 1.0);
+            }
+            ENDCG
+        }
+        // 5: the radial blur toward the sun: taps along the ray from the pixel to the sun, each a little fainter
+        Pass
+        {
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            float4 frag(v2f i) : SV_Target
+            {
+                const int N = 24;
+                float2 toSun = _SunUV.xy - i.uv;
+                float2 step = toSun * _RayLen / N;
+                float2 p = i.uv;
+                float3 acc = 0.0;
+                float w = 1.0, tot = 0.0;
+                for (int k = 0; k < N; k++)
+                {
+                    acc += tex2D(_MainTex, p).rgb * w;
+                    tot += w;
+                    p += step;
+                    w *= _RayDecay;
+                }
+                return float4(acc / tot, 1.0);
             }
             ENDCG
         }

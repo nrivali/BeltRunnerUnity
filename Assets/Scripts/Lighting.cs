@@ -83,7 +83,7 @@ public class Lighting
         sun.color = p.color;
         sun.intensity = 2.4f * p.intensity / 5.2f;
         Shader.SetGlobalVector("_BeltSunDir", new Vector4(dir.x, dir.y, dir.z, 0f));
-        if (post != null) post.exposure = p.exposure;
+        if (post != null) { post.exposure = p.exposure; post.sunDir = dir; }
         if (sky != null)
         {
             sky.SetVector("_SunDir", dir);
@@ -112,7 +112,12 @@ public class Post : MonoBehaviour
     public float intensity = 0.8f;
     public float burn;                              // the afterburner: 0..1, the radial blur and the fringing
     public Vector2 burnCenter = new Vector2(0.5f, 0.5f);   // its centre in uv, leading into a turn
+    // the god rays: the sun's place in the frame from its direction (Lighting sets it), the source masked round it,
+    // blurred toward it twice; faded out as the sun leaves the frame, and off while it is behind the camera
+    public Vector3 sunDir = Vector3.up;
+    public float rays = 1.1f;
     Material _mat;
+    Camera _camera;
 
     void OnRenderImage(RenderTexture src, RenderTexture dst)
     {
@@ -136,7 +141,32 @@ public class Post : MonoBehaviour
         Graphics.Blit(a, b, _mat, 1);
         Graphics.Blit(b, a, _mat, 2);
         _mat.SetTexture("_Bloom", a);
+        // the god rays
+        if (_camera == null) _camera = GetComponent<Camera>();
+        float gain = 0f;
+        var r = RenderTexture.GetTemporary(w, h, 0, src.format);
+        if (_camera != null && rays > 0f)
+        {
+            var vp = _camera.WorldToViewportPoint(_camera.transform.position + sunDir * 100000f);
+            if (vp.z > 0f)
+            {
+                float off = Mathf.Max(Mathf.Abs(vp.x - 0.5f), Mathf.Abs(vp.y - 0.5f));
+                gain = rays * Mathf.Clamp01(1.5f - off * 2f);   // full in the frame, gone a quarter frame past the edge
+            }
+            if (gain > 0.001f)
+            {
+                _mat.SetVector("_SunUV", new Vector4(vp.x, vp.y, 0f, 0f));
+                var r2 = RenderTexture.GetTemporary(w, h, 0, src.format);
+                Graphics.Blit(src, r, _mat, 4);
+                Graphics.Blit(r, r2, _mat, 5);
+                Graphics.Blit(r2, r, _mat, 5);
+                RenderTexture.ReleaseTemporary(r2);
+            }
+        }
+        _mat.SetFloat("_RayGain", gain);
+        _mat.SetTexture("_Rays", gain > 0.001f ? (Texture)r : Texture2D.blackTexture);
         Graphics.Blit(src, dst, _mat, 3);
+        RenderTexture.ReleaseTemporary(r);
         RenderTexture.ReleaseTemporary(a);
         RenderTexture.ReleaseTemporary(b);
     }
