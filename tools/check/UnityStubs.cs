@@ -307,6 +307,7 @@ namespace UnityEngine
         public int childCount => 0;
         public Transform GetChild(int i) => null;
         public Vector3 InverseTransformPoint(Vector3 p) => p;
+        public Vector3 InverseTransformDirection(Vector3 d) => d;
         public Vector3 TransformPoint(Vector3 p) => p;
         public Vector3 TransformDirection(Vector3 d) => d;
         public void SetParent(Transform t, bool keep) { }
