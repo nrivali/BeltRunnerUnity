@@ -49,7 +49,7 @@ public class Menu
         new object[] { new[] { "F9" }, "Testing: clear the zone's raiders and spawn three fresh ones 2,000 to 4,000 m out in random directions, mostly ahead, homed on you so they attack at once. Launching the game with -combat starts that way in a sandbox that never touches the save." },
         new object[] { new[] { "F10" }, "Testing: the raiders hold their fire (they still fly and chase); press again and they fire." },
         new object[] { new[] { "F8" }, "Testing: in the combat test F8 opens the upgrade tabs anywhere, credits are bottomless, and each upgrade row has a − button that takes a level off, so any loadout can be tried." },
-        new object[] { new[] { "Space" }, "Hold for the drift brake: the engine cuts (the throttle setting is kept for when you let go), the retro thrusters bleed speed at twice engine thrust, and the ship carries on along its momentum while the nose swings twice as fast as usual, to bring the gun round on a raider going past. During a docking, departure, arrival or warp cutscene, Space skips to the end of it." },
+        new object[] { new[] { "Space" }, "Hold for the drift brake: the engine cuts (the throttle setting is kept for when you let go), the retro thrusters bleed speed at ten times engine thrust, and the ship carries on along its momentum while the nose swings twice as fast as usual, to bring the gun round on a raider going past. During a docking, departure, arrival or warp cutscene, Space skips to the end of it." },
         new object[] { new[] { "Esc" }, "Pause · opens this menu with Settings and Controls" },
     };
 

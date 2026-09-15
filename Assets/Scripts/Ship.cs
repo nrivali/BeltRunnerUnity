@@ -9,7 +9,7 @@ public class Ship : MonoBehaviour
 {
     public const float TURN = 30f * Mathf.Deg2Rad;   // yaw and pitch: 30 degrees a second at full deflection
     public const float DRIFT_TURN = 2f;      // the drift brake: the nose turns this many times faster (60 degrees a second)
-    public const float DRIFT_BRAKE = 2f;     // ... and the retros bleed speed at this many times engine thrust
+    public const float DRIFT_BRAKE = 10f;    // ... and the retros bleed speed at this many times engine thrust (the ship all but coasts now, so the brake is the stopping)
     public const float REPAIR_RATE = 6f;
     public const float WARP_DUR = 8.6f;
     public const float WARP_LOAD_AT = 4.3f;   // the screen is black from 4.2 s to 5.4 s; the zone swaps underneath
@@ -1206,7 +1206,7 @@ public class Ship : MonoBehaviour
             if (Input.GetKey(KeyCode.X)) throttle = 0f;
         }
         // the drift brake: hold Space and the engine cuts (the throttle setting is kept for the release), the retros bleed
-        // speed at twice engine thrust, and the ship carries on along its momentum while the nose swings twice as fast as usual
+        // speed at ten times engine thrust, and the ship carries on along its momentum while the nose swings twice as fast as usual
         drifting = flying && Input.GetKey(KeyCode.Space);
         float abMult = State.Stat("thrusters").mult;
         afterburning = flying && throttle > 0f && !drifting && (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && abMult > 1f && State.fuel > 0f;
