@@ -124,8 +124,8 @@ public class Post : MonoBehaviour
     public float dustDensity = 0.00005f;   // per world unit
     public float dustReach = 6000f;        // how far the march goes
     public int dustSteps = 48;
-    public float dustIntensity = 1.0f;
-    public float dustAniso = 0.7f;         // Henyey-Greenstein g: forward-peaked toward the sun
+    public float dustIntensity = 0.5f;
+    public float dustAniso = 0.85f;        // Henyey-Greenstein g: forward-peaked toward the sun
     Material _mat, _volMat;
     Camera _camera;
     UnityEngine.Rendering.CommandBuffer _shadowCopy;
