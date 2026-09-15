@@ -114,7 +114,13 @@ public class Ship : MonoBehaviour
     // ---- recovery, in place of the browser's tow tug (the user's call for the Unity port): a hull breach disables the
     // ship on the spot, and T with a dry tank, or the breach itself, brings the ship straight back to the cargo ship's
     // pad behind a short fade, for the tug's fee (15% of credits), a hull patch to 35% and a tank topped to 30%
-    public class Recovery { public string reason; public float t; public bool done; }
+    public class Recovery
+    {
+        public string reason; public float t; public bool done;
+        // the death animation on a breach: its kind, how long it runs before the fade (at) and the whole (dur)
+        public string kind = ""; public float at = RECOVER_AT, dur = RECOVER_DUR;
+        public Vector3 axis = Vector3.up; public float spin, flameT, smokeT, sparkT, popT, arcT, ventT;
+    }
     public Recovery recovery;
     public bool disabled;
     bool _lowHullWarned;
@@ -925,8 +931,8 @@ public class Ship : MonoBehaviour
         {
             disabled = true;
             game.hud.WreckFlash();
-            Audio.Play("boom_big");
             Audio.Play("alarm");
+            StartDeath(recovery);
             game.Toast("Hull breach · systems down · recovery beacon sent", true);
             // raiders that were on you strip the hold and leave
             if (game.raiders != null && game.raiders.AnyAttacking)
@@ -938,6 +944,115 @@ public class Ship : MonoBehaviour
             }
         }
         else game.Toast("Recovery requested · returning to the cargo ship", false);
+    }
+
+    /// The death: the same six ends a raider gets. The blast goes off at once and the model vanishes into it; the
+    /// other kinds tumble on for a few seconds, out of control, before the fade. The fade's timing follows the kind.
+    void StartDeath(Recovery R)
+    {
+        float roll = Random.value;
+        R.kind = roll < 0.3f ? "blast" : roll < 0.5f ? "burn" : roll < 0.65f ? "chain" : roll < 0.78f ? "runaway" : roll < 0.9f ? "vent" : "dead";
+        R.axis = Random.onUnitSphere;
+        R.spin = Random.Range(15f, 40f);
+        float show = R.kind == "blast" ? 2.4f : R.kind == "chain" ? 2.6f : R.kind == "runaway" ? 3f : 4.5f;   // seconds before the fade starts
+        R.at = show + 1.6f;
+        R.dur = R.at + 1.6f;
+        var p = TruePos;
+        switch (R.kind)
+        {
+            case "blast":
+                Audio.Play("boom_big");
+                if (game.explosions != null) game.explosions.Raider(p, vel);
+                if (model != null) model.gameObject.SetActive(false);
+                shake = 1f;
+                break;
+            case "runaway":
+                Audio.Play("hit");
+                R.spin = Random.Range(30f, 70f);
+                R.axis = (Forward * 0.6f + Random.insideUnitSphere).normalized;
+                break;
+            case "dead":
+                Audio.Play("hit");
+                R.spin = Random.Range(50f, 90f);
+                break;
+            default:
+                Audio.Play("hit");
+                break;
+        }
+        if (game.sparks != null) game.sparks.Burst(p, 80, 220f, Data.Hex("#ffb060"), 1.4f, vel);
+    }
+
+    /// The wreck's tumble and its fire, frame by frame, until the fade takes it.
+    void DeathUpdate(Recovery R, float dt)
+    {
+        if (R.kind == "" || R.kind == "blast" || R.done) return;
+        var p = TruePos;
+        switch (R.kind)
+        {
+            case "burn":
+                R.spin = Mathf.Min(220f, R.spin + 45f * dt);
+                R.axis = (R.axis + Random.insideUnitSphere * 0.4f * dt).normalized;
+                break;
+            case "chain": R.spin = Mathf.Min(60f, R.spin + 20f * dt); break;
+            case "runaway": vel += Forward * 420f * dt; R.spin = Mathf.Min(140f, R.spin + 30f * dt); break;
+            case "vent": break;
+            case "dead": break;
+        }
+        transform.Rotate(R.axis, R.spin * dt, Space.World);
+        if (game.explosions == null) return;
+        var ex = game.explosions;
+        switch (R.kind)
+        {
+            case "burn":
+                R.flameT -= dt; while (R.flameT <= 0f) { R.flameT += 0.045f; ex.Flame(p + Random.insideUnitSphere * 10f, vel + Random.insideUnitSphere * 12f); }
+                R.smokeT -= dt; while (R.smokeT <= 0f) { R.smokeT += 0.11f; ex.Smoke(p + Random.insideUnitSphere * 8f, vel + Random.insideUnitSphere * 8f); }
+                R.sparkT -= dt; if (R.sparkT <= 0f && game.sparks != null) { R.sparkT = Random.Range(0.08f, 0.3f); game.sparks.Burst(p + Random.insideUnitSphere * 8f, Random.Range(3, 9), 120f, Data.Hex("#ffc070"), 1.2f, vel); }
+                break;
+            case "chain":
+                R.popT -= dt;
+                if (R.popT <= 0f)
+                {
+                    R.popT = Random.Range(0.1f, 0.2f);
+                    var at = p + transform.right * Random.Range(-14f, 14f) + Forward * Random.Range(-10f, 8f);
+                    ex.Pop(at, vel); ex.Smoke(at, vel + Random.insideUnitSphere * 10f);
+                    if (game.sparks != null) game.sparks.Burst(at, 12, 160f, Data.Hex("#ffb060"), 1.3f, vel);
+                    Audio.Play("hit", -4f);
+                    shake = Mathf.Max(shake, 0.4f);
+                }
+                break;
+            case "runaway":
+                R.flameT -= dt; while (R.flameT <= 0f) { R.flameT += 0.03f; ex.Flame(p - Forward * Random.Range(10f, 22f) + Random.insideUnitSphere * 4f, vel - Forward * 60f); }
+                R.smokeT -= dt; while (R.smokeT <= 0f) { R.smokeT += 0.07f; ex.Smoke(p - Forward * 18f + Random.insideUnitSphere * 5f, vel - Forward * 40f); }
+                break;
+            case "vent":
+                R.ventT -= dt;
+                if (R.ventT <= 0f)
+                {
+                    R.ventT = Random.Range(0.35f, 0.9f);
+                    var at = p + transform.right * Random.Range(-14f, 14f) + Forward * Random.Range(-8f, 8f);
+                    var dirOut = (at - p).sqrMagnitude > 1f ? (at - p).normalized : Random.onUnitSphere;
+                    for (int k = 0; k < 6; k++) ex.Jet(at + dirOut * k * 4f, vel + dirOut * Random.Range(60f, 140f) + Random.insideUnitSphere * 15f);
+                    ex.Smoke(at, vel + dirOut * 40f);
+                    if (game.sparks != null) game.sparks.Burst(at, 14, 160f, Data.Hex("#ffd090"), 1.2f, vel + dirOut * 60f);
+                    vel -= dirOut * Random.Range(6f, 14f);
+                    R.spin = Mathf.Min(160f, R.spin + Random.Range(10f, 30f));
+                    R.axis = (R.axis + Random.insideUnitSphere * 0.5f).normalized;
+                    Audio.Play("laser_off", -4f);
+                }
+                R.smokeT -= dt; while (R.smokeT <= 0f) { R.smokeT += 0.2f; ex.Smoke(p + Random.insideUnitSphere * 6f, vel + Random.insideUnitSphere * 6f); }
+                break;
+            case "dead":
+                R.arcT -= dt;
+                if (R.arcT <= 0f)
+                {
+                    R.arcT = Random.Range(0.3f, 1.2f);
+                    var at = p + Random.insideUnitSphere * 14f;
+                    ex.Arc(at, vel);
+                    if (game.sparks != null) game.sparks.Burst(at, Random.Range(6, 16), 90f, Data.Hex("#bfe8ff"), 1.1f, vel);
+                    Audio.Play("zap", -6f);
+                }
+                break;
+        }
     }
 
     public string RecoveryStatus()
@@ -953,10 +1068,12 @@ public class Ship : MonoBehaviour
     {
         var R = recovery;
         R.t += dt;
-        if (!docked) vel *= Mathf.Exp(-1.5f * dt);
-        if (!R.done && R.t >= RECOVER_AT)
+        DeathUpdate(R, dt);
+        if (!docked && R.kind != "runaway") vel *= Mathf.Exp(-(R.kind == "" ? 1.5f : 0.3f) * dt);   // a wreck keeps most of its way
+        if (!R.done && R.t >= R.at)
         {
             R.done = true;
+            if (model != null && !model.gameObject.activeSelf) model.gameObject.SetActive(true);   // back from the blast
             int side = carrier.NearestSide(TruePos);
             transform.position = carrier.ToTrue(CargoShip.ParkLocal(side)) - game.worldOffset;
             transform.rotation = LevelHeading(carrier.Dir(CargoShip.FaceLocal(side)));
@@ -973,7 +1090,7 @@ public class Ship : MonoBehaviour
             UpdateCamera(1f);
             game.Toast("Recovered to " + CargoShip.BayName(side) + " · " + Data.Fmt(fee) + " cr fee" + (breach ? " · emergency hull patch applied" : ""), false);
         }
-        if (R.t >= RECOVER_DUR) recovery = null;
+        if (R.t >= R.dur) recovery = null;
     }
 
     void Fly(float dt)
@@ -1570,8 +1687,8 @@ public class Ship : MonoBehaviour
     {
         if (recovery != null)
         {
-            float rt = recovery.t;
-            return rt < RECOVER_AT ? SmoothStep(RECOVER_AT - 1.2f, RECOVER_AT, rt) : 1f - SmoothStep(RECOVER_AT + 0.3f, RECOVER_DUR, rt);
+            float rt = recovery.t, at = recovery.at, dur = recovery.dur;
+            return rt < at ? SmoothStep(at - 1.2f, at, rt) : 1f - SmoothStep(at + 0.3f, dur, rt);
         }
         if (warp == null) return 0f;
         float t = warp.t;

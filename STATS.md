@@ -44,7 +44,8 @@ Shield is fixed at 50 for every fit (no refit yet).
   at the thrusting value, nose swings free.
 - Q lock on a raider steers the ship to keep the nose on it; the mouse still aims the gun. The LEAD pip marks where to
   put the crosshair for a bolt fired now to meet the raider.
-- Losing: hull 0 → recovery, respawn at the cargo ship; 15% of credits as the fee, and if raiders were attacking, 35%
+- Losing: hull 0 → a death animation (the raiders' six ends: 30% the blast, else a wreck tumbling for 2.6–4.5 s), then
+  recovery, respawn at the cargo ship; 15% of credits as the fee, and if raiders were attacking, 35%
   of every ore in the hold is stripped.
 
 ## Raiders
