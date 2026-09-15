@@ -80,21 +80,21 @@ Shader "BeltRunner/Sky"
                 float c1 = smoothstep(0.55, 0.85, nb1) * smoothstep(0.55, 0.95, dot(d, normalize(float3(-0.7, 0.35, 0.6))));
                 float c2 = smoothstep(0.55, 0.85, nb2) * smoothstep(0.5, 0.95, dot(d, normalize(float3(0.75, -0.25, 0.6))));
                 float c3 = smoothstep(0.55, 0.85, nb3) * smoothstep(0.5, 0.95, dot(d, normalize(float3(0.1, -0.6, -0.8))));
-                col += _NebulaA.rgb * c1 * 0.4 + _NebulaB.rgb * c2 * 0.4 + float3(0.55, 0.28, 0.12) * c3 * 0.3;
+                col += (_NebulaA.rgb * c1 + _NebulaB.rgb * c2 + float3(0.55, 0.28, 0.12) * c3) * 0.05;   // a bare trace: the user's reference sky is black
                 // stars: a hash over direction cells, a few bright and coloured among them
                 float3 sp = d * 260.0;
                 float3 cell = floor(sp);
                 float h = hash(cell);
-                float thresh = 0.993;
+                float thresh = 0.9905;   // dense, small, white
                 if (h > thresh)
                 {
                     float3 c = float3(hash(cell + 1.0), hash(cell + 2.0), hash(cell + 3.0));
                     float dist = length(frac(sp) - 0.5 - (c - 0.5) * 0.5);
-                    float big = h > 0.9992 ? 1.0 : 0.0;
-                    float bright = lerp(0.7, 2.6, big);
-                    float s = smoothstep(0.11 + big * 0.06, 0.0, dist) * bright * _StarGain;
+                    float big = h > 0.9993 ? 1.0 : 0.0;
+                    float bright = lerp(0.8, 2.2, big);
+                    float s = smoothstep(0.1 + big * 0.05, 0.0, dist) * bright * _StarGain;
                     float hue = hash(cell + 5.0);
-                    float3 sc = hue < 0.2 ? float3(0.95, 0.75, 0.6) : (hue > 0.8 ? float3(0.7, 0.8, 1.0) : float3(0.85, 0.88, 0.95));
+                    float3 sc = hue < 0.15 ? float3(0.98, 0.9, 0.8) : (hue > 0.85 ? float3(0.85, 0.9, 1.0) : float3(0.95, 0.96, 0.98));
                     col += s * sc;
                 }
                 // the sun: a hard disc and a small optical glare, both in HDR
@@ -102,9 +102,10 @@ Shader "BeltRunner/Sky"
                 float a = acos(clamp(cs, -1.0, 1.0));
                 float disc = 1.0 - smoothstep(_SunRadius * 0.97, _SunRadius, a);
                 float r = a / _SunRadius;
-                // the glare: compact, as the user's concept frame has it: a hot core round the disc and a small soft halo, no wide wash
-                float halo = 1.6 * exp(-r * 1.4) + 0.35 * exp(-r * 0.45);
-                col += _SunColor.rgb * disc * _DiscGain + _SunColor.rgb * float3(1.0, 0.92, 0.8) * halo * 0.6;
+                // the glare, as the user's sunrise reference has it: a white-hot disc in a broad, soft orange glow that
+                // falls away smoothly a long way out
+                float halo = 1.3 * exp(-r * 1.1) + 0.5 * exp(-r * 0.32) + 0.18 * exp(-r * 0.09);
+                col += float3(1.0, 0.97, 0.92) * disc * _DiscGain + float3(1.0, 0.55, 0.26) * halo * 0.7;
                 return float4(col, 1.0);
             }
             ENDCG
