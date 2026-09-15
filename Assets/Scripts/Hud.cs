@@ -65,6 +65,7 @@ public class Hud : MonoBehaviour
     string _svcSig = "";      // the signature of what the window shows; "" forces a rebuild
     string _invSig = "";      // kept for the callers that clear it: both feed the one window
     RectTransform _refitsBox;
+    Ui.Gauge _gStoreW, _gFuelW, _gPartsW;   // the window's gauges, updated in place so the window is not rebuilt under the mouse
     public readonly List<Slot> holdSlots = new List<Slot>();
     public readonly List<Slot> storeSlots = new List<Slot>();
     Slot _dragging;
@@ -562,7 +563,7 @@ public class Hud : MonoBehaviour
         bool atHub = ship.hold;
         var sb = new System.Text.StringBuilder();
         sb.Append(_winTab).Append('|').Append(docked).Append('|').Append(atHub).Append('|').Append(RefitsAvailable).Append('|').Append(zone.id).Append('|');
-        sb.Append(Mathf.RoundToInt(State.credits)).Append('|').Append(State.StoreUsed()).Append('|').Append(Mathf.FloorToInt(State.shipFuel)).Append('|').Append(Mathf.FloorToInt(State.parts)).Append('|');
+        sb.Append(Mathf.RoundToInt(State.credits)).Append('|').Append(State.StoreUsed()).Append('|');   // not the fuel supply or the parts: they tick every frame on the pad and only their gauges follow
         sb.Append(State.CargoTotal().ToString("0")).Append('|').Append(State.StoreTotal().ToString("0")).Append('|').Append(Mathf.RoundToInt(State.droneUnits)).Append('|').Append(State.CargoSlots());
         foreach (var k in Data.UPGRADE_KEYS) sb.Append(State.up[k]);
         foreach (var k in Data.DEPOT_KEYS) sb.Append(State.depot[k]);
@@ -601,6 +602,7 @@ public class Hud : MonoBehaviour
         storeSlots.Clear();
         _depositBtn = null;
         _refitsBox = null;
+        _gStoreW = _gFuelW = _gPartsW = null;
         float w = _winScroll.Width;
         var f = new Ui.Flow(_winScroll.content, 26f, 20f, w - 52f);
         if (_winTab == "inv") InventoryTab(f, docked, atHub);
@@ -675,11 +677,10 @@ public class Hud : MonoBehaviour
             f.Gap(18f);
             H3(f, atHub ? "Cargo ship and market" : "Cargo ship");
             bool full = su >= Data.STORE_SLOTS;
-            Gauge(f, "Cargo ship storage", full ? Ui.AMBER : Ui.CARGO, State.StoreTotal() / (Data.STORE_SLOTS * Data.STACK), su + " / " + Data.STORE_SLOTS + " slots" + (full ? " · FULL" : ""));
-            bool lowFuel = State.shipFuel < Data.CARGO_FUEL_CAP * 0.2f;
-            Gauge(f, "Cargo ship fuel supply", lowFuel ? Ui.AMBER : Ui.CYAN, State.shipFuel / Data.CARGO_FUEL_CAP, Mathf.FloorToInt(State.shipFuel) + " / " + Mathf.RoundToInt(Data.CARGO_FUEL_CAP));
-            bool lowParts = State.parts < Data.PARTS_CAP * 0.2f;
-            Gauge(f, "Repair parts", lowParts ? Ui.AMBER : Ui.GREEN, State.parts / Data.PARTS_CAP, Mathf.FloorToInt(State.parts) + " / " + Data.PARTS_CAP);
+            _gStoreW = Gauge(f, "Cargo ship storage", full ? Ui.AMBER : Ui.CARGO, State.StoreTotal() / (Data.STORE_SLOTS * Data.STACK), su + " / " + Data.STORE_SLOTS + " slots" + (full ? " · FULL" : ""));
+            _gFuelW = Gauge(f, "Cargo ship fuel supply", Ui.CYAN, 0f, "");
+            _gPartsW = Gauge(f, "Repair parts", Ui.GREEN, 0f, "");
+            TickWindowGauges();
             if (atHub) Market(f);
         }
         else TotalRow(f, "Cargo ship storage", su + " / " + Data.STORE_SLOTS + " slots · dock to transfer", false, Ui.TEXT);
@@ -722,11 +723,27 @@ public class Hud : MonoBehaviour
         f.Para("The dish leaves the ore it frees adrift for you to pick up. Collector drones gather it and stow it in the cargo ship storage" + (State.droneUnits > 0.5f ? " · <b>" + Data.Fmt(State.droneUnits) + "</b> stowed so far" : "") + ".", "body", 12, Ui.DIM, 20f);
     }
 
-    void Gauge(Ui.Flow f, string title, Color c, float v, string text)
+    Ui.Gauge Gauge(Ui.Flow f, string title, Color c, float v, string text)
     {
         var g = Ui.Gauge.Make(f.parent, title, c, f.x, f.y, f.w, true, 10f);
         g.Show(v, text, c);
         f.y -= g.height + 12f;
+        return g;
+    }
+
+    /// The fuel supply and the parts gauges follow the live values without a rebuild.
+    void TickWindowGauges()
+    {
+        if (_gFuelW != null)
+        {
+            bool lowFuel = State.shipFuel < Data.CARGO_FUEL_CAP * 0.2f;
+            _gFuelW.Show(State.shipFuel / Data.CARGO_FUEL_CAP, Mathf.FloorToInt(State.shipFuel) + " / " + Mathf.RoundToInt(Data.CARGO_FUEL_CAP), lowFuel ? Ui.AMBER : Ui.CYAN);
+        }
+        if (_gPartsW != null)
+        {
+            bool lowParts = State.parts < Data.PARTS_CAP * 0.2f;
+            _gPartsW.Show(State.parts / Data.PARTS_CAP, Mathf.FloorToInt(State.parts) + " / " + Data.PARTS_CAP, lowParts ? Ui.AMBER : Ui.GREEN);
+        }
     }
 
     void BuyDepot(string key)
@@ -1708,7 +1725,7 @@ public class Hud : MonoBehaviour
             new Vector2(ship.camYaw * 0.25f, ship.camPitch * 0.2f), -ship.camYaw * 14f - ship.camRoll * 7f);
         // side panels follow the window
         _win.sizeDelta = new Vector2(Mathf.Min(1100f, _canvasSize.x - 60f), Mathf.Min(760f, _canvasSize.y - 60f));
-        if (InvOpen && Time.frameCount % 15 == 0) RefreshWindow();
+        if (InvOpen && Time.frameCount % 15 == 0) { RefreshWindow(); TickWindowGauges(); }
         // the tutorial's rings follow their targets
         _rings.rects.Clear();
         if (_tutBox.gameObject.activeSelf)
