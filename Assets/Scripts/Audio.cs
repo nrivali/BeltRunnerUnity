@@ -15,7 +15,7 @@ public class Audio : MonoBehaviour
     static readonly Dictionary<string, float> GAIN_DB = new Dictionary<string, float>
     {
         { "radio_on", -6f }, { "radio_off", -7f }, { "pa_chime", -6f }, { "dock", -3f }, { "chime", -6f }, { "cash", -4f }, { "stow", -4f }, { "pickup", -7f },
-        { "rock_break", -3f }, { "hit", -3f }, { "shield_down", -2f }, { "shield_up", -3f }, { "blaster", -4f }, { "laser_on", -6f }, { "laser_off", -8f }, { "laser_bite", -7f }, { "radar_ping", -6f }, { "warp_charge", -4f }, { "warp_jump", -2f },
+        { "rock_break", -3f }, { "hit", -3f }, { "shield_down", -2f }, { "shield_up", -3f }, { "blaster", -10f }, { "laser_on", -6f }, { "laser_off", -8f }, { "laser_bite", -7f }, { "radar_ping", -6f }, { "warp_charge", -4f }, { "warp_jump", -2f },
     };
     static readonly string[] LOOP_NAMES = { "engine_idle", "engine_thrust", "engine_boost", "retro", "laser_beam", "laser_cut", "space_hum", "shield_out", "shield_charge" };
 
