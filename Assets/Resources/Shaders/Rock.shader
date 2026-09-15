@@ -150,7 +150,12 @@ Shader "BeltRunner/Rock"
             float relief = _Library * _DetailStrength;
             if (relief > 0.001)
             {
-                float2 uv = IN.uv_MainTex * 0.75;
+                // the detail tiles by the rock's size (the object scale is its radius), so a big rock keeps the same
+                // grain per metre up close as a small one instead of stretching it; the relief firms up a little with size
+                float rockR = length(float3(unity_ObjectToWorld._m00, unity_ObjectToWorld._m10, unity_ObjectToWorld._m20));
+                float tile = max(1.0, rockR / 22.0);
+                relief *= lerp(1.0, 1.35, saturate((rockR - 22.0) / 60.0));
+                float2 uv = IN.uv_MainTex * 0.75 * tile;
                 detail = tex2D(_DetailSurface, uv);
                 float3 dn = tex2D(_DetailNormalMap, uv).xyz * 2.0 - 1.0;
                 dn.xy *= relief * lerp(0.90, 0.25, ore * (1.0 - crust));
