@@ -83,7 +83,7 @@ public class Lighting
         sun.color = p.color;
         sun.intensity = 2.4f * p.intensity / 5.2f;
         Shader.SetGlobalVector("_BeltSunDir", new Vector4(dir.x, dir.y, dir.z, 0f));
-        if (post != null) { post.exposure = p.exposure; post.sunDir = dir; }
+        if (post != null) { post.exposure = p.exposure; post.sunDir = dir; post.sun = sun; post.sunColor = p.color; }
         if (sky != null)
         {
             sky.SetVector("_SunDir", dir);
@@ -116,8 +116,68 @@ public class Post : MonoBehaviour
     // blurred toward it twice; faded out as the sun leaves the frame, and off while it is behind the camera
     public Vector3 sunDir = Vector3.up;
     public float rays = 1.1f;
-    Material _mat;
+    // the volumetric dust (BeltRunner/Volumetric): a ray march through thin dust lit by the sun and shadowed by its
+    // shadow map, at half resolution; V toggles it. The shadow map is copied to a global after the sun draws it.
+    public Light sun;
+    public Color sunColor = Color.white;
+    public bool volumetric = true;
+    public float dustDensity = 0.00005f;   // per world unit
+    public float dustReach = 6000f;        // how far the march goes
+    public int dustSteps = 48;
+    public float dustIntensity = 1.0f;
+    public float dustAniso = 0.7f;         // Henyey-Greenstein g: forward-peaked toward the sun
+    Material _mat, _volMat;
     Camera _camera;
+    UnityEngine.Rendering.CommandBuffer _shadowCopy;
+    bool _volTried;
+
+    void OnEnable()
+    {
+        var c = GetComponent<Camera>();
+        if (c != null) c.depthTextureMode |= DepthTextureMode.Depth;   // the march stops at the surfaces
+    }
+
+    void OnDisable()
+    {
+        if (sun != null && _shadowCopy != null) sun.RemoveCommandBuffer(UnityEngine.Rendering.LightEvent.AfterShadowMap, _shadowCopy);
+        _shadowCopy = null;
+    }
+
+    void HookSun()
+    {
+        if (sun == null || _shadowCopy != null) return;
+        _shadowCopy = new UnityEngine.Rendering.CommandBuffer();
+        _shadowCopy.name = "Belt shadow map for the dust";
+        _shadowCopy.SetGlobalTexture("_BeltCascadeShadow", UnityEngine.Rendering.BuiltinRenderTextureType.CurrentActive);
+        sun.AddCommandBuffer(UnityEngine.Rendering.LightEvent.AfterShadowMap, _shadowCopy);
+    }
+
+    /// The dust pass into a half-size texture, or null when it is off or the shader is missing.
+    RenderTexture Dust(RenderTexture src)
+    {
+        if (!volumetric || _camera == null) return null;
+        if (_volMat == null && !_volTried)
+        {
+            _volTried = true;
+            var sh = Shader.Find("BeltRunner/Volumetric");
+            if (sh != null) _volMat = new Material(sh);
+        }
+        if (_volMat == null) return null;
+        HookSun();
+        float far = _camera.farClipPlane;
+        var cp = _camera.transform.position;
+        _volMat.SetVector("_VolC0", _camera.ViewportToWorldPoint(new Vector3(0f, 0f, far)) - cp);
+        _volMat.SetVector("_VolC1", _camera.ViewportToWorldPoint(new Vector3(1f, 0f, far)) - cp);
+        _volMat.SetVector("_VolC2", _camera.ViewportToWorldPoint(new Vector3(0f, 1f, far)) - cp);
+        _volMat.SetVector("_VolC3", _camera.ViewportToWorldPoint(new Vector3(1f, 1f, far)) - cp);
+        _volMat.SetVector("_VolSun", new Vector4(sunDir.x, sunDir.y, sunDir.z, 0f));
+        _volMat.SetColor("_VolSunColor", sunColor);
+        _volMat.SetVector("_VolParams", new Vector4(dustDensity, dustReach, dustSteps, dustIntensity));
+        _volMat.SetVector("_VolParams2", new Vector4(dustAniso, 1f / 700f, Time.time, 0.6f));
+        var v = RenderTexture.GetTemporary(src.width / 2, src.height / 2, 0, RenderTextureFormat.ARGBHalf);
+        Graphics.Blit(src, v, _volMat, 0);
+        return v;
+    }
 
     void OnRenderImage(RenderTexture src, RenderTexture dst)
     {
@@ -143,6 +203,8 @@ public class Post : MonoBehaviour
         _mat.SetTexture("_Bloom", a);
         // the god rays
         if (_camera == null) _camera = GetComponent<Camera>();
+        var dust = Dust(src);
+        _mat.SetTexture("_Volume", dust != null ? (Texture)dust : Texture2D.blackTexture);
         float gain = 0f;
         var r = RenderTexture.GetTemporary(w, h, 0, src.format);
         if (_camera != null && rays > 0f)
@@ -166,6 +228,7 @@ public class Post : MonoBehaviour
         _mat.SetFloat("_RayGain", gain);
         _mat.SetTexture("_Rays", gain > 0.001f ? (Texture)r : Texture2D.blackTexture);
         Graphics.Blit(src, dst, _mat, 3);
+        if (dust != null) RenderTexture.ReleaseTemporary(dust);
         RenderTexture.ReleaseTemporary(r);
         RenderTexture.ReleaseTemporary(a);
         RenderTexture.ReleaseTemporary(b);

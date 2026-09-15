@@ -207,7 +207,7 @@ namespace UnityEngine
         public static void SetResolution(int w, int h, FullScreenMode m) { }
     }
 
-    public enum KeyCode { A, B, C, D, E, F, G, H, I, L, N, Q, R, S, T, W, X, Space, Escape, Return, Tab, F5, F8, F9, F10, Alpha1, Alpha2, Alpha3, UpArrow, DownArrow, LeftShift, RightShift }
+    public enum KeyCode { A, B, C, D, E, F, G, H, I, L, N, Q, R, S, T, V, W, X, Space, Escape, Return, Tab, F5, F8, F9, F10, Alpha1, Alpha2, Alpha3, UpArrow, DownArrow, LeftShift, RightShift }
 
     public static class Input
     {
@@ -337,6 +337,8 @@ namespace UnityEngine
         public Color backgroundColor { get; set; }
         public float nearClipPlane { get; set; }
         public float farClipPlane { get; set; }
+        public DepthTextureMode depthTextureMode { get; set; }
+        public Vector3 ViewportToWorldPoint(Vector3 p) => p;
         public float fieldOfView { get; set; }
         public bool allowHDR { get; set; }
         public Vector3 WorldToScreenPoint(Vector3 p) => p;
@@ -348,8 +350,12 @@ namespace UnityEngine
         public static float volume { get; set; }
     }
 
+    public enum DepthTextureMode { None = 0, Depth = 1, DepthNormals = 2 }
+
     public class Light : Behaviour
     {
+        public void AddCommandBuffer(Rendering.LightEvent e, Rendering.CommandBuffer b) { }
+        public void RemoveCommandBuffer(Rendering.LightEvent e, Rendering.CommandBuffer b) { }
         public LightType type { get; set; }
         public Color color { get; set; }
         public float intensity { get; set; }
@@ -593,6 +599,14 @@ namespace UnityEngine
     namespace Rendering
     {
         public enum AmbientMode { Skybox, Trilight, Flat, Custom }
+        public enum LightEvent { BeforeShadowMap, AfterShadowMap, BeforeScreenspaceMask, AfterScreenspaceMask }
+        public enum BuiltinRenderTextureType { None, CurrentActive, CameraTarget, Depth }
+        public class CommandBuffer
+        {
+            public string name;
+            public void SetGlobalTexture(string n, BuiltinRenderTextureType t) { }
+            public void Clear() { }
+        }
         public enum ShadowCastingMode { Off, On, TwoSided, ShadowsOnly }
         public enum IndexFormat { UInt16, UInt32 }
         public enum DefaultReflectionMode { Skybox, Custom }

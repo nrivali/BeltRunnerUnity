@@ -577,6 +577,12 @@ public class Game : MonoBehaviour
         // the test keys: only in the combat test (combat-test.bat), never in the game proper
         if (Input.GetKeyDown(KeyCode.F9) && _combat) JumpToHold();
         if (Input.GetKeyDown(KeyCode.F10) && _combat && raiders != null) { raiders.holdFire = !raiders.holdFire; hud.Toast(raiders.holdFire ? "Test · raiders hold their fire" : "Test · raiders fire again", false); }
+        // V: the volumetric dust on or off, to compare the looks
+        if (Input.GetKeyDown(KeyCode.V) && started && lighting != null && lighting.post != null && !hud.InvOpen && !hud.MapOpen && !hud.MenuVisible)
+        {
+            lighting.post.volumetric = !lighting.post.volumetric;
+            hud.Toast(lighting.post.volumetric ? "Volumetric dust on" : "Volumetric dust off", false);
+        }
         if (Input.GetKeyDown(KeyCode.C)) hud.ToggleControls();
         if (Input.GetKeyDown(KeyCode.F) && ship.docked) hud.ToggleServices();
         if (Input.GetKeyDown(KeyCode.F8) && _combat) hud.ToggleServices();   // the test: the refits anywhere (F is the torch in flight)

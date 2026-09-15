@@ -18,6 +18,7 @@ Shader "BeltRunner/Post"
         _RayLen ("Ray length (of the way to the sun)", Float) = 0.85
         _RayDecay ("Ray decay per tap", Float) = 0.94
         _RayGain ("Ray gain", Float) = 0
+        _Volume ("Volumetric dust", 2D) = "black" {}
     }
     SubShader
     {
@@ -29,6 +30,7 @@ Shader "BeltRunner/Post"
         float4 _MainTex_TexelSize;
         sampler2D _Bloom;
         sampler2D _Rays;
+        sampler2D _Volume;
         float _Exposure, _Threshold, _Intensity, _Burn;
         float4 _BurnCenter;
         float4 _SunUV;
@@ -137,6 +139,7 @@ Shader "BeltRunner/Post"
                 else c = tex2D(_MainTex, i.uv).rgb;
                 c += tex2D(_Bloom, i.uv).rgb * _Intensity;
                 c += tex2D(_Rays, i.uv).rgb * _RayGain;
+                c += tex2D(_Volume, i.uv).rgb;
                 return float4(aces(c * _Exposure), 1.0);
             }
             ENDCG
