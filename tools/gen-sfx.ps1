@@ -15,7 +15,7 @@ $clips=@(
   # shield_out.mp3 (DepletedShields.mp3), shield_charge.mp3 (ShieldRecharge.mp3) and blaster.mp3 (Blaster.mp3) are the user's own clips, 2026-09-14, not generated here
   # the hit marker: a punchy tick on a hit, a sting on the kill
   @{name='hit_marker';  dur=0.5; text='loud punchy arcade hit marker, a sharp bright metallic click with a hard short thump, instant attack, very short, satisfying, no music'},
-  @{name='kill_marker'; dur=0.9; text='satisfying sci-fi kill confirmation, a sharp metallic crack then a short bright descending two-note sting, no music'},
+  @{name='kill_marker'; dur=0.9; text='arcade kill confirmation, a deep punchy bass thump with a crisp high snap layered on top, one single hit, very short, satisfying, no melody, no music'},
   @{name='shield_up';   dur=1.6; text='sci-fi spaceship energy shield recharging and snapping back on, a rising electric charge swell ending in a clean bright lock-in chime, no music'}
 )
 foreach ($c in $clips) {
