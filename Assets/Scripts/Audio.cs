@@ -210,7 +210,7 @@ public class Audio : MonoBehaviour
     public void RaiderBoost(float near)
     {
         float f = Mathf.Clamp01(1f - (near - 300f) / 2700f);
-        LoopTarget("raider_boost_loop", 0.3f * f * f, near < 1e8f ? 0.08f : 0.25f);
+        LoopTarget("raider_boost_loop", 0.09f * f * f, near < 1e8f ? 0.08f : 0.25f);
     }
 
     /// The shield beds: the shield-down loop while it sits at zero, the recharge loop while it climbs (a hit restarts the
