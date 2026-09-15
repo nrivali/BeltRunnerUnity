@@ -40,12 +40,12 @@ public class Hud : MonoBehaviour
     readonly List<Ui.Marker> _droneMarkers = new List<Ui.Marker>();
     readonly List<Ui.Marker> _raiderMarkers = new List<Ui.Marker>();
     RectTransform _status, _readouts, _target, _controls, _prompt, _notice, _toastBox, _version, _hoverLbl;
-    Text _flightEyebrow, _speedUnit, _tWeapon;
+    Text _speedUnit, _tWeapon;
     const float BAND_H = 100f;   // the bottom band's panes are this tall
     Text _hoverTxt;
     Ui.Pane _statusPane;
     Ui.Gauge _gHull, _gShield, _gFuel, _gThr, _gCargo;
-    Text _speedBig, _row1, _row2, _tEyebrow, _tName, _tRows, _tHpT, _tWarn, _promptText, _caption;
+    Text _speedBig, _row1, _row2, _tName, _tRows, _tHpT, _tWarn, _promptText, _caption;
     Ui.SegBar _tHp;
     RectTransform _tHpRow;
     Image _barTop, _barBot, _fade;
@@ -211,10 +211,8 @@ public class Hud : MonoBehaviour
     void BuildStatus()
     {
         _status = BandPane("Ship", BAND_LEFT, 300f, out _statusPane);
-        var e = Ui.Eyebrow(_status, "Ship", Ui.HUD_DIM);
-        Ui.At(e.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -8f), new Vector2(200f, 14f));
         // two by two, with room: hull and shield on the first row, fuel and the hold on the second
-        const float gw = 130f, x1 = 14f, x2 = 156f, y1 = -26f, y2 = -62f;
+        const float gw = 130f, x1 = 14f, x2 = 156f, y1 = -16f, y2 = -56f;
         _gHull = Ui.Gauge.Make(_status, "Hull", Ui.GREEN, x1, y1, gw, false, 7f);
         _gShield = Ui.Gauge.Make(_status, "Shield", Data.Hex("#8fe8ff"), x2, y1, gw, false, 7f);
         _gFuel = Ui.Gauge.Make(_status, "Fuel", Ui.CYAN, x1, y2, gw, false, 7f);
@@ -226,15 +224,13 @@ public class Hud : MonoBehaviour
     {
         Ui.Pane p;
         _readouts = BandPane("Flight", BAND_LEFT + 310f, 300f, out p);
-        _flightEyebrow = Ui.Eyebrow(_readouts, "Flight", Ui.HUD_DIM);
-        Ui.At(_flightEyebrow.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -8f), new Vector2(272f, 14f));
         _speedBig = Ui.Glow(Ui.Label(_readouts, "0", "mono_semi", 26, Ui.GLOW_TEXT, TextAnchor.LowerLeft), Ui.HUD_GLOW, 1.5f);
-        Ui.At(_speedBig.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -20f), new Vector2(130f, 28f));
+        Ui.At(_speedBig.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -12f), new Vector2(130f, 28f));
         _speedUnit = Ui.Label(_readouts, "SPEED · m/s", "mono", 10, Ui.HUD_DIM, TextAnchor.UpperLeft);   // under the number, so it sits still whatever the digits
-        Ui.At(_speedUnit.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -49f), new Vector2(130f, 12f));
-        _gThr = Ui.Gauge.Make(_readouts, "Thrust", Ui.AMBER, 160f, -20f, 126f, false, 8f);
-        _row1 = FlightRow(-64f);
-        _row2 = FlightRow(-80f);
+        Ui.At(_speedUnit.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -41f), new Vector2(130f, 12f));
+        _gThr = Ui.Gauge.Make(_readouts, "Thrust", Ui.AMBER, 160f, -12f, 126f, false, 8f);
+        _row1 = FlightRow(-60f);
+        _row2 = FlightRow(-78f);
     }
 
     Text FlightRow(float y)
@@ -252,13 +248,11 @@ public class Hud : MonoBehaviour
     {
         Ui.Pane p;
         _target = BandPane("Target", BAND_LEFT + 620f, 300f, out p);
-        _tEyebrow = Ui.Eyebrow(_target, "Target", Ui.HUD_DIM);
-        Ui.At(_tEyebrow.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -8f), new Vector2(272f, 14f));
         _tName = Ui.Glow(Ui.Label(_target, "", "display", 15, Color.white, TextAnchor.UpperLeft), Ui.A(Ui.CYAN, 0.5f));
-        Ui.At(_tName.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -20f), new Vector2(272f, 20f));
+        Ui.At(_tName.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -14f), new Vector2(272f, 20f));
         _tRows = Ui.Glow(Ui.Label(_target, "", "mono", 11, Ui.HUD_DIM, TextAnchor.UpperLeft), Ui.A(Ui.HUD_GLOW, 0.35f));
-        Ui.At(_tRows.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -40f), new Vector2(272f, 14f));
-        _tHpRow = Ui.Rect("Hp", _target, Ui.TL, Ui.TL, new Vector2(14f, -56f), new Vector2(272f, 12f));
+        Ui.At(_tRows.rectTransform, Ui.TL, Ui.TL, new Vector2(14f, -36f), new Vector2(272f, 14f));
+        _tHpRow = Ui.Rect("Hp", _target, Ui.TL, Ui.TL, new Vector2(14f, -54f), new Vector2(272f, 12f));
         var brt = Ui.Rect("Bar", _tHpRow, Ui.TL, Ui.TL, new Vector2(0f, -2f), new Vector2(140f, 8f));
         _tHp = brt.gameObject.AddComponent<Ui.SegBar>();
         _tHp.fill = Ui.AMBER2;
@@ -1568,7 +1562,6 @@ public class Hud : MonoBehaviour
         _speedBig.text = docked ? (hold ? "HOLD" : "DOCK") : Data.Fmt(spd);
         _speedUnit.gameObject.SetActive(!docked);
         // FLIGHT: the zone in the eyebrow, then the way to the cargo ship and the field, the radar and the threat
-        _flightEyebrow.text = ("Flight · " + zone.name).ToUpperInvariant();
         float toCarrier = carrier != null ? (ship.TruePos - carrier.truePos).magnitude : 0f;
         var here = docked ? null : belt.FieldAt(ship.TruePos);
         _row1.text = docked ? Kv("CARGO SHIP", hold ? "holding station" : "docked") : Kv("CARGO SHIP", Data.Fm(toCarrier) + " m") + "   " + Kv("FIELD", here != null ? here.name : "—");
@@ -1582,7 +1575,7 @@ public class Hud : MonoBehaviour
         string threatTxt = threat > 0 ? Ui.Col(threat + " raider" + (threat > 1 ? "s" : ""), Ui.RED) : Ui.Col("none", Ui.GLOW_TEXT);
         string weaponTxt = ship.weapon == "gun" ? "Autocannon" : "Laser";
         _row2.text = Kv("RADAR", radar) + "   THREAT " + threatTxt;
-        _tWeapon.text = Kv("WEAPON", weaponTxt) + "   " + Kv("LASER", laser);
+        _tWeapon.text = Kv("WEAPON", weaponTxt);
         // the target: the panel follows the lock when there is one, else the crosshair target
         bool hasTarget = ship.target >= 0 && ship.target < belt.count && belt.alive[ship.target] && !docked;
         int panelRock = locked && ship.lockKind == "rock" ? ship.lockRock : (hasTarget ? ship.target : -1);
@@ -1592,8 +1585,7 @@ public class Hud : MonoBehaviour
         {
             showTarget = true;
             float rd = Mathf.Max(0f, (panelRaider.pos - ship.LaserOrigin()).magnitude - Raiders.RADIUS);
-            _tEyebrow.text = locked && ship.lockKind == "raider" ? "LOCKED TARGET" : "TARGET";
-            _tName.text = "Pirate raider";
+            _tName.text = locked && ship.lockKind == "raider" ? "Pirate raider · locked" : "Pirate raider";
             _tRows.text = Kv("SIZE", "Ship") + "   " + Kv("RANGE", Data.Fm(rd) + " m") + "   " + Kv("SHIELD", Mathf.CeilToInt(Mathf.Max(0f, panelRaider.shield)) + " / " + Mathf.RoundToInt(panelRaider.maxShield));
             _tHpRow.gameObject.SetActive(true);
             _tHp.Set(panelRaider.hp / Mathf.Max(1f, panelRaider.maxHp), Ui.RED);
@@ -1605,8 +1597,7 @@ public class Hud : MonoBehaviour
         else if (locked && ship.lockKind == "station")
         {
             showTarget = true;
-            _tEyebrow.text = "LOCKED TARGET";
-            _tName.text = "Cargo ship";
+            _tName.text = "Cargo ship · locked";
             _tRows.text = Kv("SIZE", "Carrier") + "   " + Kv("RANGE", Data.Fm(ship.lockDist) + " m");
             _tHpRow.gameObject.SetActive(false);
             _tWarn.gameObject.SetActive(false);
@@ -1616,9 +1607,8 @@ public class Hud : MonoBehaviour
             showTarget = true;
             int i = panelRock;
             float tdist = Mathf.Max(0f, (belt.RockPos(i) - ship.LaserOrigin()).magnitude - belt.radius[i]);
-            _tEyebrow.text = locked ? "LOCKED TARGET" : "TARGET";
-            _tName.text = (belt.ore[i] < 0 ? "Barren" : Data.ORES[belt.ore[i]].name) + " Rock";
-            _tRows.text = Kv("SIZE", Belt.CLS_NAME[belt.cls[i]]) + "   " + Kv("RANGE", Data.Fm(tdist) + " m" + (tdist <= reach ? "" : " · beyond reach"));
+            _tName.text = (belt.ore[i] < 0 ? "Barren" : Data.ORES[belt.ore[i]].name) + " Rock" + (locked ? " · locked" : "");
+            _tRows.text = Kv("SIZE", Belt.CLS_NAME[belt.cls[i]]) + "   " + Kv("RANGE", Data.Fm(tdist) + " m");
             _tHpRow.gameObject.SetActive(true);
             _tHp.Set(belt.hp[i] / Mathf.Max(1f, belt.hpMax[i]), Ui.AMBER2);
             _tHpT.text = Mathf.CeilToInt(Mathf.Max(0f, belt.hp[i])) + " / " + Mathf.RoundToInt(belt.hpMax[i]);
@@ -1633,7 +1623,6 @@ public class Hud : MonoBehaviour
         }
         if (!showTarget)
         {
-            _tEyebrow.text = "TARGET";
             _tName.text = "No target";
             _tRows.text = Ui.Col("Q or MMB locks what the mouse is over", Ui.HUD_DIM);
             _tHpRow.gameObject.SetActive(false);
