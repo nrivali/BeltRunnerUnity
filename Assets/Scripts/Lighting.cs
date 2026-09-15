@@ -38,10 +38,10 @@ public class Lighting
         sun.type = LightType.Directional;
         sun.color = Data.Hex("#fff4e4");
         sun.intensity = 1.7f;
-        sun.shadows = LightShadows.Soft;
-        sun.shadowStrength = 0.92f;
-        sun.shadowBias = 0.1f;
-        sun.shadowNormalBias = 0.6f;
+        sun.shadows = LightShadows.Hard;   // a point sun in vacuum: hard edges
+        sun.shadowStrength = 1f;      // full: nothing of the sun leaks into a cast shadow
+        sun.shadowBias = 0.04f;       // tight, so contact shadows read; the normal bias keeps the acne off
+        sun.shadowNormalBias = 0.35f;
         // shadows as the browser casts them: one box a few kilometres round the ship, never the whole belt
         QualitySettings.shadowDistance = SHADOW_REACH;
         QualitySettings.shadowCascades = 1;
@@ -58,7 +58,7 @@ public class Lighting
         // the fill: nearly none, and what there is runs cool, so the shadow side of a rock goes to a deep blue-black
         // and the sun does all the shaping (the reference frame's contrast); the hulls still reflect the sky
         RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.42f, 0.48f, 0.62f) * 0.04f;
+        RenderSettings.ambientLight = new Color(0.42f, 0.48f, 0.62f) * 0.025f;
         RenderSettings.defaultReflectionMode = UnityEngine.Rendering.DefaultReflectionMode.Skybox;
         RenderSettings.defaultReflectionResolution = 128;
         // a faint dark haze with distance on the rock alone (the rock shader's finalcolor): far rocks sink toward the
