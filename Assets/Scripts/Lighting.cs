@@ -121,11 +121,11 @@ public class Post : MonoBehaviour
     public Light sun;
     public Color sunColor = Color.white;
     public bool volumetric = true;
-    public float dustDensity = 0.00005f;   // per world unit
+    public float dustDensity = 0.00003f;   // per world unit
     public float dustReach = 6000f;        // how far the march goes
     public int dustSteps = 48;
-    public float dustIntensity = 0.5f;
-    public float dustAniso = 0.85f;        // Henyey-Greenstein g: forward-peaked toward the sun
+    public float dustIntensity = 0.45f;
+    public float dustAniso = 0.75f;        // Henyey-Greenstein g: forward-peaked toward the sun
     Material _mat, _volMat;
     Camera _camera;
     UnityEngine.Rendering.CommandBuffer _shadowCopy;
