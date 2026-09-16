@@ -36,6 +36,7 @@ Shader "BeltRunner/Rock"
         #pragma multi_compile_instancing
         #pragma target 3.5
         #include "RockSunlight.cginc"
+        #include "RockTorch.cginc"
 
         float _BeltTime;
         float4 _HeatPos0, _HeatPos1;   // the laser spots in scene space, w = radius
@@ -67,7 +68,9 @@ Shader "BeltRunner/Rock"
         {
             float2 uv_MainTex;
             float3 worldPos;
+            float3 worldNormal;
             float heat;
+            INTERNAL_DATA
         };
 
         void vert(inout appdata_full v, out Input o)
@@ -194,6 +197,8 @@ Shader "BeltRunner/Rock"
             // Intact ore is reflective, not emissive. Only mining damage and the beam produce heat light.
             // the laser's spot glows where the beam is cooking the stone
             o.Emission += Spot(IN.worldPos, _HeatPos0, _HeatAmt.x) + Spot(IN.worldPos, _HeatPos1, _HeatAmt.y);
+            // the flashlight on the stone (RockTorch.cginc): the diffuse albedo lit by it, once, in the base pass
+            o.Emission += Torch(IN.worldPos, WorldNormalVector(IN, normal), o.Albedo * OneMinusReflectivityFromMetallic(o.Metallic));
             o.Alpha = 1.0;
         }
         ENDCG

@@ -9,6 +9,9 @@ inline half4 BeltSunBRDF(half3 diffuse, half3 specular, half oneMinusReflectivit
     half smoothness, float3 normal, float3 viewDir, UnityGI gi)
 {
     gi.indirect.specular = 0;
+    #if defined(SPOT)
+        return half4(0, 0, 0, 0);   // the ship's flashlight, the game's one spot light: the rock takes it in surf (Torch in Rock.shader), never here
+    #endif
     #if !defined(DIRECTIONAL) && !defined(DIRECTIONAL_COOKIE)
         return half4(diffuse * (gi.light.color * saturate(dot(normal, gi.light.dir)) + gi.indirect.diffuse), 1);
     #endif

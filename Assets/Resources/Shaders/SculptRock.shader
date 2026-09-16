@@ -25,6 +25,7 @@ Shader "BeltRunner/SculptRock"
         #pragma multi_compile_instancing
         #pragma target 3.5
         #include "RockSunlight.cginc"
+        #include "RockTorch.cginc"
         sampler2D _MainTex, _StoneTex, _BumpMap, _MetalRough;
         float _BumpScale, _StoneReflectance, _PackedAlbedo, _Brightness, _BeltTime, _HazeDensity;
         float4 _HazeColor, _HeatPos0, _HeatPos1, _HeatAmt;
@@ -33,7 +34,7 @@ Shader "BeltRunner/SculptRock"
             UNITY_DEFINE_INSTANCED_PROP(float4, _Color)
             UNITY_DEFINE_INSTANCED_PROP(float4, _Rail)
         UNITY_INSTANCING_BUFFER_END(Props)
-        struct Input { float2 uv_MainTex; float3 worldPos; float heat; };
+        struct Input { float2 uv_MainTex; float3 worldPos; float3 worldNormal; float heat; INTERNAL_DATA };
         void vert(inout appdata_full v, out Input o)
         {
             UNITY_INITIALIZE_OUTPUT(Input,o);
@@ -100,6 +101,7 @@ Shader "BeltRunner/SculptRock"
             float3 hc=h<.5?lerp(float3(.9,.1,.02),float3(1,.45,.12),h*2):lerp(float3(1,.45,.12),float3(1,.82,.5),(h-.5)*2);
             o.Emission=hc*h*(.45+.65*h)*(.6+dot(albedo,float3(.3,.59,.11))*1.2)*.5;
             o.Emission+=Spot(IN.worldPos,_HeatPos0,_HeatAmt.x)+Spot(IN.worldPos,_HeatPos1,_HeatAmt.y);
+            o.Emission+=Torch(IN.worldPos,WorldNormalVector(IN,normal),o.Albedo*(1-SpecularStrength(o.Specular)));   // the flashlight (RockTorch.cginc), once, in the base pass
             o.Alpha=1;
         }
         ENDCG
