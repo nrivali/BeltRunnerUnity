@@ -63,7 +63,9 @@ public class Game : MonoBehaviour
             if (args[i] == "-combat" || args[i] == "--combat") _combat = true;
             if ((args[i] == "-gun" || args[i] == "--gun") && i + 1 < args.Length) int.TryParse(args[i + 1], out _combatGun);
             if ((args[i] == "-rocket" || args[i] == "--rocket") && i + 1 < args.Length) int.TryParse(args[i + 1], out _combatRocket);
-            if ((args[i] == "-face" || args[i] == "--face") && i + 1 < args.Length) _combatFace = args[i + 1];   // sun | planet: the sandbox ship turned to face it (lighting checks)
+            if ((args[i] == "-face" || args[i] == "--face") && i + 1 < args.Length) _combatFace = args[i + 1];   // sun | planet | rock: the sandbox ship turned to face it (lighting checks)
+            if ((args[i] == "-torch" || args[i] == "--torch") && i + 1 < args.Length) _combatTorch = args[i + 1] != "0";   // the flashlight on or off in the sandbox
+            if (args[i] == "-torchpoint") _combatTorchPoint = true;   // a diagnostic: the flashlight as a point light at the nose, to see what it lights
         }
         if (_combat)
         {
@@ -135,9 +137,25 @@ public class Game : MonoBehaviour
         {
             StartGame();
             JumpToHold();
-            if (_combatFace == "sun" || _combatFace == "planet")
+            ship.torchOn = _combatTorch;
+            if (_combatTorchPoint && ship.torch != null) { ship.torch.type = LightType.Point; Debug.Log("combat test: torch as a point light"); }
+            if (_combatFace == "sun" || _combatFace == "planet" || _combatFace == "rock")
             {
                 var d = _combatFace == "sun" ? zone.sunDir.normalized : (_planetTrue - ship.TruePos).normalized;
+                if (_combatFace == "rock")
+                {
+                    // the nearest rock within 40,000 u, and the ship set 400 u off it, so the flashlight can be judged
+                    int best = -1; float bd = float.PositiveInfinity;
+                    foreach (int ri in belt.RocksWithin(ship.TruePos, 40000f)) { float dd = (belt.RockPos(ri) - ship.TruePos).magnitude; if (dd < bd && belt.radius[ri] < 400f) { bd = dd; best = ri; } }
+                    if (best >= 0)
+                    {
+                        var rp = belt.RockPos(best);
+                        d = (rp - ship.TruePos).normalized;
+                        ship.transform.position = rp - d * (belt.radius[best] + 400f) - worldOffset;
+                        Debug.Log("combat test: facing rock " + best + " r=" + belt.radius[best].ToString("0") + " at 400 u · torch " + ship.torchOn
+                            + (ship.torch != null ? " · torch forward·ship forward " + Vector3.Dot(ship.torch.transform.forward, ship.Forward).ToString("0.00") + " · torch local " + ship.torch.transform.localPosition + " parent " + ship.torch.transform.parent.name + " scale " + ship.torch.transform.lossyScale : ""));
+                    }
+                }
                 ship.transform.rotation = Quaternion.LookRotation(d, Vector3.up);
                 ship.mouseSteer = false;   // or the pointer, wherever it sits, would swing the nose off it
                 ship.UpdateCamera(1f);
@@ -471,6 +489,7 @@ public class Game : MonoBehaviour
     bool _combat;
     int _combatGun = 0, _combatRocket = 0;
     string _combatFace = "";
+    bool _combatTorch = true, _combatTorchPoint;
     int _combatFrame;
 
     /// The combat test's fight: every raider in the zone is cleared and three fresh ones are spawned 2,000 to 4,000 m
@@ -708,6 +727,8 @@ public class Game : MonoBehaviour
         hud.menu.Tick(dt);
         tutorial.Update(dt);
         if (_combat) { State.fuel = State.Stat("tank").cap; State.credits = Mathf.Max(State.credits, 9999999f); State.rockets = State.Stat("rocket").slots; }   // the test: fuel never runs out, nor credits
+        if (_combat && _combatFace == "rock" && _combatFrame == 300) ship.torchOn = false;   // the flashlight check (-face rock): a second shot with it off, same view
+        if (_combat && _combatFace == "rock" && _combatFrame == 330) Shot("combat_test_off");
         if (_combat && ++_combatFrame == 240) { Shot("combat_test"); Debug.Log("combat test: " + raiders.Stats() + " · hull " + State.hull.ToString("0") + " · lock " + ship.lockKind + " · target " + (ship.raiderTarget != null)); }
         if (_smoke) SmokeStep();
     }

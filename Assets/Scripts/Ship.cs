@@ -478,10 +478,10 @@ public class Ship : MonoBehaviour
         torch = go.AddComponent<Light>();
         torch.type = LightType.Spot;
         torch.color = Data.Hex("#fff1d6");
-        torch.intensity = 6f;
-        torch.range = 2600f;
-        torch.spotAngle = 45f;
-        torch.innerSpotAngle = 26f;
+        torch.intensity = 40f;    // 2026-09-15: from 6; the built-in spot falloff is steep and the rock is dark, so 6 lit nothing past a few hundred units
+        torch.range = 5000f;
+        torch.spotAngle = 50f;
+        torch.innerSpotAngle = 30f;
         torch.shadows = LightShadows.None;
     }
 
