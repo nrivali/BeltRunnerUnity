@@ -1345,6 +1345,7 @@ public class Belt
 
     public Material RockMaterial { get { return _mat; } }
     public Mesh MeshFor(int key, int lod) { return _meshes[key, lod]; }
+    public string ShaderNameOf(int i) { var m = i >= 0 && i < count ? _subMats[meshKey[i]] : null; return m != null && m.Length > 0 && m[0] != null ? m[0].shader.name : "?"; }
 
     /// What the renderer thinks of the rock material and the instancing path, for the smoke log.
     public string DrawReport()

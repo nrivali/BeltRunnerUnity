@@ -66,6 +66,9 @@ public class Game : MonoBehaviour
             if ((args[i] == "-face" || args[i] == "--face") && i + 1 < args.Length) _combatFace = args[i + 1];   // sun | planet | rock: the sandbox ship turned to face it (lighting checks)
             if ((args[i] == "-torch" || args[i] == "--torch") && i + 1 < args.Length) _combatTorch = args[i + 1] != "0";   // the flashlight on or off in the sandbox
             if (args[i] == "-torchpoint") _combatTorchPoint = true;   // a diagnostic: the flashlight as a point light at the nose, to see what it lights
+            if (args[i] == "-rockmin" && i + 1 < args.Length) int.TryParse(args[i + 1], out _combatRockMin);   // -face rock: only a rock of at least this radius (u), so a big one fills the frame
+            if (args[i] == "-shader" && i + 1 < args.Length) _combatShader = args[i + 1];   // -face rock: only a rock whose shader name contains this ("Sculpt" for the sculpted collection, "Rock" for the belt's own)
+            if (args[i] == "-side" && i + 1 < args.Length) _combatSide = args[i + 1];   // -face rock: "sun" the ship on the rock's lit side, "dark" on its night side (only the flashlight lights it), 30 deg off the sun so the sun stays out of the frame
         }
         if (_combat)
         {
@@ -146,13 +149,19 @@ public class Game : MonoBehaviour
                 {
                     // the nearest rock within 40,000 u, and the ship set 400 u off it, so the flashlight can be judged
                     int best = -1; float bd = float.PositiveInfinity;
-                    foreach (int ri in belt.RocksWithin(ship.TruePos, 40000f)) { float dd = (belt.RockPos(ri) - ship.TruePos).magnitude; if (dd < bd && belt.radius[ri] < 400f) { bd = dd; best = ri; } }
+                    foreach (int ri in belt.RocksWithin(ship.TruePos, 40000f)) { float dd = (belt.RockPos(ri) - ship.TruePos).magnitude; if (dd < bd && belt.radius[ri] < 400f && belt.radius[ri] >= _combatRockMin && (_combatShader == "" || belt.ShaderNameOf(ri).Contains(_combatShader))) { bd = dd; best = ri; } }
                     if (best >= 0)
                     {
                         var rp = belt.RockPos(best);
                         d = (rp - ship.TruePos).normalized;
+                        if (_combatSide == "sun" || _combatSide == "dark")
+                        {
+                            var sd = zone.sunDir.normalized;   // light travels along -sunDir, so the lit face points +sunDir
+                            var axis = Vector3.Cross(sd, Vector3.up); if (axis.sqrMagnitude < 1e-4f) axis = Vector3.right; axis.Normalize();
+                            d = Quaternion.AngleAxis(30f, axis) * (_combatSide == "dark" ? sd : -sd);   // face the dark (or lit) side; the standoff line below sets the position
+                        }
                         ship.transform.position = rp - d * (belt.radius[best] + 400f) - worldOffset;
-                        Debug.Log("combat test: facing rock " + best + " r=" + belt.radius[best].ToString("0") + " at 400 u · torch " + ship.torchOn
+                        Debug.Log("combat test: facing rock " + best + " r=" + belt.radius[best].ToString("0") + " (" + belt.ShaderNameOf(best) + ") at 400 u · torch " + ship.torchOn
                             + (ship.torch != null ? " · torch forward·ship forward " + Vector3.Dot(ship.torch.transform.forward, ship.Forward).ToString("0.00") + " · torch local " + ship.torch.transform.localPosition + " parent " + ship.torch.transform.parent.name + " scale " + ship.torch.transform.lossyScale : ""));
                     }
                 }
@@ -490,6 +499,8 @@ public class Game : MonoBehaviour
     int _combatGun = 0, _combatRocket = 0;
     string _combatFace = "";
     bool _combatTorch = true, _combatTorchPoint;
+    string _combatSide = "", _combatShader = "";
+    int _combatRockMin;
     int _combatFrame;
 
     /// The combat test's fight: every raider in the zone is cleared and three fresh ones are spawned 2,000 to 4,000 m

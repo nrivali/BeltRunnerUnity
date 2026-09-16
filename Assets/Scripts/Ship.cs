@@ -10,6 +10,7 @@ public class Ship : MonoBehaviour
     public const float TURN = 50f * Mathf.Deg2Rad;   // yaw and pitch: 50 degrees a second at full deflection (30 until 2026-09-15)
     public const float DRIFT_TURN = 70f / 50f;   // the drift: the nose turns at 70 degrees a second (the usual 50)
     public const float REPAIR_RATE = 6f;
+    public const float TORCH_CD = 14000f, TORCH_REACH = 7000f, TORCH_HALF = Mathf.PI / 8f;   // the browser's flashlight: 14,000 cd falling off as 1/d (decay 1), reach 7,000 u, half-angle pi/8; the rocks take it through their shader (Tick)
     public const float WARP_DUR = 8.6f;
     public const float WARP_LOAD_AT = 4.3f;   // the screen is black from 4.2 s to 5.4 s; the zone swaps underneath
 
@@ -468,7 +469,9 @@ public class Ship : MonoBehaviour
 
     /// The flashlight: the HTML torch (SpotLight 0xfff1d6, 14000 cd, reach 7000, half-angle pi/8, decay 1), on by default,
     /// just below the nose and aimed a touch down. Unity spot falloff is not 1/d, so the range and intensity are chosen
-    /// to light a rock at a few hundred units about as the browser does.
+    /// to light a rock at a few hundred units about as the browser does. The rocks never see this light (they are drawn
+    /// by DrawMeshInstanced with the belt's mesh bounds, which Unity's per-object lighting cannot cope with): they take
+    /// the torch in their shader, from the globals Tick sets, with the browser's numbers.
     void BuildTorch()
     {
         var go = new GameObject("Torch");
@@ -710,7 +713,16 @@ public class Ship : MonoBehaviour
 
     public void Tick(float dt)
     {
-        if (torch != null) torch.enabled = torchOn && !docked && warp == null;
+        if (torch != null)
+        {
+            torch.enabled = torchOn && !docked && warp == null;
+            // the rocks take the flashlight from these (Torch in Rock.shader), as the browser's SpotLight: a Unity spot
+            // light never reaches a rock drawn by DrawMeshInstanced with the belt's mesh bounds (2026-09-16)
+            var tp = torch.transform.position; var tf = torch.transform.forward; var tc = torch.color;
+            Shader.SetGlobalVector("_TorchPos", new Vector4(tp.x, tp.y, tp.z, torch.enabled ? TORCH_CD * Lighting.UNITY_PER_BROWSER : 0f));
+            Shader.SetGlobalVector("_TorchDir", new Vector4(tf.x, tf.y, tf.z, Mathf.Cos(TORCH_HALF)));
+            Shader.SetGlobalVector("_TorchColor", new Vector4(tc.r, tc.g, tc.b, TORCH_REACH));
+        }
         TickPulse(dt);
         State.TickShield(dt);
         TickFuelWarnings();

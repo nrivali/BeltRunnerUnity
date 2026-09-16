@@ -20,6 +20,7 @@ public class Lighting
         return new Profile { color = Data.Hex("#ffd3a4"), intensity = 6.0f, radius = 0.011f, exposure = 0.95f };
     }
 
+    public const float UNITY_PER_BROWSER = 2.4f / 5.2f;   // the browser's light strengths land here at this factor: its sun of 5.2 is 2.4 in Unity (by eye against the reference frame, 2026-09-15); the flashlight uses it too
     public const float SHADOW_REACH = 16000f;         // 2026-09-15: five times the browser's 3,300 u box, over four cascades, so rocks shadow each other well out
     public const float SHADOW_REACH_CARRIER = 18000f; // a little more near the carrier, so the hangar and the hull shadow properly
     public const float CARRIER_NEAR = 11000f;
@@ -81,9 +82,9 @@ public class Lighting
         var dir = z.sunDir.normalized;
         sun.transform.rotation = Quaternion.LookRotation(-dir, Mathf.Abs(dir.y) < 0.98f ? Vector3.up : Vector3.forward);
         sun.color = p.color;
-        sun.intensity = 2.4f * p.intensity / 5.2f;
+        sun.intensity = UNITY_PER_BROWSER * p.intensity;
         Shader.SetGlobalVector("_BeltSunDir", new Vector4(dir.x, dir.y, dir.z, 0f));
-        Shader.SetGlobalColor("_SpeckSunColor", p.color * (2.4f * p.intensity / 5.2f));   // the sun as the rocks get it: colour times strength
+        Shader.SetGlobalColor("_SpeckSunColor", p.color * (UNITY_PER_BROWSER * p.intensity));   // the sun as the rocks get it: colour times strength
         if (post != null) { post.exposure = p.exposure; post.sunDir = dir; post.sun = sun; post.sunColor = p.color; }
         if (sky != null)
         {
