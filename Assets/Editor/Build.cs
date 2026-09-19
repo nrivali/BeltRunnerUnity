@@ -20,7 +20,7 @@ public static class Build
             AssetDatabase.Refresh();
         }
         // the world is built from code, so no asset references these shaders and a build would leave them out
-        AlwaysInclude("Standard", "Sprites/Default", "BeltRunner/Rock", "BeltRunner/Sky", "BeltRunner/Post", "BeltRunner/Spark", "BeltRunner/Field", "BeltRunner/Scorch", "Legacy Shaders/Diffuse", "UI/Default");
+        AlwaysInclude("Standard", "Sprites/Default", "BeltRunner/Rock", "BeltRunner/Sky", "BeltRunner/Post", "BeltRunner/Spark", "BeltRunner/Pulse", "BeltRunner/Field", "BeltRunner/Scorch", "Legacy Shaders/Diffuse", "UI/Default");
         // the belt draws with GPU instancing; the build strips instancing variants unless a material asset with
         // instancing enabled uses the shader, so the rock material lives as an asset the game loads from Resources
         RockMaterialAsset();

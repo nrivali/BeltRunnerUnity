@@ -33,7 +33,7 @@ public class Hud : MonoBehaviour
     Ui.Blips _blips;
     Ui.Reticle _reticle;
     RectTransform _reticleRt;
-    Ui.Marker _marker, _fieldMarker;
+    Ui.Marker _marker, _fieldMarker, _outpostMarker;
     Ui.Crosshair _crosshair;
     RectTransform _crosshairRt;
     readonly List<Ui.Marker> _droneMarkers = new List<Ui.Marker>();
@@ -62,12 +62,13 @@ public class Hud : MonoBehaviour
 
     // the hangar window: one centred window with tabs (Inventory · Ship refits · Cargo ship refits)
     RectTransform _win, _tabBar;
-    static readonly string[] TAB_IDS = { "inv", "ship", "depot" };
-    readonly Ui.Btn[] _tabBtns = new Ui.Btn[3];
+    static readonly string[] TAB_IDS = { "inv", "ship", "depot", "raid" };   // raid: the Contracts tab (2026-09-19)
+    readonly Ui.Btn[] _tabBtns = new Ui.Btn[4];
     Text _tabHint;
     Text _winEyebrow, _winTitle, _winSub, _winCredits;
     Ui.Scroll _winScroll;
     Ui.Btn _departBtn, _navBtn, _depositBtn, _closeBtn;
+    Ui.Btn _footDepositBtn, _footSellBtn;   // the footer's Deposit all and Sell all (2026-09-18, the user's)
     Text _resetLink;
     bool _resetArmed;
     float _resetT;
@@ -102,7 +103,6 @@ public class Hud : MonoBehaviour
     RectTransform _tutBox;
     Text _tutStep, _tutTitle, _tutText, _tutWait;
     Ui.Btn _tutNext;
-    RectTransform _tutNextChip;
     bool _tutHidden;
     Ui.Rings _rings;
     readonly Dictionary<string, RectTransform> _ringTargets = new Dictionary<string, RectTransform>();
@@ -153,6 +153,7 @@ public class Hud : MonoBehaviour
         _reticleRt.gameObject.SetActive(false);
         _marker = Ui.Marker.Make(_root, Ui.AMBER);
         _fieldMarker = Ui.Marker.Make(_root, Ui.MUTED, false, true);
+        _outpostMarker = Ui.Marker.Make(_root, Ui.RED, false, true);
         // the gunnery: the crosshair on the nose ray at gun range, and the lead pip for a locked raider
         _crosshairRt = Ui.Rect("Crosshair", _root, Ui.BL, Ui.MID, Vector2.zero, new Vector2(48f, 48f));
         _crosshair = _crosshairRt.gameObject.AddComponent<Ui.Crosshair>();
@@ -337,12 +338,13 @@ public class Hud : MonoBehaviour
         new object[] { new[] { "F" }, "Flashlight on · off in flight · the upgrade tabs when docked" },
         new object[] { new[] { "V" }, "Volumetric dust on · off" },
         new object[] { new[] { "T" }, "Out of fuel · recovery to the cargo ship (15% of credits)" },
-        new object[] { new[] { "H" }, "Approach control within 2,250 m of the cargo ship · deposit ore on the pad" },
+        new object[] { new[] { "H" }, "Approach control within " + Data.Fm(Data.DOCK_RANGE) + " m of the cargo ship · on the pad, warp to the Hub" },
+        new object[] { new[] { "E" }, "On the pad, deposit all ore into the cargo ship" },
         new object[] { new[] { "Tab", "I" }, "The hangar window · inventory, and the upgrade tabs when docked" },
         new object[] { new[] { "N" }, "Nav map · warp (docked in the cargo ship)" },
         new object[] { new[] { "F1" }, "Hide · show this list" },
         new object[] { new[] { "F5" }, "Quick-save" },
-        new object[] { new[] { "F9" }, "Test · spawn 3 raiders 2,000 to 4,000 m out" },
+        new object[] { new[] { "F9" }, "Test · spawn 3 raiders 500 to 1,000 m out" },
         new object[] { new[] { "F10" }, "Test · raiders hold their fire · again to let them fire" },
         new object[] { new[] { "F8" }, "Test · the upgrade tabs anywhere · bottomless credits · − takes a level off" },
         new object[] { new[] { "Esc" }, "Pause · the menu with settings and controls" },
@@ -485,15 +487,24 @@ public class Hud : MonoBehaviour
         Ui.At(be.rectTransform, Ui.TR, Ui.TR, new Vector2(-26f, -20f), new Vector2(200f, 14f));
         _winCredits = Ui.Label(_win, "0 cr", "mono_semi", 24, Ui.AMBER2, TextAnchor.UpperRight);
         Ui.At(_winCredits.rectTransform, Ui.TR, Ui.TR, new Vector2(-26f, -36f), new Vector2(240f, 30f));
+        // the cargo ship's supplies in the header, three gauges across, so every tab shows them (2026-09-18, the user's);
+        // TickWindowGauges keeps them live
+        {
+            float gutter = 24f, gw = (1100f - 52f - 2f * gutter) / 3f;
+            _gStoreW = Gauge(new Ui.Flow(_win, 26f, 96f, gw), "Cargo ship storage", Ui.CARGO, 0f, "");
+            _gFuelW = Gauge(new Ui.Flow(_win, 26f + gw + gutter, 96f, gw), "Cargo ship fuel supply", Ui.CYAN, 0f, "");
+            _gPartsW = Gauge(new Ui.Flow(_win, 26f + 2f * (gw + gutter), 96f, gw), "Repair parts", Ui.GREEN, 0f, "");
+            TickWindowGauges();
+        }
         // the tab bar under the header, a rule beneath it
-        _tabBar = Ui.Rect("Tabs", _win, Ui.TL, Ui.TL, new Vector2(26f, -92f), new Vector2(0f, 36f));
+        _tabBar = Ui.Rect("Tabs", _win, Ui.TL, Ui.TL, new Vector2(26f, -146f), new Vector2(0f, 36f));
         _tabBar.anchorMax = new Vector2(1f, 1f);
-        _tabBar.offsetMin = new Vector2(26f, -128f);
-        _tabBar.offsetMax = new Vector2(-26f, -92f);
+        _tabBar.offsetMin = new Vector2(26f, -182f);
+        _tabBar.offsetMax = new Vector2(-26f, -146f);
         // the tabs, built once: they only ever switch which one is lit (and the upgrade tabs hide in flight)
-        string[] names = { "Inventory", "Ship upgrades", "Cargo ship upgrades" };
+        string[] names = { "Inventory", "Ship upgrades", "Cargo ship upgrades", "Contracts" };
         float tx = 0f;
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < TAB_IDS.Length; i++)
         {
             var id = TAB_IDS[i];
             var b = Ui.Button(_tabBar, names[i], () => PickTab(id), i == 0, false, 150f, 13);
@@ -503,7 +514,7 @@ public class Hud : MonoBehaviour
         }
         _tabHint = Ui.Label(_tabBar, "", "body", 12, Ui.DIM, TextAnchor.MiddleRight);
         Ui.At(_tabHint.rectTransform, Ui.TR, Ui.TR, Vector2.zero, new Vector2(520f, 36f));
-        var rule = Ui.Rect("Rule", _win, Ui.TL, Ui.TL, new Vector2(0f, -136f), new Vector2(0f, 1f));
+        var rule = Ui.Rect("Rule", _win, Ui.TL, Ui.TL, new Vector2(0f, -190f), new Vector2(0f, 1f));
         rule.anchorMax = new Vector2(1f, 1f);
         Ui.Fill(rule, Ui.LINE);
         // the footer
@@ -513,17 +524,20 @@ public class Hud : MonoBehaviour
         frule.anchorMax = new Vector2(1f, 1f);
         Ui.Fill(frule, Ui.LINE);
         float x = 26f;
-        _departBtn = Ui.Button(foot, "Depart", () => DepartPressed(), true);
+        _departBtn = Ui.Button(foot, "Depart", () => DepartPressed(), true, key: "Enter");
         _departBtn.rt.anchoredPosition = new Vector2(x, -14f); x += _departBtn.Width + 10f;
-        var wchip = Ui.Chip(foot, "Shift", false, new Vector2(x, -14f - (36f - 19f) * 0.5f)); x += wchip.sizeDelta.x + 10f;
-        _navBtn = Ui.Button(foot, "Warp to the Hub", () => { if (ship != null && ship.docked && !zone.hub) ship.StartWarp(Data.ZONE_HUB); });
+        // the hold's two moves, down here with the rest (2026-09-18, the user's): deposit into the cargo ship, sell at the Hub
+        _footDepositBtn = Ui.Button(foot, "Deposit all", () => { if (ship != null) ship.DepositAll(); _svcSig = ""; RefreshWindow(); }, key: "E");
+        _footDepositBtn.rt.anchoredPosition = new Vector2(x, -14f); x += _footDepositBtn.Width + 10f;
+        _footSellBtn = Ui.Button(foot, "Sell all", () => { if (ship != null) ship.Sell(Data.ORE_KEYS, true, true); _svcSig = ""; RefreshWindow(); });
+        _footSellBtn.rt.anchoredPosition = new Vector2(x, -14f); x += _footSellBtn.Width + 10f;
+        _navBtn = Ui.Button(foot, "Warp to the Hub", () => { if (ship != null && ship.docked && !zone.hub) ship.StartWarp(Data.ZONE_HUB); }, key: "H");
         _navBtn.rt.anchoredPosition = new Vector2(x, -14f); x += _navBtn.Width + 10f;
-        _closeBtn = Ui.Button(foot, "Close", () => CloseWindow());
+        _closeBtn = Ui.Button(foot, "Close", () => CloseWindow(), key: "Esc");
         _closeBtn.rt.anchoredPosition = new Vector2(x, -14f); x += _closeBtn.Width + 10f;
-        Ui.Chip(foot, "Esc", false, new Vector2(x, -14f - (36f - 19f) * 0.5f));
         _resetLink = Ui.Link(foot, "Reset save", () => ResetPressed());
         Ui.At(_resetLink.rectTransform, Ui.TR, Ui.TR, new Vector2(-26f, -20f), _resetLink.rectTransform.sizeDelta);
-        _winScroll = Ui.Scroll.Make(_win, 0f, 64f, 0f, 137f);
+        _winScroll = Ui.Scroll.Make(_win, 0f, 64f, 0f, 191f);
         _winGroup = _win.gameObject.AddComponent<CanvasGroup>();
         _bodyGroup = _winScroll.viewport.gameObject.AddComponent<CanvasGroup>();
         _bodyHome = _winScroll.viewport.anchoredPosition;
@@ -564,6 +578,7 @@ public class Hud : MonoBehaviour
             if (Input.GetKeyDown(KeyCode.Alpha1)) PickTab("inv");
             if (Input.GetKeyDown(KeyCode.Alpha2)) PickTab("ship");
             if (Input.GetKeyDown(KeyCode.Alpha3)) PickTab("depot");
+            if (Input.GetKeyDown(KeyCode.Alpha4) && ship.docked) PickTab("raid");
         }
     }
 
@@ -607,6 +622,7 @@ public class Hud : MonoBehaviour
     {
         if (_win == null) return;
         if (tab != "inv" && !RefitsAvailable) tab = "inv";
+        if (tab == "raid" && !ship.docked) tab = "inv";   // the contracts are read on the pad
         if (!InvOpen) Audio.Play("ui_open");
         else if (tab != _winTab) Audio.Play("ui_tab");
         if (!InvOpen) { _winK = instantUi ? 1f : 0f; _win.localScale = Vector3.one * (instantUi ? 1f : 0.96f); if (_winGroup != null) _winGroup.alpha = _winK; }
@@ -720,6 +736,7 @@ public class Hud : MonoBehaviour
             foreach (var k in Data.ORE_KEYS) sb.Append(',').Append(State.cargo[k].ToString("0")).Append('/').Append(State.store[k].ToString("0")).Append('/').Append(State.marketNext[k].ToString("0.00"));   // the targets, not the drifting prices: a rebuild every quarter second pulled the tabs out from under the mouse
         }
         else if (_winTab == "depot") sb.Append(Mathf.RoundToInt(State.droneUnits));   // the note under the rows
+        else if (_winTab == "raid") sb.Append(State.raid).Append('|').Append(State.raids).Append('|').Append(game != null && game.outpost != null ? game.outpost.Sig : "").Append('|').Append(Mathf.FloorToInt(State.time / 30f)).Append('|').Append(game != null && game.carrier != null && game.carrier.station).Append('|').Append(Mathf.RoundToInt(State.shipFuel / 10f));   // the contract, the outpost's state, the re-post countdown by the half minute
         string sig = sb.ToString();
         if (sig == _svcSig) { UpdateRows(); return; }
         _svcSig = sig;
@@ -732,15 +749,20 @@ public class Hud : MonoBehaviour
         _departBtn.SetText(atHub ? "Nav map" : "Depart");
         _departBtn.rt.gameObject.SetActive(docked);
         _navBtn.rt.gameObject.SetActive(docked && !atHub);
+        _footDepositBtn.rt.gameObject.SetActive(docked);
+        _footDepositBtn.interactable = docked && State.CargoTotal() > 0.5f;
+        float storeUnits = 0f; foreach (var kv in State.store) storeUnits += kv.Value;
+        _footSellBtn.rt.gameObject.SetActive(docked);
+        _footSellBtn.interactable = atHub && (State.CargoTotal() > 0.5f || storeUnits > 0.5f);   // ore only sells at the Hub
         _resetLink.gameObject.SetActive(docked);
         // the tabs: the lit one follows the tab, the upgrade tabs show only where upgrades can be bought
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < TAB_IDS.Length; i++)
         {
-            bool show = i == 0 || RefitsAvailable;
+            bool show = i == 0 || (TAB_IDS[i] == "raid" ? docked : RefitsAvailable);
             if (_tabBtns[i].rt.gameObject.activeSelf != show) _tabBtns[i].rt.gameObject.SetActive(show);
             if (_tabBtns[i].primary != (TAB_IDS[i] == _winTab)) _tabBtns[i].SetPrimary(TAB_IDS[i] == _winTab);
         }
-        _tabHint.text = _winTab == "inv" ? (docked ? "Drag stacks between the grids or double-click one · E deposits all" : "Drag a stack out of the grid, or ✕, to jettison it") : "The price button buys the next level · 1 / 2 / 3 pick the tabs";
+        _tabHint.text = _winTab == "inv" ? (docked ? "Drag stacks between the grids or double-click one · E deposits all" : "Drag a stack out of the grid, or ✕, to jettison it") : _winTab == "raid" ? "Meridian Colony pays when the job is done · 1 / 2 / 3 / 4 pick the tabs" : "The price button buys the next level · 1 / 2 / 3 / 4 pick the tabs";
         // the body, rebuilt where it stood: the scroll position is kept (a purchase must not throw the list to the top)
         var keep = _winScroll.content.anchoredPosition;
         _winScroll.Clear();
@@ -750,11 +772,11 @@ public class Hud : MonoBehaviour
         _refitsBox = null;
         _rows.Clear();
         _rowSig = "";
-        _gStoreW = _gFuelW = _gPartsW = null;
         float w = _winScroll.Width;
         var f = new Ui.Flow(_winScroll.content, 26f, 26f, w - 52f);
         if (_winTab == "inv") InventoryTab(f, docked, atHub);
         else if (_winTab == "ship") ShipTab(f);
+        else if (_winTab == "raid") RaidTab(f, docked);
         else DepotTab(f);
         _winScroll.SetHeight(f.Used + 10f);
         float maxY = Mathf.Max(0f, f.Used + 10f - _winScroll.viewport.rect.height);
@@ -793,7 +815,7 @@ public class Hud : MonoBehaviour
     }
 
     /// Inventory: the hold's grid on the left and the cargo ship storage's on the right (in flight, the hold alone),
-    /// then the cargo ship's gauges and, at the Hub, the market.
+    /// then, at the Hub, the market (the cargo ship's gauges sit in the window's header since 2026-09-18).
     void InventoryTab(Ui.Flow f, bool docked, bool atHub)
     {
         var holdSt = State.Stacks(State.cargo);
@@ -802,23 +824,6 @@ public class Hud : MonoBehaviour
         float gutter = 30f;
         float colW = docked ? (f.w - gutter) * 0.42f : f.w;
         float rightW = f.w - gutter - colW;
-        if (docked)
-        {
-            // the cargo ship's supplies first, three gauges across: the storage, the fuel supply and the repair parts
-            H3(f, "Cargo ship supplies", 8f);
-            bool fullStore = su >= Data.STORE_SLOTS;
-            float gw = (f.w - 2f * gutter) / 3f;
-            var G0 = new Ui.Flow(f.parent, f.x, -f.y, gw);
-            var G1 = new Ui.Flow(f.parent, f.x + gw + gutter, -f.y, gw);
-            var G2 = new Ui.Flow(f.parent, f.x + 2f * (gw + gutter), -f.y, gw);
-            _gStoreW = Gauge(G0, "Cargo ship storage", fullStore ? Ui.AMBER : Ui.CARGO, State.StoreTotal() / (Data.STORE_SLOTS * Data.STACK), su + " / " + Data.STORE_SLOTS + " slots" + (fullStore ? " · FULL" : ""));
-            _gFuelW = Gauge(G1, "Cargo ship fuel supply", Ui.CYAN, 0f, "");
-            _gPartsW = Gauge(G2, "Repair parts", Ui.GREEN, 0f, "");
-            TickWindowGauges();
-            f.y = G0.y;
-            f.Rule();
-            f.Gap(14f);
-        }
         var L = new Ui.Flow(f.parent, f.x, -f.y, colW);
         // the hold: every slot the biggest hold would have, the ones this hold has not yet unlocked shown locked
         var hh = L.Box(22f);
@@ -835,9 +840,8 @@ public class Hud : MonoBehaviour
         L.Gap(10f);
         var row = L.Box(36f);
         bool canDeposit = docked && State.CargoTotal() > 0.5f;
-        _depositBtn = Ui.Button(row, "Deposit all", () => { if (ship != null) ship.DepositAll(); _svcSig = ""; RefreshWindow(); }, canDeposit);
+        _depositBtn = Ui.Button(row, "Deposit all", () => { if (ship != null) ship.DepositAll(); _svcSig = ""; RefreshWindow(); }, canDeposit, key: "E");
         _depositBtn.interactable = canDeposit;
-        Ui.Chip(row, "H", false, new Vector2(_depositBtn.Width + 10f, -(36f - 19f) * 0.5f));
         L.Gap(12f);
         if (us > 0) TotalRow(L, "Hold value at Hub prices", Data.Fmt(State.ValueOf(State.cargo)) + " cr");
         else L.Para("The hold is empty. Break a rock and fly through the ore it drops.", "body", 13, Ui.DIM, 10f);
@@ -904,6 +908,63 @@ public class Hud : MonoBehaviour
         f.Para("The dish leaves the ore it frees adrift for you to pick up. Collector drones gather it and stow it in the cargo ship storage" + (State.droneUnits > 0.5f ? " · <b>" + Data.Fmt(State.droneUnits) + "</b> stowed so far" : "") + ".", "body", 12, Ui.DIM, 20f);
     }
 
+    /// Contracts (2026-09-19, the user's): the raid on the raider outpost, posted by Meridian Colony. Accepting it marks
+    /// the outpost on the HUD, and the reward is paid the moment its core goes; without it the outpost still fights and
+    /// still throws salvage, but nobody pays. A destroyed outpost is rebuilt, and the contract re-posted, ten minutes of
+    /// play later, for more.
+    void RaidTab(Ui.Flow f, bool docked)
+    {
+        H3(f, "Contracts");
+        var o = game != null ? game.outpost : null;
+        bool here = o != null && o.built && zone.id == "kessler";
+        float dist = here && ship != null ? (o.pos - ship.TruePos).magnitude : 0f;
+        KvRow(f, "Contract", "Raid the raider outpost");
+        KvRow(f, "Client", "Meridian Colony");
+        KvRow(f, "Where", "Kessler Belt · off " + (here && o.field != null ? "RICH POCKET " + o.field.name : "a rich pocket") + (here ? " · " + Data.Fm(dist) + " m from here" : ""));
+        KvRow(f, "Target", Outpost.TURRETS + " gun turrets round a shielded core · the shield fails with the last turret · raiders launch while the core stands");
+        KvRow(f, "Reward", Data.Fmt(Outpost.Reward()) + " cr when the core goes, plus the salvage it throws");
+        string status = State.raid == 2
+            ? "Done" + (State.raids > 0 ? " · " + State.raids + " outpost" + (State.raids > 1 ? "s" : "") + " put down under contract" : "") + " · a rebuilt outpost posts in " + Mathf.CeilToInt(Mathf.Max(0f, State.raidAt - State.time) / 60f) + " min of play"
+            : State.raid == 1 ? "Accepted · " + (here ? o.Status : "the outpost is in the Kessler Belt") : "Open";
+        KvRow(f, "Status", status);
+        var car = game != null ? game.carrier : null;
+        bool onStation = car != null && car.station;
+        float runCost = here && car != null ? Outpost.TransitCost((o.StationPos() - car.truePos).magnitude) : 0f;
+        KvRow(f, "Transit", onStation ? "the cargo ship is on station " + Data.Fm(Outpost.STATION_OFF) + " m off the outpost · the run back to its orbit is free" : "the cargo ship takes you there for " + Data.Fmt(runCost) + " of its fuel supply (" + Data.Fmt(State.shipFuel) + " aboard) · you dock " + Data.Fm(Outpost.STATION_OFF) + " m off the outpost");
+        f.Gap(6f);
+        f.Para("The autocannon does the work: bolts down the nose hit the turrets and the core, and the seekers only chase raiders. Every turret that can see you fires, and the hangar under the core launches raiders two at a time. The cargo ship's guns are far away: dock to mend and restock between runs.", "body", 12, Ui.DIM, 14f);
+        var row = f.Box(36f);
+        Ui.Btn b;
+        if (State.raid == 0)
+        {
+            b = Ui.Button(row, "Accept contract", () => { State.raid = 1; State.Save(); Audio.Play("chime"); Toast("Contract accepted · the raider outpost is marked on the HUD", false); _svcSig = ""; RefreshWindow(); }, true);
+            b.interactable = docked;
+        }
+        else
+        {
+            b = Ui.Button(row, State.raid == 1 ? "Contract accepted" : "Contract complete", () => { });
+            b.interactable = false;
+        }
+        // the cargo ship's run: out to the outpost for fuel from its supply, back to its orbit for nothing (2026-09-19, the user's)
+        if (here && docked && ship != null && !ship.hold)
+        {
+            Ui.Btn tb;
+            if (onStation) tb = Ui.Button(row, "Cargo ship back to its orbit", () => { if (ship != null) ship.StartTransit(false); });
+            else
+            {
+                tb = Ui.Button(row, "Cargo ship to the outpost · " + Data.Fmt(runCost) + " fuel", () => { if (ship != null) ship.StartTransit(true); }, State.raid == 1);
+                tb.interactable = State.raid == 1 && State.shipFuel >= runCost;
+            }
+            tb.rt.anchoredPosition = new Vector2(b.Width + 10f, 0f);
+        }
+        f.Gap(12f);
+    }
+
+    /// The window rebuilds on its next tick (the contract's state changed under it).
+    public void Dirty() { _svcSig = ""; }
+    /// The tests' way to a tab (-tab raid with -dock): the window on that tab.
+    public void OpenTab(string tab) { ShowWindow(tab); }
+
     Ui.Gauge Gauge(Ui.Flow f, string title, Color c, float v, string text)
     {
         var g = Ui.Gauge.Make(f.parent, title, c, f.x, f.y, f.w, true, 10f);
@@ -915,6 +976,12 @@ public class Hud : MonoBehaviour
     /// The fuel supply and the parts gauges follow the live values without a rebuild.
     void TickWindowGauges()
     {
+        if (_gStoreW != null)
+        {
+            int su = State.StoreUsed();
+            bool fullStore = su >= Data.STORE_SLOTS;
+            _gStoreW.Show(State.StoreTotal() / (Data.STORE_SLOTS * Data.STACK), su + " / " + Data.STORE_SLOTS + " slots" + (fullStore ? " · FULL" : ""), fullStore ? Ui.AMBER : Ui.CARGO);
+        }
         if (_gFuelW != null)
         {
             bool lowFuel = State.shipFuel < Data.CARGO_FUEL_CAP * 0.2f;
@@ -1117,16 +1184,18 @@ public class Hud : MonoBehaviour
         public void OnPointerExit(PointerEventData e) { SetOver(false); }
     }
 
-    /// The stack's face, three short lines: name, units of the stack, value at Hub prices.
+    /// The stack's face, two lines (2026-09-19, the user's: three, on a 56 px slot, until then): the name; under it the units
+    /// of the stack and, at the right, its value at Hub prices in the balance's amber, no "cr" (a full stack of Voidcrystal
+    /// is 16,000 cr, and the storage's cells are 112 px: the suffix does not fit beside "100 / 100").
     static void SlotVisual(RectTransform rt, string ore, float units)
     {
         var o = Data.ORES[Data.OreIndex(ore)];
-        var n = Ui.Label(rt, o.name, "body_semi", 13, Ui.TEXT);
-        Ui.At(n.rectTransform, Ui.TL, Ui.TL, new Vector2(8f, -5f), new Vector2(120f, 16f));
-        var c = Ui.Label(rt, Mathf.FloorToInt(units) + " / " + Data.STACK, "mono", 12, Ui.TEXT);
-        Ui.At(c.rectTransform, Ui.TL, Ui.TL, new Vector2(8f, -21f), new Vector2(120f, 16f));
-        var v = Ui.Label(rt, Data.Fmt(units * State.Price(ore)) + " cr", "mono", 11, Ui.DIM);
-        Ui.At(v.rectTransform, Ui.TL, Ui.TL, new Vector2(8f, -37f), new Vector2(120f, 14f));
+        var n = Ui.Label(rt, o.name, "body_semi", 12, Ui.TEXT);
+        Ui.At(n.rectTransform, Ui.TL, Ui.TL, new Vector2(8f, -5f), new Vector2(120f, 15f));
+        var c = Ui.Label(rt, Mathf.FloorToInt(units) + " / " + Data.STACK, "mono", 10, Ui.TEXT);
+        Ui.At(c.rectTransform, Ui.TL, Ui.TL, new Vector2(8f, -22f), new Vector2(70f, 13f));
+        var v = Ui.Label(rt, Data.Fmt(units * State.Price(ore)), "mono", 10, Ui.A(Ui.AMBER, 0.75f), TextAnchor.LowerRight);
+        Ui.At(v.rectTransform, Ui.BR, Ui.BR, new Vector2(-8f, 5f), new Vector2(60f, 13f));
     }
 
     Slot MakeSlot(RectTransform parent, Vector2 pos, float w, State.Stack st, bool store, bool docked, bool locked = false)
@@ -1141,14 +1210,16 @@ public class Hud : MonoBehaviour
         if (locked)
         {
             s.box.Set(Ui.A(Ui.PANEL2, 0.2f), Ui.A(Ui.LINE2, 0.25f));
-            var e = Ui.Label(rt, "LOCKED", "mono", 11, Ui.A(Ui.DIM, 0.45f), TextAnchor.MiddleCenter);
-            Ui.At(e.rectTransform, Ui.MID, Ui.MID, Vector2.zero, new Vector2(w, SLOT_H));
+            var e = Ui.Rect("Lock", rt, Ui.MID, Ui.MID, Vector2.zero, new Vector2(16f, 16f));
+            var pl = e.gameObject.AddComponent<Ui.Padlock>();
+            pl.color = Ui.A(Ui.DIM, 0.5f);
+            pl.raycastTarget = false;
             return s;
         }
         if (st == null)
         {
             s.box.Set(Ui.A(Ui.PANEL2, 0.45f), Ui.A(Ui.LINE2, 0.45f));
-            var e = Ui.Label(rt, "EMPTY", "body", 11, Ui.A(Ui.DIM, 0.6f), TextAnchor.MiddleCenter);
+            var e = Ui.Label(rt, "EMPTY", "body", 10, Ui.A(Ui.DIM, 0.6f), TextAnchor.MiddleCenter);
             Ui.At(e.rectTransform, Ui.MID, Ui.MID, Vector2.zero, new Vector2(w, SLOT_H));
             return s;
         }
@@ -1278,7 +1349,7 @@ public class Hud : MonoBehaviour
     }
 
     /// A grid of n slots, `unlocked` of them usable (the rest drawn locked and kept out of `into`; -1 for all of them).
-    const float SLOT_H = 56f, SLOT_GAP = 8f;
+    const float SLOT_H = 40f, SLOT_GAP = 6f;   // 56 on 8 until 2026-09-19 (the user's: more of the storage in view)
     void SlotGrid(Ui.Flow f, List<State.Stack> stacks, int n, bool store, bool docked, List<Slot> into, int cols = 3, int unlocked = -1)
     {
         float colW = (f.w - SLOT_GAP * (cols - 1)) / cols;
@@ -1361,9 +1432,8 @@ public class Hud : MonoBehaviour
         var frule = Ui.Rect("Rule", foot, Ui.TL, Ui.TL, Vector2.zero, new Vector2(0f, 1f));
         frule.anchorMax = new Vector2(1f, 1f);
         Ui.Fill(frule, Ui.LINE);
-        var cb = Ui.Button(foot, "Close", () => CloseMap());
-        Ui.At(cb.rt, Ui.TR, Ui.TR, new Vector2(-26f - 34f, -14f), cb.rt.sizeDelta);
-        Ui.Chip(foot, "N", false, new Vector2(-26f, -14f - (36f - 19f) * 0.5f), Ui.TR);
+        var cb = Ui.Button(foot, "Close", () => CloseMap(), key: "N");
+        Ui.At(cb.rt, Ui.TR, Ui.TR, new Vector2(-26f, -14f), cb.rt.sizeDelta);
         var ft = Ui.Label(foot, "Nothing sells in the belt: haul it to the Hub, where exclusive ore fetches 50% more. Your cargo ship, storage and all, warps with you.", "body", 12, Ui.DIM, TextAnchor.MiddleLeft, true);
         ft.rectTransform.anchorMin = new Vector2(0f, 0f);
         ft.rectTransform.anchorMax = new Vector2(1f, 1f);
@@ -1447,6 +1517,7 @@ public class Hud : MonoBehaviour
             KvRow(f, "Belts", (sel.amountMult > 1.2f ? "rich seams" : (sel.density < 1f ? "sparse" : "typical")) + " · " + nfields + " fields");
             KvRow(f, "Planet", sel.planetName);
             KvRow(f, "Raiders", sel.danger > 0f ? "holds by the rich pockets · cargo ship guns cover " + Data.Fm(Raiders.SAFE_R) + " m" : "none");
+            if (sel.id == "kessler") KvRow(f, "Raider outpost", State.raid == 2 ? "destroyed · a new one is building" : State.raid == 1 ? "contract taken · marked on the HUD" : "off a rich pocket · the contract on the Contracts tab pays " + Data.Fmt(Outpost.Reward()) + " cr");
             f.Gap(10f);
             H3(f, "Asteroid fields", 4f);
             f.Para(nfields + " ore fields and rich pockets across the base belts, and the ring belt above the planet.", "body", 12, Ui.MUTED, 14f);
@@ -1461,7 +1532,7 @@ public class Hud : MonoBehaviour
             H3(f, "Planet", 4f);
             OreRow(f, sel.tint, sel.planetName, "central world · not mineable", "");
         }
-        bool can = !isCur && ship != null && ship.docked && ship.warp == null;
+        bool can = !isCur && ship != null && ship.docked && ship.warp == null && ship.transit == null;
         var row = f.Box(36f);
         var wb = Ui.Button(row, isCur ? "You are here" : (can ? "Warp · " + Data.ZoneLy(cur, sel) + " ly" : "Dock with the cargo ship to warp"), () => { if (can) { CloseMap(); ship.StartWarp(sel); } }, can);
         wb.interactable = can;
@@ -1493,8 +1564,7 @@ public class Hud : MonoBehaviour
         _tutText = Ui.Label(_tutBox, "", "body", 13, Ui.TEXT, TextAnchor.UpperLeft, true);
         _tutText.lineSpacing = 1.25f;
         Ui.At(_tutText.rectTransform, Ui.TL, Ui.TL, new Vector2(16f, -56f), new Vector2(388f, 60f));
-        _tutNext = Ui.Button(_tutBox, "Next", () => { if (tutorial != null) tutorial.Advance(); }, true, false, 0f, 13, 14f, 7f);
-        _tutNextChip = Ui.Chip(_tutBox, "Enter", false, Vector2.zero);
+        _tutNext = Ui.Button(_tutBox, "Next", () => { if (tutorial != null) tutorial.Advance(); }, true, false, 0f, 13, 14f, 7f, "Enter");
         _tutWait = Ui.Label(_tutBox, "", "mono", 11, Ui.AMBER2, TextAnchor.MiddleLeft);
         _tutBox.gameObject.SetActive(false);
         _ringTargets["status"] = _status;
@@ -1526,12 +1596,10 @@ public class Hud : MonoBehaviour
         _tutText.rectTransform.sizeDelta = new Vector2(388f, th);
         float y = -56f - th - 10f;
         _tutNext.rt.gameObject.SetActive(!s.Auto);
-        _tutNextChip.gameObject.SetActive(!s.Auto);
         _tutNext.SetText(s.final ? "Finish" : "Next");
         _tutNext.rt.anchoredPosition = new Vector2(16f, y);
-        _tutNextChip.anchoredPosition = new Vector2(16f + _tutNext.Width + 8f, y - (_tutNext.Height - 19f) * 0.5f);
         _tutWait.text = s.Auto ? "waiting · " + s.wait : "";
-        float wx = s.Auto ? 16f : 16f + _tutNext.Width + 8f + _tutNextChip.sizeDelta.x + 12f;
+        float wx = s.Auto ? 16f : 16f + _tutNext.Width + 12f;
         Ui.At(_tutWait.rectTransform, Ui.TL, Ui.TL, new Vector2(wx, y), new Vector2(300f, s.Auto ? 20f : _tutNext.Height));
         float foot = s.Auto ? 20f : _tutNext.Height;
         _tutBox.sizeDelta = new Vector2(420f, -y + foot + 14f);
@@ -1652,7 +1720,9 @@ public class Hud : MonoBehaviour
         bool locked = ship.lockKind != "" && !docked;
         string rangeTxt = locked ? Data.Fm(ship.lockDist) + " / " + Data.Fm(reach) + " m" : Data.Fm(reach) + " m";   // the lock's distance against the beam's reach
         int threat = game != null && game.raiders != null ? game.raiders.threat : 0;
-        string threatTxt = threat > 0 ? Ui.Col(threat + " raider" + (threat > 1 ? "s" : ""), Ui.RED) : Ui.Col("none", Ui.GLOW_TEXT);
+        int turrets = game != null && game.outpost != null ? game.outpost.turretsFiring : 0;   // the outpost's turrets count in the threat
+        int rdrs = threat - turrets;
+        string threatTxt = threat > 0 ? Ui.Col((turrets > 0 ? "outpost" + (rdrs > 0 ? " · " : "") : "") + (rdrs > 0 ? rdrs + " raider" + (rdrs > 1 ? "s" : "") : ""), Ui.RED) : Ui.Col("none", Ui.GLOW_TEXT);
         string weaponTxt = ship.weapon == "gun" ? "Autocannon" : ship.weapon == "rocket" ? "Rockets" : "Laser";
         _row2.text = Kv("RADAR", radar) + "   THREAT " + threatTxt;
         // WEAPON: the equipped row lit amber, the others dim; the line under them reads the cannon's heat, or the rockets
@@ -1772,7 +1842,9 @@ public class Hud : MonoBehaviour
                 else segs.Add((ship.laserOn ? "Cutting " : "Aiming at ") + Data.ORES[belt.ore[i]].name);
             }
         }
-        else if (started && State.CargoTotal() > 0.5f && !hold) segs.Add(Kbd("H") + " Deposit all ore into the cargo ship");
+        else if (started && State.CargoTotal() > 0.5f && !hold) segs.Add(Kbd("E") + " Deposit all ore into the cargo ship");
+        if (started && docked && !hold && !zone.hub) segs.Add(Kbd("H") + " Warp to the Hub");
+        if (started && !docked && game != null && game.outpost != null && game.outpost.built && State.raid == 1 && !game.outpost.destroyed) segs.Add(Ui.Col("RAID", Ui.RED) + " " + game.outpost.Status);
         if (started && !docked && ship.cut == null && ship.CanFly)
         {
             if (hv != null && !ship.HoverIsLock(hv)) segs.Add(Kbd("Z") + " " + (locked ? "Switch lock to " : "Lock on ") + hv.name);
@@ -1808,7 +1880,9 @@ public class Hud : MonoBehaviour
         if (inCut)
         {
             if (ship.warp != null) _caption.text = ("JUMP · " + ship.warp.z.name + " · " + Data.ZoneLy(zone, ship.warp.z) + " LY · SPACE SKIPS").ToUpperInvariant();
+            else if (ship.transit != null) _caption.text = ship.transit.toOutpost ? "CARGO SHIP · UNDER WAY TO THE RAIDER OUTPOST" : "CARGO SHIP · BACK TO ITS ORBIT";
             else if (ship.cut.mode == "hold") _caption.text = ("ARRIVAL · " + (zone.colony ?? "the colony") + " · SPACE SKIPS").ToUpperInvariant();
+            else if (ship.cut.mode == "depart") _caption.text = ("DEPARTURE · " + CargoShip.BayName(ship.cut.side) + " · CARGO SHIP · SPACE SKIPS").ToUpperInvariant();
             else _caption.text = ("APPROACH · " + CargoShip.BayName(ship.cut.side) + " · CARGO SHIP · SPACE SKIPS").ToUpperInvariant();
             if (InvOpen) CloseWindow();
         }
@@ -1877,6 +1951,11 @@ public class Hud : MonoBehaviour
             PlaceMarker(_raiderMarkers[ri++], r.pos - game.worldOffset, "RAIDER · " + Data.Fm((r.pos - ship.TruePos).magnitude));
         }
         for (; ri < _raiderMarkers.Count; ri++) _raiderMarkers[ri].Hide();
+        // the raider outpost (2026-09-19): marked once the contract is taken, or whenever it is near
+        var op = game != null ? game.outpost : null;
+        float od = op != null && op.built ? (op.pos - ship.TruePos).magnitude : 0f;
+        if (op != null && op.built && showFlight && !docked && !hold && (State.raid == 1 || od < 24000f)) PlaceMarker(_outpostMarker, op.pos - game.worldOffset, "RAIDER OUTPOST · " + Data.Fm(od) + (op.destroyed ? " · destroyed" : ""));
+        else _outpostMarker.Hide();
         // the cargo ship marker, the nearest charted field's (hidden while inside one), and one on every collector drone
         bool markersOn = carrier != null && showFlight && !docked && !hold;
         if (markersOn) PlaceMarker(_marker, carrier.transform.position, toCarrier >= 4500f ? "CARGO SHIP" : CargoShip.BayName(carrier.NearestSide(ship.TruePos)).ToUpperInvariant());

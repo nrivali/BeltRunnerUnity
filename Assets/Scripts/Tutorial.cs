@@ -18,7 +18,7 @@ public class Tutorial
 
     public static readonly Step[] STEPS =
     {
-        new Step("launch", "Welcome aboard", "Vega here. Press Shift on the pad. Approach control taxis you out; the ship is yours when it lets go.", "press Shift to launch"),
+        new Step("launch", "Welcome aboard", "Vega here. Press Enter on the pad. Approach control taxis you out; the ship is yours when it lets go.", "press Enter to launch"),
         new Step("steer", "Take the stick", "The mouse aims. Shift and Ctrl work the throttle, A and D roll, Q and E yaw, X cuts the throttle. Open up and give me a turn.", "open the throttle and turn", false, "controls"),
         new Step("hud", "The HUD", "The band along the bottom: SHIP is hull, shield, fuel and hold. FLIGHT is speed and the way home. TARGET is what you are looking at. WEAPON is the one in hand.", null, false, "status", "target"),
         new Step("radar", "Find ore", "Press R to pulse the radar. Coloured veins mean ore. Grey rock is barren, so skip it.", "press R", false, "readout"),
@@ -26,10 +26,10 @@ public class Tutorial
         new Step("mine", "Cut it", "Get within laser reach and hold the left mouse button. When the rock breaks, fly through the glow to collect.", "collect copper", false, "target"),
         new Step("weapons", "Weapons", "2 is the autocannon, 3 the seeker rockets, 1 the mining laser. The wheel cycles them. Try one.", "press 2 or 3", false, "weapon"),
         new Step("combat", "Raiders", "Raiders hold the rich pockets. Lock one with Z and fire; a rocket chases it on its own. Your shield soaks hits and recharges once they stop.", null, false, "status"),
-        new Step("return", "Head home", "Follow the CARGO SHIP readout. Within 2,250 press H and approach control brings you in.", "dock with the cargo ship", false, "marker"),
-        new Step("stow", "Stow the haul", "Press H to move your ore into the cargo ship storage. The pad refuels you and mends the hull while you sit on it.", "move copper into storage", false, "deposit"),
+        new Step("return", "Head home", "Follow the CARGO SHIP readout. Within " + Data.Fm(Data.DOCK_RANGE) + " press H and approach control brings you in.", "dock with the cargo ship", false, "marker"),
+        new Step("stow", "Stow the haul", "Press E to move your ore into the cargo ship storage. The pad refuels you and mends the hull while you sit on it.", "move copper into storage", false, "deposit"),
         new Step("hub", "Selling", "Nothing sells out here. Press N and warp to the Hub to sell and upgrade.", null, false, "navmap"),
-        new Step("depart", "Back out", "Press Depart, or Shift on the pad, to launch.", "press Depart", false, "depart"),
+        new Step("depart", "Back out", "Press Depart, or Enter on the pad, to launch.", "press Depart", false, "depart"),
         new Step("done", "Tutorial complete", "That is the loop: fill the hold, stow it, sell at the Hub, upgrade. Vega out.", null, true),
     };
 
@@ -42,6 +42,8 @@ public class Tutorial
 
     public bool Active { get { return State.tut >= 0; } }
     public int StepIndex { get { return State.tut; } }
+    /// Enter is this card's Next: the ship must not take it as Depart (the steps that wait on a deed leave Enter alone).
+    public bool WantsEnter { get { return Active && !STEPS[Mathf.Clamp(State.tut, 0, STEPS.Length - 1)].Auto; } }
 
     bool AutoDone(Step s)
     {

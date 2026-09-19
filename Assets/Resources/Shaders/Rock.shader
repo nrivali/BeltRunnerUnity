@@ -199,6 +199,7 @@ Shader "BeltRunner/Rock"
             o.Emission += Spot(IN.worldPos, _HeatPos0, _HeatAmt.x) + Spot(IN.worldPos, _HeatPos1, _HeatAmt.y);
             // the flashlight on the stone (RockTorch.cginc): the diffuse albedo lit by it, once, in the base pass
             o.Emission += Torch(IN.worldPos, WorldNormalVector(IN, normal), o.Albedo * OneMinusReflectivityFromMetallic(o.Metallic));
+            o.Emission += Scan(IN.worldPos);   // the radar pulse sweeping over the stone (RockTorch.cginc)
             o.Alpha = 1.0;
         }
         ENDCG

@@ -23,6 +23,10 @@ public static class State
     public static float shipFuel = 1200f;   // the cargo ship's fuel supply, which the ship's tank fills from while docked
     public static float parts = 120f;       // repair parts aboard the cargo ship, one per hull point mended while docked
     public static int rockets = -1;         // seeker rockets aboard; -1 (a fresh pilot, an older save) means a full magazine, filled on the pad
+    public static int raid = 0;             // the raid contract (2026-09-19): 0 open, 1 accepted, 2 the outpost is down (paid if it was accepted)
+    public static int raids = 0;            // outposts put down under contract, all told: the reward grows with it
+    public static float raidAt = 0f;        // play time at which a rebuilt outpost and a fresh contract post
+    public static bool raidStation = false; // the cargo ship holds station off the outpost (it is put back there on load)
     public static Dictionary<string, int> up = new Dictionary<string, int>();
     public static Dictionary<string, int> depot = new Dictionary<string, int>();   // cargo ship upgrades: the mast dish and the collector drones
     public static float droneUnits = 0f;                                          // ore the collectors have stowed, all told
@@ -408,6 +412,9 @@ public static class State
         public string zone;
         public int tut;
         public int rockets = -1;
+        public int raid, raids;
+        public float raidAt;
+        public bool raidStation;
         public Settings settings;
     }
 
@@ -431,7 +438,7 @@ public static class State
             cargo = ToBag(cargo), store = ToBag(store), market = ToBag(market),
             up = new Ups { laser = up["laser"], cargo = up["cargo"], engine = up["engine"], tank = up["tank"], scanner = up["scanner"], range = up["range"], hull = up["hull"], thrusters = up["thrusters"], overcharge = up["overcharge"], gun = up["gun"], rocket = up["rocket"], shield = up["shield"] },
             depot = new Dep { laser = depot["laser"], collectors = depot["collectors"] }, droneUnits = droneUnits,
-            zone = zoneId, tut = tut, rockets = rockets, settings = new Settings { sound = soundOn, volume = volume, music = musicOn, music_volume = musicVolume, hud = hudScale, controls = controlsShown, display = display, brightness = brightness },
+            zone = zoneId, tut = tut, rockets = rockets, raid = raid, raids = raids, raidAt = raidAt, raidStation = raidStation, settings = new Settings { sound = soundOn, volume = volume, music = musicOn, music_volume = musicVolume, hud = hudScale, controls = controlsShown, display = display, brightness = brightness },
         };
         try
         {
@@ -463,6 +470,7 @@ public static class State
         zoneId = string.IsNullOrEmpty(s.zone) ? "kessler" : s.zone;
         tut = s.tut;
         rockets = s.rockets;
+        raid = s.raid; raids = s.raids; raidAt = s.raidAt; raidStation = s.raidStation;
         FromBag(s.cargo, cargo);
         FromBag(s.store, store);
         FromBag(s.market, market);
@@ -504,6 +512,7 @@ public static class State
         marketT = 0f;
         zoneId = "kessler";
         rockets = -1;
+        raid = 0; raids = 0; raidAt = 0f; raidStation = false;
         tut = 0;
         mined = 0f;
         earned = 0f;

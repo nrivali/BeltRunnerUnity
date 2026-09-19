@@ -10,7 +10,9 @@ public class Ship : MonoBehaviour
     public const float TURN = 50f * Mathf.Deg2Rad;   // yaw and pitch: 50 degrees a second at full deflection (30 until 2026-09-15)
     public const float DRIFT_TURN = 70f / 50f;   // the drift: the nose turns at 70 degrees a second (the usual 50)
     public const float REPAIR_RATE = 6f;
-    public const float TORCH_CD = 14000f, TORCH_REACH = 7000f, TORCH_HALF = Mathf.PI / 8f;   // the browser's flashlight: 14,000 cd falling off as 1/d (decay 1), reach 7,000 u, half-angle pi/8; the rocks take it through their shader (Tick)
+    public const float TORCH_HULL_AT = 400f;   // the Unity spot light, which lights the hulls (the cargo ship, the raiders, the scrap), is set to match the rock beam at this range
+    public const float TORCH_CD = 7000f, TORCH_REACH = 7000f, TORCH_HALF = Mathf.PI / 8f;   // the browser's flashlight at half its 14,000 cd (2026-09-17, the user's: the full strength blew a pale rock 400 u ahead out to white; a quarter left dark stone almost unlit), falling off as 1/d (decay 1), reach 7,000 u, half-angle pi/8; the rocks take it through their shader (Tick)
+    public const float DEPART_DUR = 6.5f;   // the departure cutscene (2026-09-17, from a 5.2 s taxi; 9.5 s until 2026-09-18, the user's: shorter): the lift, the deck, the mouth, outside, then the swing in behind
     public const float WARP_DUR = 8.6f;
     public const float WARP_LOAD_AT = 4.3f;   // the screen is black from 4.2 s to 5.4 s; the zone swaps underneath
 
@@ -34,12 +36,11 @@ public class Ship : MonoBehaviour
     public bool docked;
     public bool hold;          // docked at the Hub holding station rather than on a hangar pad
     public int dockSide;
-    public bool depWait;        // W has to be released once after docking before it departs (you usually fly in holding it)
     public bool exitPending;    // just left the hangar: the mouth cannot capture the ship until it is clear of the corridor
     public bool flownOut;
     public float hangarT;
     bool _fuelDryWarned, _partsWarned, _warpVoiced;
-    float _announceAt = -1f, _colonyAt = -1f;   // the deck announcement and the colony call, a beat after docking
+    float _colonyAt = -1f;   // the colony call, a beat after docking at the Hub (the deck's intercom welcome on a docking was dropped on 2026-09-18, the user's)
 
     /// The approach or departure under approach control: a path in the carrier's frame flown over `dur` seconds.
     public class Cut
@@ -51,8 +52,12 @@ public class Ship : MonoBehaviour
         public string phase;     // dock: "fly" then "settle"
         public Vector3 hover, park;
         public Quaternion qEnd;
+        public float speed;      // depart: the speed the path is flying, smoothed, for the hand-over
+        public float u;          // depart: how far along the path, 0 to 1, which the shots cut on
+        public bool passed;      // depart: through the mouth's field
     }
     public Cut cut;
+    public float cutThrottle;   // depart: the engine note's throttle, rising as the ship goes out
 
     /// The jump between zones: a fade to black while the zone swaps underneath, then the arrival.
     public class Warp
@@ -62,6 +67,13 @@ public class Ship : MonoBehaviour
         public bool loaded, skip, fromHold;
     }
     public Warp warp;
+    /// The cargo ship's run to the raider outpost and back (2026-09-19, the user's: the outpost was too far to fly to). A
+    /// docked ship rides along: a fade with the engines spooling, the carrier moved at the black, and it clears with the
+    /// carrier on station off the outpost (or back on its orbit). The run out costs the cargo ship's fuel supply; the run
+    /// home is free, so the supply can never strand the ship out there.
+    public class Transit { public bool toOutpost; public float t; public bool moved; }
+    public Transit transit;
+    public const float TRANSIT_DUR = 7f, TRANSIT_MOVE_AT = 3.2f;
 
     public Game game;
     public Belt belt;
@@ -76,7 +88,7 @@ public class Ship : MonoBehaviour
     public Vector3 TruePos { get { return transform.position + game.worldOffset; } }
     public Vector3 Forward { get { return transform.forward; } }
     public float Speed { get { return vel.magnitude; } }
-    public bool InCinematic { get { return cut != null || warp != null; } }
+    public bool InCinematic { get { return cut != null || warp != null || transit != null; } }
 
     public static Vector3 HoldFwd()
     {
@@ -325,8 +337,8 @@ public class Ship : MonoBehaviour
     readonly List<Transform> _exhausts = new List<Transform>();
     readonly List<GameObject> _navLights = new List<GameObject>();
     Material _exhaustMat;
-    Transform _pulseSphere, _pulseRing;
-    Material _pulseSphereMat, _pulseRingMat;
+    Transform _pulseSphere, _pulseFlash;
+    Material _pulseSphereMat, _pulseFlashMat;
     float _pulseT = -1f, _pulseRange;
     Vector3 _pulseOrigin;   // true
 
@@ -374,29 +386,32 @@ public class Ship : MonoBehaviour
         return m;
     }
 
-    /// The radar pulse: a faint sphere and a bright ring (in the XY plane, as the browser's) that grow to scanner range.
+    /// The radar pulse you can see (2026-09-18, the user's: the old flat ring, the size of the scanner range, read as a
+    /// line across the view from the chase camera, which sits in its plane). Now: a flash at the ship on the ping, a
+    /// soft fresnel shell growing to scanner range, and the pulse itself on the rocks, a band sweeping over every rock
+    /// at the pulse's radius with a fading wash behind it (Scan in RockTorch.cginc, from the globals TickPulse sets).
     void BuildPulseFx()
     {
         var sg = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         Object.Destroy(sg.GetComponent<Collider>());
         sg.name = "PulseSphere";
-        _pulseSphereMat = new Material(Game.Sh("BeltRunner/Spark"));
-        _pulseSphereMat.SetColor("_Color", new Color(0.37f, 0.83f, 0.94f, 0.05f));
+        _pulseSphereMat = new Material(Game.Sh("BeltRunner/Pulse"));
+        _pulseSphereMat.SetColor("_Color", new Color(0.37f, 0.83f, 0.94f, 0.3f));
         var smr = sg.GetComponent<MeshRenderer>();
         smr.sharedMaterial = _pulseSphereMat;
         smr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         _pulseSphere = sg.transform;
         sg.SetActive(false);
-        var rg = new GameObject("PulseRing");
-        rg.AddComponent<MeshFilter>().sharedMesh = MeshUtil.Torus(1f, 0.0075f, 128, 6);
-        _pulseRingMat = new Material(Game.Sh("BeltRunner/Spark"));
-        _pulseRingMat.SetColor("_Color", new Color(0.56f, 0.91f, 1f, 0.5f));
-        var rmr = rg.AddComponent<MeshRenderer>();
-        rmr.sharedMaterial = _pulseRingMat;
-        rmr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        rg.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
-        _pulseRing = rg.transform;
-        rg.SetActive(false);
+        var fg = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        Object.Destroy(fg.GetComponent<Collider>());
+        fg.name = "PulseFlash";
+        _pulseFlashMat = new Material(Game.Sh("BeltRunner/Spark"));
+        _pulseFlashMat.SetColor("_Color", new Color(0.56f, 0.91f, 1f, 0.8f));
+        var fmr = fg.GetComponent<MeshRenderer>();
+        fmr.sharedMaterial = _pulseFlashMat;
+        fmr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        _pulseFlash = fg.transform;
+        fg.SetActive(false);
     }
 
     void TickPulse(float dt)
@@ -408,20 +423,28 @@ public class Ship : MonoBehaviour
         {
             _pulseT = -1f;
             _pulseSphere.gameObject.SetActive(false);
-            _pulseRing.gameObject.SetActive(false);
+            _pulseFlash.gameObject.SetActive(false);
+            Shader.SetGlobalVector("_ScanPos", Vector4.zero);
             return;
         }
         float r = _pulseRange * Mathf.Min(1f, t / Data.PULSE_TIME);
         float f = 1f - Mathf.Min(1f, t / Data.PULSE_TIME);
         var at = _pulseOrigin - game.worldOffset;
+        // the shell: a soft rim growing to range, fading as it goes
         _pulseSphere.gameObject.SetActive(true);
         _pulseSphere.position = at;
         _pulseSphere.localScale = Vector3.one * Mathf.Max(1f, r) * 2f;
-        _pulseSphereMat.SetColor("_Color", new Color(0.37f, 0.83f, 0.94f, 0.05f * f));
-        _pulseRing.gameObject.SetActive(true);
-        _pulseRing.position = at;
-        _pulseRing.localScale = Vector3.one * Mathf.Max(1f, r);
-        _pulseRingMat.SetColor("_Color", new Color(0.56f, 0.91f, 1f, 0.55f * f));
+        _pulseSphereMat.SetColor("_Color", new Color(0.37f, 0.83f, 0.94f, 0.3f * f));
+        // the flash at the ship: a bright ball swelling from the dish and gone in a third of a second
+        float fl = Mathf.Clamp01(t / 0.35f);
+        _pulseFlash.gameObject.SetActive(fl < 1f);
+        _pulseFlash.position = transform.position + Forward * 10f * Data.SHIP_SCALE;
+        _pulseFlash.localScale = Vector3.one * Mathf.Lerp(12f, 140f, fl);
+        _pulseFlashMat.SetColor("_Color", new Color(0.56f, 0.91f, 1f, 0.8f * (1f - fl) * (1f - fl)));
+        // the pulse on the rocks (Scan in RockTorch.cginc)
+        Shader.SetGlobalVector("_ScanPos", new Vector4(at.x, at.y, at.z, Mathf.Max(1f, r)));
+        Shader.SetGlobalFloat("_ScanFade", _pulseRange / Data.PULSE_TIME * 1.5f);   // the wash fades by time behind the front: 1.5 s of its travel
+        Shader.SetGlobalVector("_ScanColor", new Vector4(0.37f, 0.83f, 0.94f, 0.9f * (0.35f + 0.65f * f)));   // a glow the stone shows through, not a solid blob
     }
 
     public bool PulseVisible { get { return _pulseT >= 0f; } }
@@ -481,7 +504,7 @@ public class Ship : MonoBehaviour
         torch = go.AddComponent<Light>();
         torch.type = LightType.Spot;
         torch.color = Data.Hex("#fff1d6");
-        torch.intensity = 40f;    // 2026-09-15: from 6; the built-in spot falloff is steep and the rock is dark, so 6 lit nothing past a few hundred units
+        torch.intensity = TORCH_CD * Lighting.UNITY_PER_BROWSER / TORCH_HULL_AT;   // about 8: the rock beam's strength at TORCH_HULL_AT (2026-09-18, the user's: at 40, set on the 15th chasing the rocks, it blew the cargo ship's hull out; it was 6 before that)
         torch.range = 5000f;
         torch.spotAngle = 50f;
         torch.innerSpotAngle = 30f;
@@ -733,12 +756,16 @@ public class Ship : MonoBehaviour
             var fl = carrier.ToLocalTrue(TruePos);
             if (Mathf.Abs(fl.x) < CargoShip.BAY_X1 + 40f && Mathf.Abs(fl.y) < CargoShip.BAY_Y1 + 40f && Mathf.Abs(Mathf.Abs(fl.z) - CargoShip.BAY_Z_OUT) < 70f) carrier.FlashField(fl.z > 0f ? 1 : -1);
         }
-        if (_announceAt > 0f && Time.time >= _announceAt) { _announceAt = -1f; if (docked && !hold) Audio.Announce("hangar_" + Random.Range(1, 5)); }
         if (_colonyAt > 0f && Time.time >= _colonyAt) { _colonyAt = -1f; if (docked && hold) Audio.Say("colony_control"); }
         if (warp != null)
         {
             if (Input.GetKeyDown(KeyCode.Space)) warp.skip = true;
             WarpUpdate(dt);
+            return;
+        }
+        if (transit != null)
+        {
+            TransitUpdate(dt);
             return;
         }
         if (cut != null)
@@ -765,6 +792,7 @@ public class Ship : MonoBehaviour
         CarrierContact();
         if (docked) return;
         RockContact();
+        OutpostContact();
         CheckBreach();
         if (!CanFly)
         {
@@ -1355,6 +1383,23 @@ public class Ship : MonoBehaviour
         }
     }
 
+    /// The raider outpost (2026-09-19): the ship is pushed out of its core (its shield bubble while that is up) and its
+    /// turret heads, and a hard knock costs plating like a rock.
+    void OutpostContact()
+    {
+        var o = game.outpost;
+        if (o == null || !o.built) return;
+        Vector3 n; float push;
+        if (!o.Collide(TruePos, Data.SHIP_R, out n, out push)) return;
+        transform.position += n * push;
+        float vn = Vector3.Dot(vel, n);
+        if (vn < 0f)
+        {
+            Impact(-vn, TruePos - n * Data.SHIP_R);
+            vel -= n * vn * 1.4f;
+        }
+    }
+
     /// impact: a knock above the safe speed costs plating, shakes the camera, sparks and sounds.
     /// The gun's reach at the current level, in world units.
     public float GunReach { get { var g = State.Stat("gun"); return g.reach > 0f ? g.reach : 1800f; } }
@@ -1465,8 +1510,9 @@ public class Ship : MonoBehaviour
         }
     }
 
-    /// E near the carrier: approach control flies the ship in by the nearest mouth, along the deck, to a hover over
-    /// the far pad already facing that pad's own mouth, then lets it down.
+    /// E near the carrier: the docking cutscene (2026-09-18, shorter and without its voice lines). Approach control
+    /// flies the ship in by the nearest mouth, level along the deck, to a hover over the far pad facing that pad's own
+    /// mouth, then lets it down in under a second; the cameras are DockingCamera's, which end on the hangar view.
     public void StartApproach()
     {
         if (docked || cut != null || carrier == null || carrier.hold) return;
@@ -1488,17 +1534,18 @@ public class Ship : MonoBehaviour
         pts.Add(deck);
         pts.Add(hover);
         float len = CurveLength(pts);
-        cut = new Cut { mode = "dock", side = far, entry = entry, pts = pts, t = 0f, dur = Mathf.Clamp(len / 360f, 6f, 13f), phase = "fly", pt = 0f, hover = hover, park = CargoShip.ParkLocal(far), qEnd = transform.rotation };
+        cut = new Cut { mode = "dock", side = far, entry = entry, pts = pts, t = 0f, dur = Mathf.Clamp(len / 620f, 4f, 6.5f), phase = "fly", pt = 0f, hover = hover, park = CargoShip.ParkLocal(far), passed = Mathf.Abs(l0.z) <= CargoShip.BAY_Z_OUT, qEnd = transform.rotation };
         throttle = 0f;
         laserOn = false;
         firing = false;
         _laser.enabled = false;
-        Audio.Say(new[] { "approach_control", "approach_1", "approach_2", "approach_3", "approach_4" }[Random.Range(0, 5)]);   // one of five radio calls
         game.Toast("Approach control has the ship · " + CargoShip.BayName(far) + " · Space skips", false);
     }
 
-    /// Shift on the pad or the Depart button: approach control taxis the ship off the pad and straight out of its own
-    /// mouth, then hands it over already under way.
+    /// Enter on the pad or the Depart button: the departure cutscene (2026-09-17). Approach control lifts the ship off
+    /// the pad, glides it up the deck, out through its own mouth's field and away, over DEPART_DUR seconds on the same
+    /// ease as before (slow off the pad, fast by the end); the cameras are DepartureCamera's four shots, the last of
+    /// which swings in behind the ship onto the chase position, so the pilot gets it at the path's speed with no cut.
     public void StartDeparture()
     {
         if (!docked || cut != null) return;
@@ -1510,8 +1557,9 @@ public class Ship : MonoBehaviour
         }
         int b = dockSide;
         LeaveHangar();
-        var pts = new List<Vector3> { CargoShip.ParkLocal(b), new Vector3(0f, -112f, b * 620f), new Vector3(0f, -40f, b * 1000f), new Vector3(0f, 60f, b * 2500f) };
-        cut = new Cut { mode = "depart", side = b, pts = pts, t = 0f, dur = 5.2f };
+        var pts = new List<Vector3> { CargoShip.ParkLocal(b), new Vector3(0f, -62f, b * 525f), new Vector3(0f, -50f, b * 690f), new Vector3(0f, -30f, b * 950f), new Vector3(0f, 20f, b * 1500f), new Vector3(0f, 60f, b * 2200f) };   // straight up off the pad, then along the deck and out
+        cut = new Cut { mode = "depart", side = b, pts = pts, t = 0f, dur = DEPART_DUR };
+        cutThrottle = 0.12f;
         game.Toast("Departing · approach control has the ship · Space skips", false);
     }
 
@@ -1532,7 +1580,8 @@ public class Ship : MonoBehaviour
         var C = cut;
         C.t += dt;
         float k = Mathf.Min(1f, C.t / C.dur);
-        float u = C.mode == "depart" ? (k * k * (2f - k) * 0.5f + k * 0.5f * k) : k * k * (3f - 2f * k);
+        float u = C.mode == "depart" ? Mathf.Pow(k, 1.15f) : k * k * (3f - 2f * k);   // depart: all but linear (2026-09-18, from an ease-in that spent most of the time inside); the segments lengthen, so it still accelerates
+        if (C.mode == "depart") C.u = u;
         var p = CurvePoint(C.pts, Mathf.Min(1f, u));
         var tan = CurveTangent(C.pts, Mathf.Min(u, 0.999f));
         if (C.mode == "hold")
@@ -1559,7 +1608,12 @@ public class Ship : MonoBehaviour
             if (C.phase == "fly")
             {
                 transform.position = carrier.ToTrue(p) - game.worldOffset;
-                transform.rotation = Quaternion.Slerp(transform.rotation, LevelHeading(carrier.Dir(tan)), 1f - Mathf.Exp(-5f * dt));
+                // the nose follows the path outside; inside it is level along the deck, on the bay's own heading
+                float dz = carrier.ToLocalTrue(TruePos).z;
+                float dOut = Mathf.Clamp01((Mathf.Abs(dz) - CargoShip.BAY_Z_OUT) / 400f);
+                var dHead = Vector3.Lerp(CargoShip.FaceLocal(C.side), tan, dOut);
+                transform.rotation = Quaternion.Slerp(transform.rotation, LevelHeading(carrier.Dir(dHead)), 1f - Mathf.Exp(-5f * dt));
+                if (!C.passed && Mathf.Abs(dz) <= CargoShip.BAY_Z_OUT) { C.passed = true; carrier.FlashField(C.entry); }
                 if (k >= 1f)
                 {
                     C.phase = "settle";
@@ -1569,8 +1623,8 @@ public class Ship : MonoBehaviour
                 return;
             }
             C.pt += dt;
-            float tt = Mathf.Max(0f, C.pt - 0.5f);
-            float s = Mathf.Min(1f, tt / 2.5f);
+            float tt = Mathf.Max(0f, C.pt - 0.15f);   // the touchdown: a beat, then 0.9 s down onto the pad (it was 0.5 and 2.5)
+            float s = Mathf.Min(1f, tt / 0.9f);
             float e = s * s * (3f - 2f * s);
             var bayQ = LevelHeading(carrier.Dir(CargoShip.FaceLocal(C.side)));
             transform.position = carrier.ToTrue(Vector3.Lerp(C.hover, C.park, e)) - game.worldOffset;
@@ -1582,15 +1636,28 @@ public class Ship : MonoBehaviour
             }
             return;
         }
+        var prev = transform.position;
         transform.position = carrier.ToTrue(p) - game.worldOffset;
         vel = carrier.vel;
-        transform.rotation = Quaternion.Slerp(transform.rotation, LevelHeading(carrier.Dir(tan)), 1f - Mathf.Exp(-5f * dt));
+        // the nose: inside the bay it holds the parked heading, level, and the ship just takes off (2026-09-18, the
+        // user's); the path's climb is followed only once it is out past the field, over the next 400 u
+        float lz = carrier.ToLocalTrue(TruePos).z;
+        float outK = Mathf.Clamp01((Mathf.Abs(lz) - CargoShip.BAY_Z_OUT) / 400f);
+        var head = Vector3.Lerp(CargoShip.FaceLocal(C.side), tan, outK);
+        transform.rotation = Quaternion.Slerp(transform.rotation, LevelHeading(carrier.Dir(head)), 1f - Mathf.Exp(-5f * dt));
+        // the speed the path is flying (the carrier's own motion taken out), for the engine note and the hand-over
+        float inst = dt > 0f ? ((transform.position - prev) - carrier.vel * dt).magnitude / dt : 0f;
+        C.speed = C.t < 0.1f ? inst : Mathf.Lerp(C.speed, inst, 1f - Mathf.Exp(-6f * dt));
+        cutThrottle = Mathf.Clamp01(0.12f + 0.88f * u);
+        // out through the mouth's field, which flashes as it does in flight
+        if (!C.passed && Mathf.Abs(lz) >= CargoShip.BAY_Z_OUT) { C.passed = true; carrier.FlashField(lz > 0f ? 1 : -1); }
         if (k >= 1f)
         {
             cut = null;
-            vel += carrier.Dir(tan) * 340f;
-            throttle = 0.35f;
+            vel += carrier.Dir(tan) * Mathf.Clamp(C.speed, 300f, 600f);   // as fast as the path was flying, so nothing jolts at the hand-over
+            throttle = 0.5f;
             _camQ = transform.rotation;
+            Debug.Log("departure: handed over at " + C.speed.ToString("0") + " u/s after " + C.t.ToString("0.0") + " s");
             game.Toast("You have the ship", false);
         }
     }
@@ -1606,7 +1673,6 @@ public class Ship : MonoBehaviour
         laserOn = false;
         firing = false;
         _laser.enabled = false;
-        depWait = true;
         exitPending = false;
         hangarT = 0f;
         cut = null;
@@ -1616,9 +1682,6 @@ public class Ship : MonoBehaviour
         lookYaw = 0f;
         lookPitch = 0f;
         Audio.Play("dock");
-        // the deck welcomes you back over the intercom, one of four announcements, once the clamps have clunked (not on a
-        // session's first dock, and not during the tutorial, whose own line for this step would talk over it)
-        if (flownOut && State.tut < 0) _announceAt = Time.time + 0.8f;
         game.Toast("Docked in " + CargoShip.BayName(side) + " · stow cargo in the hangar window", false);
         game.OnDocked(true);
         State.Save();
@@ -1691,14 +1754,12 @@ public class Ship : MonoBehaviour
                 game.Toast("No repair parts left · restock at the Hub", true);
             }
         }
-        // Shift (throttle up) departs, once it has been released since docking; H deposits the hold into the storage
-        if (!(Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))) depWait = false;
-        else if (!depWait)
-        {
-            depWait = true;
-            StartDeparture();
-        }
-        if (Input.GetKeyDown(KeyCode.H)) DepositAll();
+        // Enter departs (2026-09-18, the user's; it was Shift, the throttle key, which needed a release after docking), unless
+        // the tutorial is waiting on Enter for its next card; E deposits the hold into the storage and H jumps to the Hub
+        // (2026-09-18, the user's: H used to deposit)
+        if (Input.GetKeyDown(KeyCode.Return) && !(game.tutorial != null && game.tutorial.WantsEnter)) StartDeparture();
+        if (Input.GetKeyDown(KeyCode.E)) DepositAll();
+        if (Input.GetKeyDown(KeyCode.H) && !hold && !game.zone.hub) StartWarp(Data.ZONE_HUB);
     }
 
     /// Holding station off the colony: the carrier is parked, you are aboard, and the market and services are open.
@@ -1713,7 +1774,6 @@ public class Ship : MonoBehaviour
         laserOn = false;
         firing = false;
         _laser.enabled = false;
-        depWait = true;
         hangarT = 0f;
         cut = null;
         Audio.Play("dock");
@@ -1741,9 +1801,58 @@ public class Ship : MonoBehaviour
 
     // ---- the warp: the cargo ship makes the jump, so you have to be aboard it. A fade to black while the zone swaps
     // underneath, then the arrival (the Hub: the holding-station flight; a belt: on the pad in the dock that faces the planet).
+    /// The Contracts tab's button: the cargo ship takes the docked ship to the outpost (for fuel from its supply) or back
+    /// to its orbit (free).
+    public void StartTransit(bool toOutpost)
+    {
+        if (transit != null || warp != null || cut != null) return;
+        var o = game.outpost;
+        if (!docked || hold || o == null || !o.built || game.zone.id != "kessler") { game.Toast("The cargo ship runs to the outpost from a hangar pad in the Kessler Belt", true); return; }
+        if (toOutpost == carrier.station) return;
+        float cost = toOutpost ? Outpost.TransitCost((o.StationPos() - carrier.truePos).magnitude) : 0f;
+        if (State.shipFuel < cost) { game.Toast("Not enough cargo ship fuel for the run · " + Data.Fmt(cost) + " needed · refuel at the Hub", true); return; }
+        State.shipFuel -= cost;
+        transit = new Transit { toOutpost = toOutpost };
+        game.OnDocked(false);
+        Audio.Play("chime");
+        game.Toast(toOutpost ? "Cargo ship under way to the raider outpost · " + Data.Fmt(cost) + " fuel from the supply" : "Cargo ship returning to its orbit", false);
+    }
+
+    void TransitUpdate(float dt)
+    {
+        var T = transit;
+        T.t += dt;
+        // the engines spool up to the move and down after it (Game feeds cutThrottle to the engine sound)
+        cutThrottle = T.t < TRANSIT_MOVE_AT ? Mathf.Clamp01(T.t / 2.5f) : Mathf.Clamp01(1f - (T.t - TRANSIT_MOVE_AT - 1.5f) / 2f);
+        if (!T.moved && T.t >= TRANSIT_MOVE_AT)
+        {
+            T.moved = true;
+            var o = game.outpost;
+            carrier.station = T.toOutpost;
+            if (T.toOutpost) carrier.SetPose(o.StationPos(), CargoShip.HeadingAlong(o.pos - o.StationPos()));
+            else carrier.Place();   // back onto its orbit, where it left it
+            // the docked ship goes with it, onto its pad; the floating origin re-centres on it this frame
+            transform.position = carrier.ToTrue(CargoShip.ParkLocal(dockSide)) - game.worldOffset;
+            transform.rotation = LevelHeading(carrier.Dir(CargoShip.FaceLocal(dockSide)));
+            vel = carrier.vel;
+            UpdateCamera(1f);
+            State.raidStation = T.toOutpost;
+            Audio.Play("dock");
+            State.Save();
+        }
+        if (T.t >= TRANSIT_DUR)
+        {
+            transit = null;
+            cutThrottle = 0f;
+            game.OnDocked(true);
+            var o = game.outpost;
+            game.Toast(T.toOutpost ? "Cargo ship on station · the raider outpost is " + Data.Fm((o.pos - TruePos).magnitude) + " m off the bow" : "Cargo ship back on its orbit", false);
+        }
+    }
+
     public void StartWarp(Data.Zone z)
     {
-        if (warp != null) return;
+        if (warp != null || transit != null) return;
         if (!docked)
         {
             game.Toast("Dock with the cargo ship before warping · it makes the jump", true);
@@ -1770,6 +1879,11 @@ public class Ship : MonoBehaviour
         {
             float rt = recovery.t, at = recovery.at, dur = recovery.dur;
             return rt < at ? SmoothStep(at - 1.2f, at, rt) : 1f - SmoothStep(at + 0.3f, dur, rt);
+        }
+        if (transit != null)
+        {
+            float tt = transit.t;
+            return tt < TRANSIT_MOVE_AT ? SmoothStep(TRANSIT_MOVE_AT - 1.4f, TRANSIT_MOVE_AT, tt) : 1f - SmoothStep(TRANSIT_MOVE_AT + 1f, TRANSIT_MOVE_AT + 2.4f, tt);
         }
         if (warp == null) return 0f;
         float t = warp.t;
@@ -2150,14 +2264,12 @@ public class Ship : MonoBehaviour
         }
         if (cut != null && cut.mode == "dock")
         {
-            if (cut.phase == "fly")
-            {
-                var cp = carrier.ToTrue(new Vector3(760f, 320f, cut.entry * 1750f)) - game.worldOffset;
-                cam.transform.position = cp;
-                cam.transform.rotation = Quaternion.LookRotation(transform.position + Forward * 60f - cp, Vector3.up);
-                return;
-            }
-            HangarCamera(dt);
+            DockingCamera(dt);
+            return;
+        }
+        if (cut != null && cut.mode == "depart")
+        {
+            DepartureCamera(dt);
             return;
         }
         if (docked)
@@ -2187,14 +2299,8 @@ public class Ship : MonoBehaviour
         camPitch = Mathf.Lerp(camPitch, CanFly ? _ctlPitch : 0f, k);
         camRoll = Mathf.Lerp(camRoll, CanFly ? _ctlRoll : 0f, k);
         // free look turns the camera relative to the hull; the chase offset stays rigid on the ship's position
-        var lq = _camQ * Quaternion.AngleAxis(lookYaw * Mathf.Rad2Deg, Vector3.up) * Quaternion.AngleAxis(lookPitch * Mathf.Rad2Deg, Vector3.right);
-        var f = lq * Vector3.forward;
-        var u = lq * Vector3.up;
-        var r = lq * Vector3.right;
-        float bank = (-camYaw * 14f - camRoll * 7f) * Mathf.Deg2Rad;
-        u = (Mathf.Cos(bank) * u + Mathf.Sin(bank) * r).normalized;   // the bank: tip the up vector about the view axis
-        var camPos = transform.position - f * 88f * s + u * 30f * s - r * camYaw * 30f * s - u * camPitch * 18f * s;
-        var look = transform.position + f * 140f * s + u * 10f * s + r * camYaw * 60f * s + u * camPitch * 40f * s;
+        Vector3 camPos, look, u;
+        ChasePose(out camPos, out look, out u);
         if (shake > 0f)
         {
             shake = Mathf.Max(0f, shake - dt * 1.8f);
@@ -2223,6 +2329,132 @@ public class Ship : MonoBehaviour
         cam.transform.position = cp;
         cam.transform.rotation = Quaternion.LookRotation(transform.position + carrier.Dir(new Vector3(0f, 6f, 0f)) - cp, carrier.Dir(Vector3.up));
         _camQ = transform.rotation;
+    }
+
+    /// The chase camera's place, look point and up from the smoothed heading, the turn lean and the free look.
+    void ChasePose(out Vector3 camPos, out Vector3 look, out Vector3 up)
+    {
+        float s = Data.SHIP_SCALE;
+        var lq = _camQ * Quaternion.AngleAxis(lookYaw * Mathf.Rad2Deg, Vector3.up) * Quaternion.AngleAxis(lookPitch * Mathf.Rad2Deg, Vector3.right);
+        var f = lq * Vector3.forward;
+        var u = lq * Vector3.up;
+        var r = lq * Vector3.right;
+        float bank = (-camYaw * 14f - camRoll * 7f) * Mathf.Deg2Rad;
+        u = (Mathf.Cos(bank) * u + Mathf.Sin(bank) * r).normalized;   // the bank: tip the up vector about the view axis
+        camPos = transform.position - f * 88f * s + u * 30f * s - r * camYaw * 30f * s - u * camPitch * 18f * s;
+        look = transform.position + f * 140f * s + u * 10f * s + r * camYaw * 60f * s + u * camPitch * 40f * s;
+        up = u;
+    }
+
+    /// The departure cutscene's cameras (2026-09-17). Four shots in the carrier's frame, cut on the path's progress:
+    /// low by the pad as the ship lifts, a slow push in (to 31%); up by the ceiling leading the ship along the deck
+    /// and held at the mouth's edge as it passes beneath (to 60%, the mouth); outside the hull off the mouth, the ship
+    /// coming out through the field and sweeping past; then over the last 1.5 s the camera swings in behind it onto the
+    /// chase position, lens widening to the flight lens, so the hand-over at DEPART_DUR is seamless. Hard cuts between
+    /// the first three; the last is one move.
+    void DepartureCamera(float dt)
+    {
+        var C = cut;
+        int b = C.side;
+        float t = C.t;
+        var up = carrier.Dir(Vector3.up);
+        float kq = 1f - Mathf.Exp(-7f * dt);
+        _camQ = Quaternion.Slerp(_camQ, transform.rotation, kq);
+        camYaw = Mathf.Lerp(camYaw, 0f, kq);
+        camPitch = Mathf.Lerp(camPitch, 0f, kq);
+        camRoll = Mathf.Lerp(camRoll, 0f, kq);
+        lookYaw = 0f;
+        lookPitch = 0f;
+        var shipL = carrier.ToLocalTrue(TruePos);
+        if (C.u < 0.31f)
+        {
+            // low by the pad, wide, a slow push in as the ship lifts
+            float w = Mathf.Clamp01(C.u / 0.31f);
+            CineShot(new Vector3(-320f + 50f * w, -62f + 10f * w, b * (400f + 70f * w)), transform.position + up * 10f, up, 54f);
+            return;
+        }
+        if (C.u < 0.6f)
+        {
+            // up by the ceiling, leading the ship along the deck by 260 u, held at the mouth's edge so it passes beneath
+            float lead = Mathf.Min(Mathf.Abs(shipL.z) + 260f, CargoShip.BAY_Z_OUT - 20f);
+            CineShot(new Vector3(170f, 104f, b * lead), transform.position + up * 4f, up, 48f);
+            return;
+        }
+        Vector3 chasePos, chaseLook, chaseUp;
+        ChasePose(out chasePos, out chaseLook, out chaseUp);
+        var shotPos = carrier.ToTrue(new Vector3(720f, 250f, b * 1650f)) - game.worldOffset;
+        var shotLook = transform.position + up * 6f;
+        float blend = Mathf.Clamp01((t - (C.dur - 1.5f)) / 1.5f);
+        float e = blend * blend * (3f - 2f * blend);
+        var cp = Vector3.Lerp(shotPos, chasePos, e);
+        var lookP = Vector3.Lerp(shotLook, chaseLook, e);
+        var upV = Vector3.Lerp(up, chaseUp, e).normalized;
+        cam.transform.position = cp;
+        cam.transform.rotation = Quaternion.LookRotation(lookP - cp, upV);
+        _fov = Mathf.Lerp(42f, FOV, e);
+        cam.fieldOfView = _fov;
+    }
+
+    /// The docking cutscene's cameras (2026-09-18). Outside, the chase camera slides over the first 1.5 s onto a mount
+    /// out along the approach, off to the side, so the ship comes past it and the hull swings into frame as it enters;
+    /// a hard cut as it comes through the field to a camera up by the ceiling leading it down the deck by 260 u, the
+    /// ship coming at it; then, for the touchdown, low by the pad on the hangar camera's side, one move that ends on
+    /// the hangar camera's first pose (HangarCamera at hangarT 0), so the docked view carries on with no cut.
+    void DockingCamera(float dt)
+    {
+        var C = cut;
+        var up = carrier.Dir(Vector3.up);
+        float kq = 1f - Mathf.Exp(-7f * dt);
+        _camQ = Quaternion.Slerp(_camQ, transform.rotation, kq);
+        camYaw = Mathf.Lerp(camYaw, 0f, kq);
+        camPitch = Mathf.Lerp(camPitch, 0f, kq);
+        camRoll = Mathf.Lerp(camRoll, 0f, kq);
+        lookYaw = 0f;
+        lookPitch = 0f;
+        var shipL = carrier.ToLocalTrue(TruePos);
+        bool inside = Mathf.Abs(shipL.z) < CargoShip.BAY_Z_OUT;
+        if (C.phase == "fly" && !inside)
+        {
+            Vector3 chasePos, chaseLook, chaseUp;
+            ChasePose(out chasePos, out chaseLook, out chaseUp);
+            var mountPos = carrier.ToTrue(new Vector3(560f, 180f, C.entry * 2300f)) - game.worldOffset;
+            float bl = Mathf.Clamp01(C.t / 1.5f);
+            float e = bl * bl * (3f - 2f * bl);
+            var cp = Vector3.Lerp(chasePos, mountPos, e);
+            var lookP = Vector3.Lerp(chaseLook, transform.position + up * 6f, e);
+            var upV = Vector3.Lerp(chaseUp, up, e).normalized;
+            cam.transform.position = cp;
+            cam.transform.rotation = Quaternion.LookRotation(lookP - cp, upV);
+            _fov = Mathf.Lerp(FOV, 44f, e);
+            cam.fieldOfView = _fov;
+            return;
+        }
+        float toPad = Mathf.Abs(shipL.z - C.park.z);   // how far along the deck the ship still has to come
+        if (C.phase == "fly" && toPad > 150f)
+        {
+            // up by the ceiling, leading the ship down the deck by 260 u, so it comes at the camera and stays close
+            float zc = shipL.z + C.side * 260f;
+            if (Mathf.Abs(zc) > CargoShip.BAY_Z_OUT - 20f) zc = C.side * (CargoShip.BAY_Z_OUT - 20f);
+            CineShot(new Vector3(170f, 104f, zc), transform.position + up * 4f, up, 48f);
+            return;
+        }
+        // the touchdown: low by the pad, ending on the hangar camera's first pose
+        var park = C.park;
+        var lowL = new Vector3(320f, park.y + 20f, park.z - C.side * 140f);   // the hangar camera's side, so the move never crosses the ship
+        var endL = new Vector3(190f, park.y + 56f, park.z);
+        float st = C.phase == "settle" ? Mathf.Clamp01(C.pt / 1.05f) : 0f;
+        float e2 = st * st * (3f - 2f * st);
+        CineShot(Vector3.Lerp(lowL, endL, e2), transform.position + carrier.Dir(new Vector3(0f, 6f, 0f)), up, Mathf.Lerp(50f, FOV, e2));
+    }
+
+    /// A cutscene camera fixed in the carrier's frame, looking at a scene point, with its own lens.
+    void CineShot(Vector3 local, Vector3 lookAt, Vector3 up, float fov)
+    {
+        var cp = carrier.ToTrue(local) - game.worldOffset;
+        cam.transform.position = cp;
+        cam.transform.rotation = Quaternion.LookRotation(lookAt - cp, up);
+        _fov = fov;
+        cam.fieldOfView = fov;
     }
 
     /// A camera fixed in the carrier's frame (offsets along nose, up, side), looking at a point ahead of it.

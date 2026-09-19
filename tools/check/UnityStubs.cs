@@ -68,6 +68,7 @@ namespace UnityEngine
         public void Normalize() { var n = normalized; x = n.x; y = n.y; z = n.z; }
         public static Vector3 Cross(Vector3 a, Vector3 b) => new Vector3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
         public static Vector3 Lerp(Vector3 a, Vector3 b, float t) => a + (b - a) * Mathf.Clamp01(t);
+        public static Vector3 Slerp(Vector3 a, Vector3 b, float t) => Lerp(a, b, t);   // the stub: a straight lerp is enough to compile against
         public static Vector3 Reflect(Vector3 a, Vector3 n) => a - n * (2f * Dot(a, n));
         public static float Distance(Vector3 a, Vector3 b) => (a - b).magnitude;
         public static float Angle(Vector3 a, Vector3 b) => 0f;
@@ -207,7 +208,7 @@ namespace UnityEngine
         public static void SetResolution(int w, int h, FullScreenMode m) { }
     }
 
-    public enum KeyCode { A, B, C, D, E, F, G, H, I, L, N, Q, R, S, T, V, W, X, Z, Space, Escape, Return, Tab, F1, F5, F8, F9, F10, LeftControl, RightControl, LeftAlt, RightAlt, Alpha1, Alpha2, Alpha3, UpArrow, DownArrow, LeftShift, RightShift }
+    public enum KeyCode { A, B, C, D, E, F, G, H, I, L, N, Q, R, S, T, V, W, X, Z, Space, Escape, Return, Tab, F1, F5, F8, F9, F10, LeftControl, RightControl, LeftAlt, RightAlt, Alpha1, Alpha2, Alpha3, Alpha4, UpArrow, DownArrow, LeftShift, RightShift }
 
     public static class Input
     {

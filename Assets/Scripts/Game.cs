@@ -21,6 +21,7 @@ public class Game : MonoBehaviour
     public Sparks sparks;
     public Explosions explosions;
     public Raiders raiders;
+    public Outpost outpost;   // the raider outpost (2026-09-19): the raid contract's target, in the Kessler Belt
     float _dishToastT = -100f;
     public List<Pickup> Drops { get { return _drops; } }
 
@@ -61,14 +62,28 @@ public class Game : MonoBehaviour
                 if (i + 1 < args.Length && !args[i + 1].StartsWith("-")) _smokeOnly = args[i + 1];
             }
             if (args[i] == "-combat" || args[i] == "--combat") _combat = true;
+            if (args[i] == "-transit") _transit = true;   // a test: start on the pad in a sandbox with the contract taken, send the cargo ship to the outpost at frame 60, shoot every 45 frames (transit_1 to transit_9) and quit
+            if (args[i] == "-depart") _depart = true;   // a test: start on the pad in a sandbox, play the departure cutscene, shoot it every 45 frames (depart_1 to depart_9) and quit
+            if (args[i] == "-raid") { _combat = true; _raid = true; }   // a test: the combat sandbox set 5,500 u off the raider outpost with the contract taken, the trigger held from frame 60, a shot every 60 frames (raid_1 to raid_12), then quits
+            if (args[i] == "-radar") { _combat = true; _radar = true; }   // a test: the combat sandbox pings the radar at frame 90 and shoots every 15 frames (radar_1 to radar_9), then quits
+            if (args[i] == "-tab" && i + 1 < args.Length) _tab = args[i + 1];   // with -dock: the hangar window opened on this tab (inv | ship | depot | raid) for the last two shots
+            if (args[i] == "-ore") _ore = true;           // with -dock / -depart / -combat: a few stacks in the hold and the storage, so the slot grids show faces
+            if (args[i] == "-dock") _dock = true;         // a test: start 3,200 u off mouth 1 in a sandbox, play the docking cutscene, shoot it every 45 frames (dock_1 to dock_9) and quit
             if ((args[i] == "-gun" || args[i] == "--gun") && i + 1 < args.Length) int.TryParse(args[i + 1], out _combatGun);
             if ((args[i] == "-rocket" || args[i] == "--rocket") && i + 1 < args.Length) int.TryParse(args[i + 1], out _combatRocket);
-            if ((args[i] == "-face" || args[i] == "--face") && i + 1 < args.Length) _combatFace = args[i + 1];   // sun | planet | rock: the sandbox ship turned to face it (lighting checks)
+            if ((args[i] == "-face" || args[i] == "--face") && i + 1 < args.Length) _combatFace = args[i + 1];   // sun | planet | rock | carrier: the sandbox ship turned to face it (lighting checks)
             if ((args[i] == "-torch" || args[i] == "--torch") && i + 1 < args.Length) _combatTorch = args[i + 1] != "0";   // the flashlight on or off in the sandbox
             if (args[i] == "-torchpoint") _combatTorchPoint = true;   // a diagnostic: the flashlight as a point light at the nose, to see what it lights
             if (args[i] == "-rockmin" && i + 1 < args.Length) int.TryParse(args[i + 1], out _combatRockMin);   // -face rock: only a rock of at least this radius (u), so a big one fills the frame
             if (args[i] == "-shader" && i + 1 < args.Length) _combatShader = args[i + 1];   // -face rock: only a rock whose shader name contains this ("Sculpt" for the sculpted collection, "Rock" for the belt's own)
+            if (args[i] == "-standoff" && i + 1 < args.Length) int.TryParse(args[i + 1], out _combatStandoff);   // -face rock | carrier: how far off it the ship is set (400 u off a rock's surface, 9,000 u off the cargo ship's centre)
             if (args[i] == "-side" && i + 1 < args.Length) _combatSide = args[i + 1];   // -face rock: "sun" the ship on the rock's lit side, "dark" on its night side (only the flashlight lights it), 30 deg off the sun so the sun stays out of the frame
+        }
+        if (_depart || _dock || _transit) State.sandbox = true;   // the departure test is a sandbox too: nothing this session does reaches the save file
+        if (_ore && (_depart || _dock || _combat))
+        {
+            State.cargo["iron"] = 40f; State.cargo["gold"] = 7f;
+            State.store["copper"] = 60f; State.store["platinum"] = 3f; State.store["crystal"] = 25f;
         }
         if (_combat)
         {
@@ -92,6 +107,7 @@ public class Game : MonoBehaviour
         sparks = new Sparks();
         explosions = new Explosions(this);
         raiders = new Raiders(this);
+        outpost = new Outpost(this);
         _pickups = new GameObject("Pickups").transform;
         var cgo = new GameObject("CargoShip");
         carrier = cgo.AddComponent<CargoShip>();
@@ -127,7 +143,7 @@ public class Game : MonoBehaviour
         Music.I.onGroove = n => { if (started) hud.Toast("♪ " + n + " · groove on the comm channel", false); };
         Music.I.onTrack = n => { if (started) hud.Toast("♪ Now drifting: " + n, false); };
         Music.I.onCombat = n => { if (started) hud.Toast("♪ " + n + " · combat", false); };
-        LoadZone(Data.ZoneById(_smoke ? "kessler" : State.zoneId));
+        LoadZone(Data.ZoneById(_smoke || _depart || _dock || _transit ? "kessler" : State.zoneId));
         SpawnInZone();
         ship.UpdateCamera(1f);
         Debug.Log("belt: " + belt.count + " rocks in " + belt.ChunkCount + " chunks, built in " + Mathf.RoundToInt((Time.realtimeSinceStartup - t0) * 1000f) + " ms");
@@ -136,13 +152,43 @@ public class Game : MonoBehaviour
             ship.mouseSteer = false;
             StartGame();
         }
+        else if (_dock)
+        {
+            StartGame();
+            if (ship.docked) ship.LeaveHangar();
+            ship.transform.position = carrier.ToTrue(CargoShip.OpeningLocal(1) + new Vector3(0f, 0f, 3200f)) - worldOffset;
+            ship.transform.rotation = Ship.LevelHeading(carrier.Dir(new Vector3(0f, 0f, -1f)));
+            ship.mouseSteer = false;
+        }
+        else if (_depart || _transit)
+        {
+            StartGame();
+            if (!ship.docked) { ship.transform.position = carrier.ToTrue(CargoShip.ParkLocal(1)) - worldOffset; ship.EnterHangar(1); }
+            ship.mouseSteer = false;
+            if (_transit) { State.raid = 1; State.raidStation = false; carrier.station = false; }
+        }
         else if (_combat)
         {
             StartGame();
             JumpToHold();
+            if (_raid && outpost.built)
+            {
+                // the raid test: no other raiders, the contract taken, the ship 5,500 u off the outpost facing it
+                raiders.Clear();
+                raiders.respawn = false;
+                State.raid = 1;
+                var od = new Vector3(0.3f, 0.12f, -1f).normalized;
+                ship.transform.position = outpost.pos - od * 5500f - worldOffset;
+                ship.transform.rotation = Quaternion.LookRotation(od, Vector3.up);
+                ship.vel = Vector3.zero;
+                ship.throttle = 0f;
+                ship.mouseSteer = false;
+                ship.UpdateCamera(1f);
+                Debug.Log("raid test: outpost at " + outpost.pos.ToString("0") + " off " + (outpost.field != null ? outpost.field.name : "?") + " · ship 5,500 u off · " + outpost.Status);
+            }
             ship.torchOn = _combatTorch;
             if (_combatTorchPoint && ship.torch != null) { ship.torch.type = LightType.Point; Debug.Log("combat test: torch as a point light"); }
-            if (_combatFace == "sun" || _combatFace == "planet" || _combatFace == "rock")
+            if (_combatFace == "sun" || _combatFace == "planet" || _combatFace == "rock" || _combatFace == "carrier")
             {
                 var d = _combatFace == "sun" ? zone.sunDir.normalized : (_planetTrue - ship.TruePos).normalized;
                 if (_combatFace == "rock")
@@ -154,16 +200,33 @@ public class Game : MonoBehaviour
                     {
                         var rp = belt.RockPos(best);
                         d = (rp - ship.TruePos).normalized;
+                        _combatRock = best;
                         if (_combatSide == "sun" || _combatSide == "dark")
                         {
                             var sd = zone.sunDir.normalized;   // light travels along -sunDir, so the lit face points +sunDir
                             var axis = Vector3.Cross(sd, Vector3.up); if (axis.sqrMagnitude < 1e-4f) axis = Vector3.right; axis.Normalize();
                             d = Quaternion.AngleAxis(30f, axis) * (_combatSide == "dark" ? sd : -sd);   // face the dark (or lit) side; the standoff line below sets the position
                         }
-                        ship.transform.position = rp - d * (belt.radius[best] + 400f) - worldOffset;
-                        Debug.Log("combat test: facing rock " + best + " r=" + belt.radius[best].ToString("0") + " (" + belt.ShaderNameOf(best) + ") at 400 u · torch " + ship.torchOn
+                        float off = _combatStandoff > 0 ? _combatStandoff : 400f;
+                        ship.transform.position = rp - d * (belt.radius[best] + off) - worldOffset;
+                        Debug.Log("combat test: facing rock " + best + " r=" + belt.radius[best].ToString("0") + " (" + belt.ShaderNameOf(best) + ") at " + off.ToString("0") + " u · torch " + ship.torchOn
                             + (ship.torch != null ? " · torch forward·ship forward " + Vector3.Dot(ship.torch.transform.forward, ship.Forward).ToString("0.00") + " · torch local " + ship.torch.transform.localPosition + " parent " + ship.torch.transform.parent.name + " scale " + ship.torch.transform.lossyScale : ""));
                     }
+                }
+                if (_combatFace == "carrier" && carrier != null)
+                {
+                    // the cargo ship 9,000 u off, from wherever the ship is or from its lit or night side (-side), for a look at the hull
+                    var cp = carrier.truePos;
+                    d = (cp - ship.TruePos).normalized;
+                    if (_combatSide == "sun" || _combatSide == "dark")
+                    {
+                        var sd = zone.sunDir.normalized;
+                        var axis = Vector3.Cross(sd, Vector3.up); if (axis.sqrMagnitude < 1e-4f) axis = Vector3.right; axis.Normalize();
+                        d = Quaternion.AngleAxis(30f, axis) * (_combatSide == "dark" ? sd : -sd);
+                    }
+                    float off = _combatStandoff > 0 ? _combatStandoff : 9000f;
+                    ship.transform.position = cp - d * off - worldOffset;
+                    Debug.Log("combat test: facing the cargo ship " + off.ToString("0") + " u off, side '" + _combatSide + "'");
                 }
                 ship.transform.rotation = Quaternion.LookRotation(d, Vector3.up);
                 ship.mouseSteer = false;   // or the pointer, wherever it sits, would swing the nose off it
@@ -211,6 +274,7 @@ public class Game : MonoBehaviour
         belt.Clear();
         belt.Build(z, z.id == "kessler" ? SEED : SEED + 11);
         raiders.Build(z, belt);
+        outpost.Build(z, belt);
         if (colony != null) { Destroy(colony.gameObject); colony = null; }
         if (z.hub)
         {
@@ -331,6 +395,7 @@ public class Game : MonoBehaviour
         if (zone.hub)
         {
             carrier.hold = true;
+            carrier.station = false;
             var p = Data.HOLD_PARK;
             if (arriving)
             {
@@ -358,6 +423,13 @@ public class Game : MonoBehaviour
         carrier.ang = _smoke ? Mathf.PI / 2f : UnityEngine.Random.value * Mathf.PI * 2f;
         worldOffset = Vector3.zero;
         carrier.Place();
+        if (State.raidStation && outpost != null && outpost.built)
+        {
+            // the cargo ship was left on station off the raider outpost (2026-09-19): it is there again
+            carrier.station = true;
+            carrier.SetPose(outpost.StationPos(), CargoShip.HeadingAlong(outpost.pos - outpost.StationPos()));
+        }
+        else carrier.station = false;
         int side = carrier.PlanetSide();
         worldOffset = carrier.ToTrue(CargoShip.ParkLocal(side));
         ship.transform.position = Vector3.zero;
@@ -499,11 +571,14 @@ public class Game : MonoBehaviour
     int _combatGun = 0, _combatRocket = 0;
     string _combatFace = "";
     bool _combatTorch = true, _combatTorchPoint;
+    bool _depart, _dock, _radar, _ore, _raid, _transit; int _departFrame; string _tab = "";
     string _combatSide = "", _combatShader = "";
+    int _combatStandoff = -1;
+    int _combatRock = -1;
     int _combatRockMin;
     int _combatFrame;
 
-    /// The combat test's fight: every raider in the zone is cleared and three fresh ones are spawned 2,000 to 4,000 m
+    /// The combat test's fight: every raider in the zone is cleared and three fresh ones are spawned 500 to 1,000 m
     /// out (4,000 to 8,000 u) in random directions round the ship, homed on the ship's position so they engage at once.
     /// The ship stays where it is (leaving the hangar first if docked) with the autocannon selected.
     public void JumpToHold()
@@ -536,7 +611,7 @@ public class Game : MonoBehaviour
             raiders.Make(here + dir * UnityEngine.Random.Range(4000f, 8000f), here);
         }
         Debug.Log("combat test: 3 raiders spawned 4,000 to 8,000 u out · gun Lv" + State.up["gun"] + " · at " + here.ToString("0"));
-        hud.Toast("Test · 3 raiders inbound, 2,000 to 4,000 m out · autocannon Lv" + State.up["gun"], false);
+        hud.Toast("Test · 3 raiders inbound, 500 to 1,000 m out · autocannon Lv" + State.up["gun"], false);
     }
 
     /// A shader by name, falling back down a list a build always carries, so a missing one never stops the game.
@@ -690,8 +765,10 @@ public class Game : MonoBehaviour
             carrier.TickDish(dt, belt);
             drones.Tick(dt);
             raiders.Tick(dt);
+            outpost.Tick(dt);   // after the raiders: its turrets add to their threat
         }
-        Audio.I.Engine(ship.throttle, ship.afterburning, ship.braking, ship.docked || ship.InCinematic);
+        bool departing = (ship.cut != null && ship.cut.mode == "depart") || ship.transit != null;   // the departure cutscene, and the cargo ship's run to the outpost: the engines spool with cutThrottle
+        Audio.I.Engine(departing ? ship.cutThrottle : ship.throttle, ship.afterburning, ship.braking, ship.docked || (ship.InCinematic && !departing));
         bool inFlight = !ship.docked && !ship.InCinematic && ship.CanFly;
         if (Music.I != null) Music.I.combat = raiders != null && raiders.threat > 0 && !ship.docked;   // the combat track
         Audio.I.ShieldLoop(State.shield <= 0f && inFlight, State.sinceHit >= Data.SHIELD_WAIT && State.shield < State.ShieldMax && inFlight);
@@ -738,8 +815,43 @@ public class Game : MonoBehaviour
         hud.menu.Tick(dt);
         tutorial.Update(dt);
         if (_combat) { State.fuel = State.Stat("tank").cap; State.credits = Mathf.Max(State.credits, 9999999f); State.rockets = State.Stat("rocket").slots; }   // the test: fuel never runs out, nor credits
-        if (_combat && _combatFace == "rock" && _combatFrame == 300) ship.torchOn = false;   // the flashlight check (-face rock): a second shot with it off, same view
-        if (_combat && _combatFace == "rock" && _combatFrame == 330) Shot("combat_test_off");
+        if (_combat && _combatRock >= 0 && _combatFrame < 340 && belt.alive[_combatRock]) ship.transform.rotation = Quaternion.LookRotation((belt.RockPos(_combatRock) - ship.TruePos).normalized, Vector3.up);   // the faced rock drifts along its rail: the nose stays on it through the shots
+        if (_combat && (_combatFace == "rock" || _combatFace == "carrier") && _combatFrame == 300) ship.torchOn = false;   // the flashlight check (-face rock): a second shot with it off, same view
+        if (_combat && (_combatFace == "rock" || _combatFace == "carrier") && _combatFrame == 330) Shot("combat_test_off");
+        if (_transit)
+        {
+            _departFrame++;
+            if (_departFrame == 60) ship.StartTransit(true);
+            if (_departFrame > 60 && (_departFrame - 60) % 45 == 0 && _departFrame <= 60 + 45 * 9) { int n = (_departFrame - 60) / 45; Shot("transit_" + n); Debug.Log("transit shot " + n + " at " + (ship.transit != null ? ship.transit.t.ToString("0.0") + " s in" : "over") + " · station " + carrier.station + " · outpost " + Data.Fm((outpost.pos - ship.TruePos).magnitude) + " m · supply " + State.shipFuel.ToString("0") + " · docked " + ship.docked + " · offset " + worldOffset.magnitude.ToString("0")); }
+            if (_departFrame == 60 + 45 * 9 + 20) Quit();
+        }
+        if (_depart || _dock)
+        {
+            string tag = _dock ? "dock" : "depart";
+            _departFrame++;
+            if (_departFrame == 90) { if (_dock) ship.StartApproach(); else ship.StartDeparture(); }
+            if (_dock && _tab != "" && _departFrame == 90 + 45 * 7 + 20 && ship.docked) hud.OpenTab(_tab);
+            if (_departFrame > 90 && (_departFrame - 90) % 45 == 0 && _departFrame <= 90 + 45 * 9) { int n = (_departFrame - 90) / 45; Shot(tag + "_" + n); Debug.Log(tag + " shot " + n + " at " + (ship.cut != null ? ship.cut.t.ToString("0.0") + " s into the cut (" + ship.cut.phase + ")" : (ship.docked ? "docked" : "after the hand-over")) + " · fuel " + State.fuel.ToString("0.0") + " of " + State.Stat("tank").cap + " · supply " + State.shipFuel.ToString("0.0") + " · hull " + State.hull.ToString("0.0") + " of " + State.Stat("hull").hp + " · parts " + State.parts.ToString("0.0") + " · dt " + Time.deltaTime.ToString("0.0000") + " · hold " + ship.hold + " · cut " + (ship.cut != null)); }
+            if (_departFrame == 90 + 45 * 9 + 20) Quit();
+        }
+        if (_combat && _raid && outpost != null && outpost.built)
+        {
+            // the raid test: the nose held on the nearest standing turret (then the core), the trigger held from frame 60,
+            // the ship unhurt, a shot every 60 frames (raid_1 to raid_12), then quit
+            var aimAt = outpost.AimPoint();
+            ship.transform.rotation = Quaternion.LookRotation((aimAt - ship.TruePos).normalized, Vector3.up);
+            ship.autoFire = _combatFrame >= 60 && !outpost.destroyed;
+            State.hull = State.Stat("hull").hp;
+            State.shield = State.ShieldMax;
+            if (_combatFrame > 60 && (_combatFrame - 60) % 60 == 0 && _combatFrame <= 60 + 60 * 12) { int n = (_combatFrame - 60) / 60; Shot("raid_" + n); Debug.Log("raid shot " + n + " · " + outpost.Status + " · launched " + outpost.launched + " · " + raiders.Stats() + " · raid " + State.raid + " · earned " + State.earned.ToString("0")); }
+            if (_combatFrame == 60 + 60 * 12 + 20) Quit();
+        }
+        if (_combat && _radar)
+        {
+            if (_combatFrame == 90) ship.Radar();
+            if (_combatFrame > 90 && (_combatFrame - 90) % 15 == 0 && _combatFrame <= 90 + 15 * 9) { int n = (_combatFrame - 90) / 15; Shot("radar_" + n); Debug.Log("radar shot " + n + " at " + (ship.PulseVisible ? "pulse on" : "pulse over")); }
+            if (_combatFrame == 90 + 15 * 9 + 20) Quit();
+        }
         if (_combat && ++_combatFrame == 240) { Shot("combat_test"); Debug.Log("combat test: " + raiders.Stats() + " · hull " + State.hull.ToString("0") + " · lock " + ship.lockKind + " · target " + (ship.raiderTarget != null)); }
         if (_smoke) SmokeStep();
     }
