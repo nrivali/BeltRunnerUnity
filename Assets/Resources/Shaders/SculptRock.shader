@@ -102,6 +102,7 @@ Shader "BeltRunner/SculptRock"
             o.Emission=hc*h*(.45+.65*h)*(.6+dot(albedo,float3(.3,.59,.11))*1.2)*.5;
             o.Emission+=Spot(IN.worldPos,_HeatPos0,_HeatAmt.x)+Spot(IN.worldPos,_HeatPos1,_HeatAmt.y);
             o.Emission+=Torch(IN.worldPos,WorldNormalVector(IN,normal),o.Albedo*(1-SpecularStrength(o.Specular)));   // the flashlight (RockTorch.cginc), once, in the base pass
+            o.Emission+=Scan(IN.worldPos);   // the radar pulse sweeping over the stone (RockTorch.cginc)
             o.Alpha=1;
         }
         ENDCG

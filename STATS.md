@@ -1,7 +1,7 @@
 # Combat stats
 
-The numbers as the code has them today. World units (u) are what the code uses; a readout metre is half a unit, so
-900 m on the HUD is 1,800 u. Sources: `Assets/Scripts/Data.cs`, `Ship.cs`, `Raiders.cs`.
+The numbers as the code has them today. World units (u) are what the code uses; a readout metre is eight units (2026-09-16; it was half a unit), so
+225 m on the HUD is 1,800 u. Sources: `Assets/Scripts/Data.cs`, `Ship.cs`, `Raiders.cs`.
 
 ## Side by side (base player vs a Kessler Belt raider)
 
@@ -9,12 +9,12 @@ The numbers as the code has them today. World units (u) are what the code uses; 
 |---|---|---|
 | Hull | 50 | 50 |
 | Shield | 50 at the base refit (80, 120, 170, 240 with the Shield refit), recharges empty to full in 3 s after 10 s without a hit; sounds when it is stripped, while it is down, and while it recharges (cut by a hit); a breathing red edge on screen while it is down | 50, recharges 10/s after 10 s without a hit |
-| Gun | Autocannon: 8 dmg, 6 shots/s, 10,000 u (5,000 m); overheats after 5 s of continuous fire, locked out until cooled below 40% (4 s from full to cold) | 4 dmg, 6 shots/s, 6,000 u (3,000 m) reach |
+| Gun | Autocannon: 8 dmg, 6 shots/s, 10,000 u (1,250 m); overheats after 5 s of continuous fire, locked out until cooled below 40% (4 s from full to cold) | 4 dmg, 6 shots/s, 6,000 u (750 m) reach |
 | Bolt speed | 5,000 u/s (dies after 2.2 s, 11,000 u) | 2,600 u/s (dies after 2.6 s, 6,760 u) |
-| Rockets | Seeker rockets: 4 aboard (restocked on the pad), one per trigger pull, 6 s reload; 2,400 u/s (accelerating at 1,800 u/s² from the ship's speed plus 300), turning 70°/s onto the raider with a velocity lead, 12 s of flight; contact within 70 u destroys the raider outright with the blast; goes after the locked raider, else the nearest within 30° of the nose, else the nearest within 12,000 u (6,000 m) | none |
+| Rockets | Seeker rockets: 4 aboard (restocked on the pad), one per trigger pull, 6 s reload; 2,400 u/s (accelerating at 1,800 u/s² from the ship's speed plus 300), turning 70°/s onto the raider with a velocity lead, 12 s of flight; contact within 70 u destroys the raider outright with the blast; goes after the locked raider, else the nearest within 30° of the nose, else the nearest within 12,000 u (1,500 m) | none |
 | Fires when | Trigger held (LMB or L), straight down the nose like the laser; the mouse steers the nose onto the LEAD pip; 2 selects it, 1 the laser, 3 the rockets, the wheel cycles | Nose within 25° of the ship and inside gun reach; rough aim: 0.09 spread (~5°) and the lead over- or under-estimated by 55–115% shot by shot |
 | Hit box | Ship radius (SHIP_R) × 0.8 | 60 u for bolts (hull is 28 u for the reticle and ranges; the model is drawn at twice its original size) |
-| Top speed | 500 u/s (250 m/s), ×2 on the afterburner from the start, up to ×5 with the refits | 865 u/s, ×1.25 (1,081) on the boost (runs in from beyond 900 u and long runs out), capped on a strafe to hold the circle |
+| Top speed | 500 u/s (62 m/s on the readout), ×2 on the afterburner from the start, up to ×5 with the refits | 865 u/s, ×1.25 (1,081) on the boost (runs in from beyond 900 u and long runs out), capped on a strafe to hold the circle |
 | Thrust | 328 u/s² | 220 u/s² accel (352 on the boost), 320 u/s² braking |
 | Turn rate | 50°/s yaw and pitch, 70°/s in the drift | 30°/s |
 | Damage per second landed | 48 | 24 |
@@ -25,11 +25,11 @@ The numbers as the code has them today. World units (u) are what the code uses; 
 
 | Refit | Levels | Costs |
 |---|---|---|
-| Autocannon | 8 dmg · 6/s → 12 · 7/s → 18 · 8/s → 26 · 10/s, 5,000 m at every level | 900, 3,200, 9,000 |
-| Seeker rockets (magazine · reload · chase) | 4 · 6 s · 6,000 m → 6 · 5 s · 7,000 m → 8 · 4 s · 8,000 m → 10 · 3 s · 9,000 m | 1,200, 4,000, 11,000 |
+| Autocannon | 8 dmg · 6/s → 12 · 7/s → 18 · 8/s → 26 · 10/s, 1,250 m at every level | 900, 3,200, 9,000 |
+| Seeker rockets (magazine · reload · chase) | 4 · 6 s · 1,500 m → 6 · 5 s · 1,750 m → 8 · 4 s · 2,000 m → 10 · 3 s · 2,250 m | 1,200, 4,000, 11,000 |
 | Hull plating | 50 → 80 → 125 → 200 → 300 | 250, 900, 3,000, 9,000 |
 | Shield | 50 → 80 → 120 → 170 → 240, always empty to full in 3 s | 500, 1,800, 5,500, 14,000 |
-| Engines (thrust · top speed, u) | 328 · 500 → 438 · 640 → 562 · 800 → 718 · 980 → 922 · 1,220 (250 m/s base on the readout) | 300, 1,100, 3,500, 10,000 |
+| Engines (thrust · top speed, u) | 328 · 500 → 438 · 640 → 562 · 800 → 718 · 980 → 922 · 1,220 (62 m/s base on the readout) | 300, 1,100, 3,500, 10,000 |
 | Afterburner | ×2 (fitted from the start) → ×3 → ×4 → ×5 speed on Shift, heavy fuel burn | 3,000, 9,000, 24,000 |
 | Fuel tank | 100 → 160 → 250 → 400 → 600 | 150, 600, 2,000, 6,000 |
 | Mining laser | 3 → 5 → 8 → 12 → 18 | 350, 1,400, 5,000, 16,000 |
@@ -44,7 +44,7 @@ Shield is fixed at 50 for every fit (no refit yet).
 
 - Newtonian: thrust along the nose, velocity persists; the throttle sets the speed cap (half throttle holds half the top
   speed). Drag 0.32/s while thrusting, 0.064/s at zero throttle (coasts about
-  15 × speed in distance: from top speed about 3,900 m; the S retros do the stopping).
+  15 × speed in distance: from top speed about 975 m; the S retros do the stopping).
 - Retros (S at zero throttle): 0.4 × thrust. Drift (hold Space): engine cuts, no retros, the ship coasts on at the
   coasting drag, turn rate 50°/s (the usual 30), nose swings free: for turning round, not stopping.
 - Both weapons fire straight down the nose; the mouse steers. Every raider in reach carries a LEAD pip, drawn at the
@@ -60,11 +60,11 @@ Shield is fixed at 50 for every fit (no refit yet).
   - Speed 820 + 90 × danger → 865 at Kessler. Bounty 80 + 120 × danger → 140.
   - Holds: min(rich pockets, round(3 + 6 × danger)) → 6 at Kessler, 3 elsewhere. Raiders per hold: 1 + random(0 ..
     min(3, 1 + floor(danger))) → 1 or 2 at Kessler, 1 elsewhere.
-- Engage a flying ship within 9,000 u (4,500 m); the music cuts to the combat track (Vanguard, 156 bpm) while any
+- Engage a flying ship within 9,000 u (1,125 m); the music cuts to the combat track (Vanguard, 156 bpm) while any
   raider attacks and drifts back six seconds after the last one stops; give up beyond 14,000 u, or when the ship is disabled or docked.
 - The cargo ship's guns cover 9,000 u: raiders inside lose 30 health/s and never engage there.
 - Manoeuvres: run in (weaving) until inside 600 u; strafe at a radius of 200–500 u for 2–4 s, speed capped so the
-  circle holds; then 50% a long run at full thrust to a point 2,500–5,000 u away (1,250–2,500 m) and a fresh run back in, else 90% another strafe / 10% a short
+  circle holds; then 50% a long run at full thrust to a point 2,500–5,000 u away (313–625 m) and a fresh run back in, else 90% another strafe / 10% a short
   break (1.2–2.5 s). Jink when a player bolt is coming their way (miss under 138 u, within 2,500 u): 70% of the time,
   0.8 s hard turn, then 1.6 s cooldown.
 - Flight model: heading turns at most 30°/s, accel 220, braking 320, movement only along the nose.
@@ -75,8 +75,22 @@ Shield is fixed at 50 for every fit (no refit yet).
   out, flat spin with arcs for 10–18 s). Every wreck keeps its momentum;
   the hull ends as debris that drifts for 60 s. The bounty is paid at the kill.
 
+## The raider outpost (`Assets/Scripts/Outpost.cs`, the raid contract)
+
+| | Turret (one of three) | Core |
+|---|---|---|
+| Health | 150, no shield of its own | 500 under a shield that soaks every hit while any turret stands |
+| Gun | The raiders' bolt at 6 dmg, 2.5 shots/s, 7,000 u (875 m) reach, fired only with the ship on the mount (a slew of about 4/s exponential) | none |
+| Aim | The lead 75–110% of true shot by shot, spread 0.045 (~2.5°): half the raiders' | |
+| Hit box | 190 u disc round the head (the head is 150 u) | 640 u disc (the core is 600 u); the shield bubble 820 u |
+| Damage per second landed | 15 per turret, 45 with all three bearing | |
+| Wakes | Inside 12,000 u (1,500 m) of a flying ship; the hangar launches raiders two in the air at a time, one every 9 s, six a raid, while the core stands | |
+| Pays | | 2,500 cr + 750 per outpost already put down under contract, plus 5–8 lumps of outer-belt ore (20–60 u); rebuilt, and the contract re-posted, 600 s of play after the raid |
+
+At the base autocannon (48 dps) a turret takes about 3 s of hits and the core about 10 s, with the gun's 5 s heat limit and 4 s cool-down in between; at the top refit (260 dps) the whole outpost falls in about 4 s of fire.
+
 ## Combat test (`combat-test.bat`, the `-combat` flag)
 
 - Sandbox: nothing reaches the save. Autocannon fitted (`-gun N` for level N), fuel and credits topped up every frame.
-- F9 clear the raiders and spawn three fresh 2,000–4,000 m out · F10 raiders hold their fire · F8 the refit panel anywhere, with a − on each row to
+- F9 clear the raiders and spawn three fresh 500–1,000 m out · F10 raiders hold their fire · F8 the refit panel anywhere, with a − on each row to
   take a level off. A fresh wave of three spawns 10 s after the last raider dies.

@@ -5,7 +5,9 @@ Rules for anyone (person or agent) working here:
 - This is a port of `belt-runner-3d.html` in the sibling repo `BeltRunner`. The browser game is the reference and is never
   edited from here. Port behaviour and numbers from it (or from the Godot port in `BeltRunnerGodot`, which is a faithful
   transcription) rather than redesigning.
-- Units are the browser's world units; a readout metre is half a unit (`Data.METRE`).
+- Units are the browser's world units; a readout metre is eight units (`Data.METRE`, 0.125 m per unit since 2026-09-16,
+  a quarter of the browser's readout, at the user's request; it was half a unit). Figures quoted in metres in older
+  README rows are in that old readout.
 - The whole world is built from code at start-up (`Game.Boot`): no scene content, no prefabs, no editor-only assets, so
   the project opens in any Unity 6 editor and plays from an empty scene.
 - Keep the belt deterministic from its seed (`Rng`), for multiplayer later.

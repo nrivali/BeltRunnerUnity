@@ -42,6 +42,7 @@ public class CargoShip : MonoBehaviour
     public float orbit = Data.DEPOT_ORBIT;
     public float speed = Data.STATION_SPEED;
     public bool hold;   // at the Hub the carrier does not orbit: it is flown to its holding point and parked there
+    public bool station;   // off the raider outpost (2026-09-19): not orbiting either, eased onto Outpost.StationPos, which rides with the pocket's drift, nose on the outpost
     public Game game;
 
     /// The carrier heading whose nose (+X) points along a world direction, deck level.
@@ -86,6 +87,15 @@ public class CargoShip : MonoBehaviour
             return Vector3.zero;
         }
         var prev = truePos;
+        if (station && game != null && game.outpost != null && game.outpost.built)
+        {
+            float k = 1f - Mathf.Exp(-0.5f * dt);
+            truePos = Vector3.Lerp(truePos, game.outpost.StationPos(), k);
+            basisQ = Quaternion.Slerp(basisQ, HeadingAlong(game.outpost.pos - truePos), k);
+            Place();
+            vel = (truePos - prev) / Mathf.Max(dt, 1e-4f);
+            return truePos - prev;
+        }
         ang -= (speed / orbit) * dt;
         Place();
         vel = (truePos - prev) / Mathf.Max(dt, 1e-4f);
@@ -94,7 +104,7 @@ public class CargoShip : MonoBehaviour
 
     public void Place()
     {
-        if (!hold)
+        if (!hold && !station)
         {
             truePos = new Vector3(Mathf.Cos(ang) * orbit, 0f, Mathf.Sin(ang) * orbit);
             basisQ = Quaternion.AngleAxis((Mathf.PI / 2f - ang) * Mathf.Rad2Deg, Vector3.up);   // nose (+X) along the direction of travel

@@ -2,10 +2,11 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// Static game data, ported one for one from belt-runner-3d.html (v0.9.120). Distances are the browser game's world
-/// units, and a readout metre is half a unit (METRE), exactly as the HTML shows it.
+/// units, and a readout metre is eight units (METRE): a quarter of what the HTML shows, which had it at half a unit
+/// (2026-09-16, the user's call: what read 10,000 m reads 2,500 m). Only the readouts change; the world does not.
 public static class Data
 {
-    public const float METRE = 0.5f;
+    public const float METRE = 0.125f;   // metres per unit, from 0.5 on 2026-09-16
     public const int STACK = 100;
     public const float WORLD_SCALE = 100f;
     public const float PLANET_SCALE = 250f;
@@ -26,7 +27,7 @@ public static class Data
     public const float CARGO_FUEL_CAP = 2500f;
     public const int PARTS_CAP = 400;
     public const int STORE_SLOTS = 50;
-    public const float DOCK_RANGE = 4500f;   // E within this of the carrier hands the ship to approach control (2,250 m on the readout)
+    public const float DOCK_RANGE = 4500f;   // E within this of the carrier hands the ship to approach control (562 m on the readout)
     /// The colony market: fuel and repair parts for the cargo ship, and how prices drift.
     public const float CARGO_FUEL_PRICE = 0.6f;
     public const float PARTS_PRICE = 2f;

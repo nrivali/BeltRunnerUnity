@@ -526,17 +526,21 @@ public static class Ui
         }
         public void SetPrimary(bool p) { primary = p; face.SetVerticesDirty(); Recolor(); }
         public void SetText(string s) { label.text = mono ? s : s.ToUpperInvariant(); }
+        public Text keyLabel;   // the hotkey chip inside the button, when it has one
         public void Recolor()
         {
             var c = primary ? INK : TEXT;
             if (!_on) c.a *= 0.42f;
             label.color = c;
+            if (keyLabel != null) { var k = TEXT; if (!_on) k.a *= 0.42f; keyLabel.color = k; }
         }
         public float Width { get { return rt.sizeDelta.x; } }
         public float Height { get { return rt.sizeDelta.y; } }
     }
 
-    public static Btn Button(RectTransform parent, string text, Action onClick, bool primary = false, bool mono = false, float minW = 0f, int fontSize = 13, float padX = 16f, float padY = 9f)
+    /// `key`: the hotkey, drawn as a chip inside the button at its right end, the button widened for it (2026-09-18, the
+    /// user's: the keys used to sit as chips beside the buttons).
+    public static Btn Button(RectTransform parent, string text, Action onClick, bool primary = false, bool mono = false, float minW = 0f, int fontSize = 13, float padX = 16f, float padY = 9f, string key = null)
     {
         var b = new Btn { primary = primary, mono = mono };
         b.rt = Rect("Btn " + text, parent, TL, TL, Vector2.zero, Vector2.zero);
@@ -549,8 +553,20 @@ public static class Ui
         b.label = Label(b.rt, mono ? text : text.ToUpperInvariant(), mono ? "mono_med" : "display", fontSize, TEXT, TextAnchor.MiddleCenter);
         float w = Mathf.Max(minW, Mathf.Ceil(b.label.preferredWidth) + 2f * padX + 4f);
         float h = Mathf.Ceil(fontSize * 1.3f) + 2f * padY;
+        float kw = 0f;
+        if (!string.IsNullOrEmpty(key))
+        {
+            var kr = Rect("Key " + key, b.rt, TL, TL, Vector2.zero, Vector2.zero);
+            var kbox = MakeBox(kr, PANEL2, LINE2, 1f);
+            kbox.bb = 2f;
+            b.keyLabel = Label(kr, key, "mono", 11, TEXT, TextAnchor.MiddleCenter);
+            kw = Mathf.Max(20f, Mathf.Ceil(b.keyLabel.preferredWidth) + 12f);
+            At(b.keyLabel.rectTransform, MID, MID, Vector2.zero, new Vector2(kw, 19f));
+            At(kr, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-padX * 0.6f, 0f), new Vector2(kw, 19f));
+            w += kw + 10f;
+        }
         b.rt.sizeDelta = new Vector2(w, h);
-        At(b.label.rectTransform, MID, MID, Vector2.zero, new Vector2(w, h));
+        At(b.label.rectTransform, MID, MID, new Vector2(kw > 0f ? -(kw + 10f) * 0.5f : 0f, 0f), new Vector2(w - (kw > 0f ? kw + 10f : 0f), h));
         b.Recolor();
         return b;
     }
@@ -725,6 +741,28 @@ public static class Ui
                 }
             }
             else Diamond(vh, p, half, 2f, c);
+        }
+    }
+
+    // ---- a padlock, on the hold's slots not yet unlocked (2026-09-19, the user's: they used to read LOCKED): a filled
+    // body under a half-ring shackle, 13 px tall, in the graphic's colour
+    public class Padlock : MaskableGraphic
+    {
+        protected override void OnPopulateMesh(VertexHelper vh)
+        {
+            vh.Clear();
+            var c = color;
+            var p = GetPixelAdjustedRect().center;
+            Rectangle(vh, new Rect(p.x - 6f, p.y - 6.5f, 12f, 9f), c);
+            float rad = 3.5f, w = 1.6f;
+            var o = p + new Vector2(0f, 3f);
+            for (int k = 0; k < 6; k++)
+            {
+                float a0 = Mathf.PI * k / 6f, a1 = Mathf.PI * (k + 1) / 6f;
+                Line(vh, o + new Vector2(Mathf.Cos(a0), Mathf.Sin(a0)) * rad, o + new Vector2(Mathf.Cos(a1), Mathf.Sin(a1)) * rad, w, c);
+            }
+            Line(vh, o + new Vector2(-rad, 0f), o + new Vector2(-rad, -2f), w, c);
+            Line(vh, o + new Vector2(rad, 0f), o + new Vector2(rad, -2f), w, c);
         }
     }
 

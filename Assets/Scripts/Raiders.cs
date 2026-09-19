@@ -11,11 +11,11 @@ using UnityEngine;
 public class Raiders
 {
     public const float SAFE_R = 9000f;      // cargo ship gun cover: raiders die here and never engage inside it
-    public const float ENGAGE = 9000f;      // aggressive: they come for a ship 4,500 m out
+    public const float ENGAGE = 9000f;      // aggressive: they come for a ship 1,125 m out
     public const float GIVE_UP = 14000f;
     public const float BOLT_SPEED = 2600f;  // a raider's bolt
     public const float RAIDER_DMG = 4f;      // a raider bolt: half the player's base gun
-    public const float RAIDER_REACH = 6000f; // raiders open fire from 3,000 m; their bolt lives long enough to get there
+    public const float RAIDER_REACH = 6000f; // raiders open fire from 750 m; their bolt lives long enough to get there
     public const float RAIDER_BOLT_LIFE = 2.6f;
     public const float PLAYER_BOLT_SPEED = 5000f;   // the player's bolt is faster: PLAYER_BOLT_LIFE of flight covers 11,000 u, past the 10,000 u gun reach
     public const float PLAYER_BOLT_LIFE = 2.2f;
@@ -555,7 +555,7 @@ public class Raiders
                     {
                         if (Random.value < 0.85f)
                         {
-                            // the extension: full thrust out to a point 1,250 to 2,500 m from the ship to get room, then a fresh
+                            // the extension: full thrust out to a point 313 to 625 m from the ship to get room, then a fresh
                             // run back in, guns going as soon as the nose is on you
                             r.move = "long";
                             var away = -toShip + side * Random.Range(-0.8f, 0.8f) + Vector3.up * Random.Range(-0.3f, 0.3f);
@@ -693,6 +693,19 @@ public class Raiders
                         Audio.Sure(r.dead ? "kill_marker" : "hit_marker");   // the hit marker: a punchy tick, a sting on the kill   // the hit marker: a punchy tick, a sting on the kill
                         b.life = 0f;
                         break;
+                    }
+                }
+                // the raider outpost (2026-09-19): its turrets and its core take the bolt too
+                if (b.life > 0f && game.outpost != null)
+                {
+                    bool killed;
+                    if (game.outpost.HitSegment(prev, b.pos, b.dmg, out killed))
+                    {
+                        hitsLanded++;
+                        hitFlash = 1f;
+                        hitKill = killed;
+                        Audio.Sure(killed ? "kill_marker" : "hit_marker");
+                        b.life = 0f;
                     }
                 }
             }
