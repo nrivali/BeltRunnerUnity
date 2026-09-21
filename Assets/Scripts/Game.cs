@@ -843,7 +843,8 @@ public class Game : MonoBehaviour
             ship.autoFire = _combatFrame >= 60 && !outpost.destroyed;
             State.hull = State.Stat("hull").hp;
             State.shield = State.ShieldMax;
-            if (_combatFrame > 60 && (_combatFrame - 60) % 60 == 0 && _combatFrame <= 60 + 60 * 12) { int n = (_combatFrame - 60) / 60; Shot("raid_" + n); Debug.Log("raid shot " + n + " · " + outpost.Status + " · launched " + outpost.launched + " · " + raiders.Stats() + " · raid " + State.raid + " · earned " + State.earned.ToString("0")); }
+            if (raiders.HostileRockets > 0 && ship.flareCd <= 0f && State.flares > 0) ship.Flare();   // the countermeasure (2026-09-19): a flare for every seeker the battery sends
+            if (_combatFrame > 60 && (_combatFrame - 60) % 60 == 0 && _combatFrame <= 60 + 60 * 12) { int n = (_combatFrame - 60) / 60; Shot("raid_" + n); Debug.Log("raid shot " + n + " · " + outpost.Status + " · launched " + outpost.launched + " · " + raiders.Stats() + " · rockets at ship " + raiders.rocketsLaunchedAtShip + " decoyed " + raiders.rocketsDecoyed + " shot down " + raiders.rocketsShotDown + " hits " + raiders.rocketHits + " · flares " + State.flares + " · raid " + State.raid + " · earned " + State.earned.ToString("0")); }
             if (_combatFrame == 60 + 60 * 12 + 20) Quit();
         }
         if (_combat && _radar)

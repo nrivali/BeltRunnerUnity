@@ -95,6 +95,7 @@ namespace UnityEngine
         public static Quaternion identity => new Quaternion { w = 1f };
         public static Quaternion Inverse(Quaternion q) => q;
         public static Quaternion Euler(float x, float y, float z) => identity;
+        public static Quaternion Euler(Vector3 e) => identity;
         public static Quaternion LookRotation(Vector3 f, Vector3 up) => identity;
         public static Quaternion LookRotation(Vector3 f) => identity;
         public static Quaternion Slerp(Quaternion a, Quaternion b, float t) => a;
@@ -208,7 +209,7 @@ namespace UnityEngine
         public static void SetResolution(int w, int h, FullScreenMode m) { }
     }
 
-    public enum KeyCode { A, B, C, D, E, F, G, H, I, L, N, Q, R, S, T, V, W, X, Z, Space, Escape, Return, Tab, F1, F5, F8, F9, F10, LeftControl, RightControl, LeftAlt, RightAlt, Alpha1, Alpha2, Alpha3, Alpha4, UpArrow, DownArrow, LeftShift, RightShift }
+    public enum KeyCode { A, B, C, D, E, F, G, H, I, L, N, Q, R, S, T, V, W, X, Z, Space, Escape, Return, Tab, F1, F5, F8, F9, F10, LeftControl, RightControl, LeftAlt, RightAlt, Alpha1, Alpha2, Alpha3, Alpha4, Alpha5, P, UpArrow, DownArrow, LeftShift, RightShift }
 
     public static class Input
     {
@@ -258,7 +259,7 @@ namespace UnityEngine
     }
 
     public class GameObject : Object
-    {
+    { public int layer;
         public GameObject() { }
         public GameObject(string name) { }
         public GameObject(string name, params Type[] comps) { }
@@ -293,7 +294,7 @@ namespace UnityEngine
     public class MonoBehaviour : Behaviour { }
 
     public class Transform : Component, System.Collections.IEnumerable
-    {
+    { public bool IsChildOf(Transform t) => false;
         public System.Collections.IEnumerator GetEnumerator() => new List<Transform>().GetEnumerator();
         public Vector3 position { get; set; }
         public Vector3 localPosition { get; set; }
@@ -332,7 +333,7 @@ namespace UnityEngine
     }
 
     public class Camera : Behaviour
-    {
+    { public int cullingMask = -1;
         public static Camera main => null;
         public Vector3 WorldToViewportPoint(Vector3 p) => p;
         public CameraClearFlags clearFlags { get; set; }

@@ -60,6 +60,11 @@ Shield is fixed at 50 for every fit (no refit yet).
   - Speed 820 + 90 × danger → 865 at Kessler. Bounty 80 + 120 × danger → 140.
   - Holds: min(rich pockets, round(3 + 6 × danger)) → 6 at Kessler, 3 elsewhere. Raiders per hold: 1 + random(0 ..
     min(3, 1 + floor(danger))) → 1 or 2 at Kessler, 1 elsewhere.
+- Ambushes (2026-09-19): in any belt but the Hub's, while the ship flies clear of the cargo ship's cover with no fight on,
+  a clock of random(150 .. 300) / (1 + danger) s runs (100–200 s at Kessler, 150–300 elsewhere). When it runs out, with no
+  raider within 14,000 u and the outpost not engaged, 1 + random(0 .. 2 + floor(2 × danger)) raiders (1–3 at Kessler,
+  1–2 elsewhere) drop in 5,000–7,000 u out, behind or beside the ship (never within 72° of the nose), on the attack at
+  once, with the alarm. An ambusher that gives up is removed after 30 s idle or once the ship is 21,000 u away.
 - Engage a flying ship within 9,000 u (1,125 m); the music cuts to the combat track (Vanguard, 156 bpm) while any
   raider attacks and drifts back six seconds after the last one stops; give up beyond 14,000 u, or when the ship is disabled or docked.
 - The cargo ship's guns cover 9,000 u: raiders inside lose 30 health/s and never engage there.
@@ -80,7 +85,9 @@ Shield is fixed at 50 for every fit (no refit yet).
 | | Turret (one of three) | Core |
 |---|---|---|
 | Health | 150, no shield of its own | 500 under a shield that soaks every hit while any turret stands |
-| Gun | The raiders' bolt at 6 dmg, 2.5 shots/s, 7,000 u (875 m) reach, fired only with the ship on the mount (a slew of about 4/s exponential) | none |
+| Gun | A bolt at 6 dmg, 2.5 shots/s, 10,000 u (1,250 m) reach (7,000 u until 2026-09-19), flying at 4,200 u/s (the raiders' bolt does 2,600), fired only with the ship on the mount (a slew of about 4/s exponential) | none |
+| Rocket battery (2026-09-19) | | A seeker at the ship from the top of the core every 8 s while the core stands and the ship is engaged within 11,000 u, two in the air at a time; 2,400 u/s top speed, accelerating at 1,800 u/s² from 300, turning 55°/s (the player's do 70), 12 s of flight; a hit within 1.2 ship radii does 22 (most of a base shield, or nearly half a base hull) |
+| Countermeasures | | B drops a flare: a burning decoy thrown back off the ship's way, 6 s; every seeker within 3,500 u of the ship goes for it 85% of the time and pops harmlessly on it. 4 flares aboard, restocked on the pad, one every 1.5 s. A player bolt passing within 45 u of a seeker shoots it down |
 | Aim | The lead 75–110% of true shot by shot, spread 0.045 (~2.5°): half the raiders' | |
 | Hit box | 190 u disc round the head (the head is 150 u) | 640 u disc (the core is 600 u); the shield bubble 820 u |
 | Damage per second landed | 15 per turret, 45 with all three bearing | |

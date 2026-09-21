@@ -4,7 +4,8 @@ using UnityEngine;
 /// game's spawnDrop / updateDrops). Positions here are scene-local (the floating origin shifts them with everything).
 public class Pickup : MonoBehaviour
 {
-    public const float PULL_RANGE = 900f;
+    public const float PULL_RANGE = 4000f;   // 500 m on the readout: 900 u until 2026-09-19 (the user's: "magnetize from way further")
+    public const float PULL_SPEED = 320f;    // the closing speed alongside the ship; from further out it is faster (Tick), so a lump at the edge arrives in about 4.5 s
     public const float GRAB_RANGE = Data.SHIP_R * 2.2f;
     public const float LIFE = 240f;
 
@@ -68,7 +69,9 @@ public class Pickup : MonoBehaviour
         }
         else if (d < PULL_RANGE)
         {
-            vel = Vector3.Lerp(vel, toShip / d * 320f, 1f - Mathf.Exp(-4f * dt));
+            // the pull closes at 320 u/s plus 0.4 u/s for every unit of distance, so a lump from the edge of the range comes in
+            // at about 1,900 u/s and slows as it nears, rather than crawling in at 320 for twelve seconds
+            vel = Vector3.Lerp(vel, toShip / d * (PULL_SPEED + d * 0.4f), 1f - Mathf.Exp(-4f * dt));
         }
         else
         {

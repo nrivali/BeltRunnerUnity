@@ -849,7 +849,7 @@ public class Belt
                 float r = radius[i];
                 if (t - r > reach) continue;
                 float d2 = to.sqrMagnitude - t * t;
-                float tol = r + 8f + t * 0.035f;
+                float tol = r + 4f;   // the rock's own disc (it was r + 8 + 3.5% of the distance, an aim assist of 175 u at 5,000 u, until 2026-09-19)
                 if (d2 < tol * tol && t - r < bestT)
                 {
                     bestT = t - r;
