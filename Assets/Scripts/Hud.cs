@@ -1706,11 +1706,15 @@ public class Hud : MonoBehaviour
     /// pointing on the sides of the screen") unless `pin` is set, when it is pinned to the screen edge with an arrow
     /// pointing the way, mirrored when it is behind the camera: enemies keep the arrow (the same day, the user's: "still
     /// show way points of enemies on the side of the screen"). The nav map (N) is where everything else off screen is.
+    const float DASH_LINE = 0.38f;   // the cockpit's deck top, as a share of the screen height from the bottom (v2 at the 60-degree lens tilted 4 degrees down, 2026-09-21: about 65% down from the top at 16:9, plus a label's height): no blip or marker over it
+    /// Whether the cockpit's free look is on a window: past about 75 degrees of yaw or up at the roof the cabin walls
+    /// are all there is to see, so the blips and the plain markers stand down (the enemy arrows stay)
+    bool CanopyView { get { return !ship.Cockpit || ship.docked || (Mathf.Abs(ship.lookYaw) < 1.3f && ship.lookPitch < 0.9f); } }
     void PlaceMarker(Ui.Marker m, Vector3 worldPos, string text, bool pin = false)
     {
         Vector2 sp;
         bool behind = Project(worldPos, out sp);
-        bool on = !behind && OnScreen(sp);
+        bool on = !behind && OnScreen(sp) && !(ship.Cockpit && !ship.docked && sp.y < _canvasSize.y * DASH_LINE) && CanopyView;   // behind the dash, or a look at the cabin walls, counts as off screen
         if (!on && !pin) { m.Hide(); return; }
         float ang = 0f;
         if (!on) sp = Edge(sp, out ang);
@@ -1912,20 +1916,22 @@ public class Hud : MonoBehaviour
             _promptText.text = ptext;
             _prompt.sizeDelta = new Vector2(Mathf.Ceil(_promptText.preferredWidth) + 28f, 36f);
         }
-        float baseY = 18f + BAND_H + 14f;
+        float baseY = 18f + BAND_H + 14f + (ship.Cockpit && !docked && !inCut ? 135f : 0f);   // in the cockpit the hint sits just above the deck, in the canopy (v2's lower deck; 215 put it on the target)
         _prompt.anchoredPosition = new Vector2(0f, baseY);
         _notice.anchoredPosition = new Vector2(0f, baseY + (segs.Count > 0 ? _prompt.sizeDelta.y + 10f : 0f));
         _notice.gameObject.SetActive(started && full && !docked && !inCut);
         // what shows when: the hangar hides the situation, the controls and the hint; a cutscene hides nearly everything
         bool showFlight = started && !inCut;
-        _status.gameObject.SetActive(showFlight);
+        // the bottom band stands down in the cockpit view in flight (2026-09-21): the dash's three screens carry it
+        bool showBand = showFlight && !(ship.Cockpit && !docked);
+        _status.gameObject.SetActive(showBand);
         float sa = docked ? 0.85f : 1f;
         if (Mathf.Abs(_statusPane.alpha - sa) > 0.01f) { _statusPane.alpha = sa; _statusPane.SetVerticesDirty(); }
-        _readouts.gameObject.SetActive(showFlight);
+        _readouts.gameObject.SetActive(showBand);
         _controls.gameObject.SetActive(showFlight && !docked && _controlsShown);
         _prompt.gameObject.SetActive(showFlight && !docked && segs.Count > 0);
-        _target.gameObject.SetActive(showFlight);   // up in the hangar too, reading "No target"
-        _weaponPane.gameObject.SetActive(showFlight);
+        _target.gameObject.SetActive(showBand);   // up in the hangar too, reading "No target"
+        _weaponPane.gameObject.SetActive(showBand);
         if (inCut && _tutBox.gameObject.activeSelf) _tutBox.gameObject.SetActive(false);
         _barTop.gameObject.SetActive(inCut);
         _barBot.gameObject.SetActive(inCut);
@@ -2052,6 +2058,7 @@ public class Hud : MonoBehaviour
                 Vector2 sp;
                 bool behind = Project(belt.RockPos(i) - game.worldOffset, out sp);
                 if (behind || !OnScreen(sp)) continue;   // a pinged rock shows only while it is in view (2026-09-19, the user's): no edge arrows
+                if (ship.Cockpit && !docked && (sp.y < _canvasSize.y * DASH_LINE || !CanopyView)) continue;   // not over the cockpit's dash, nor through its walls
                 var col = belt.ore[i] >= 0 ? Data.ORES[belt.ore[i]].color : Ui.CYAN;
                 string lbl = bi < 4 ? (belt.ore[i] >= 0 ? Data.ORES[belt.ore[i]].name : "Rock") + " " + Data.Fm(m.dist) + " m" : "";
                 _blips.items.Add(new Ui.Blip { pos = sp, off = false, ang = 0f, color = col, label = lbl, alpha = Mathf.Clamp01(m.left / 6f) });

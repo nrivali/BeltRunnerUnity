@@ -1,3 +1,4 @@
+using UnityEngine.UI;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -162,7 +163,9 @@ public class Ship : MonoBehaviour
     // still yours; the hull is culled from the camera (its parts are put on HULL_LAYER) and a simple canopy frame and dash
     // on COCKPIT_LAYER, children of the ship at the cockpit point, are drawn only then. State.cockpitView remembers it
     public const int HULL_LAYER = 9, COCKPIT_LAYER = 10;
-    public const float COCKPIT_FOV = FOV + 10f;
+    public const float COCKPIT_FOV = 60f;      // 72 (the handoff's reference lens) until 2026-09-21, the user's: "zoom in further so it is easier to read the controls"; the screens read a fifth larger
+    public const float COCKPIT_TILT = 4f;      // the eye pitched down a touch, so the deck sits higher in the frame at the tighter lens
+    public const float COCKPIT_RUMBLE = 0.06f; // the burner rumble and the hit shake in the cockpit, as a share of the chase camera's: the walls are a few units off, not hundreds (the user's: "shakes very violently")
     public static readonly Vector3 COCKPIT = new Vector3(0f, 4.5f, 5f) * Data.SHIP_SCALE;   // the pilot's eye in the ship's frame
     public bool Cockpit { get { return State.cockpitView; } }
     Transform _cockpitFrame;
@@ -2308,7 +2311,7 @@ public class Ship : MonoBehaviour
             }
         }
         _laser.enabled = true;
-        _laser.SetPosition(0, DishFocusScene());
+        _laser.SetPosition(0, Cockpit ? DishFocusScene() + fwd * 90f : DishFocusScene());   // in the cockpit the beam starts out past the nose: from the eye its first metres filled the view (2026-09-21)
         _laser.SetPosition(1, end - game.worldOffset);
         TickSpot(dt, laserOn && target >= 0, end);
     }
@@ -2478,6 +2481,7 @@ public class Ship : MonoBehaviour
         else if (drifting) fovWant = fov0 - 9f;
         _fov = Mathf.Lerp(_fov, fovWant, 1f - Mathf.Exp(-(fovWant > _fov ? 3f : 4f) * dt));
         cam.fieldOfView = _fov;
+        if (Cockpit) TickCockpit();   // the dash screens and the button lights
         // the turn: the chase camera hangs back on the outside of the turn, the look point leads into it, and the frame
         // banks a little with the yaw (roll input tips it too); everything eased so it settles rather than snaps
         float k = 1f - Mathf.Exp(-5f * dt);
@@ -2487,16 +2491,17 @@ public class Ship : MonoBehaviour
         // free look turns the camera relative to the hull; the chase offset stays rigid on the ship's position
         Vector3 camPos, look, u;
         ChasePose(out camPos, out look, out u);
+        float jitter = Cockpit ? COCKPIT_RUMBLE : 1f;   // the same jitter in the cockpit threw the walls about (2026-09-21)
         if (shake > 0f)
         {
             shake = Mathf.Max(0f, shake - dt * 1.8f);
-            float sh = shake * shake * 6f;
+            float sh = shake * shake * 6f * jitter;
             camPos += new Vector3(Random.Range(-sh, sh), Random.Range(-sh, sh), Random.Range(-sh, sh));
         }
         // the burner's rumble: a low jitter, harder with the bigger refits
         if (burnK > 0.02f)
         {
-            float rb = burnK * (0.35f + 0.12f * State.Stat("thrusters").mult) * s;
+            float rb = burnK * (0.35f + 0.12f * State.Stat("thrusters").mult) * s * jitter;
             camPos += new Vector3(Random.Range(-rb, rb), Random.Range(-rb, rb), Random.Range(-rb, rb));
         }
         cam.transform.position = camPos;
@@ -2529,15 +2534,308 @@ public class Ship : MonoBehaviour
         State.Save();
     }
 
-    /// The canopy frame and the dash: a few dark bars round the pilot's eye, an amber instrument strip below, children
-    /// of the ship at the cockpit point, on COCKPIT_LAYER so only the cockpit camera draws them.
+    // ---- the cockpit interior (2026-09-21): Astra's model (cockpit_interior.glb in StreamingAssets, the v1 handoff),
+    // loaded at the ship's origin beside the model and scaled by the ship scale, so its `eye` empty lands on COCKPIT and
+    // the offset is never applied twice. Its three screens are world-space UGUI canvases on the canvas_l/c/r mounts
+    // (the placeholder quads switched off), its four buttons carry labels on their mounts and light their indicator
+    // meshes with the weapon, the lock and the radar. Until the model lands the primitive frame stands in.
+    public string cockpitState = "pending";
+    Transform _eye;
+    Transform _cockpitFallback;
+    Text _dashHull, _dashShield, _dashFuel, _dashCargo, _dashSpeed, _dashThrottle, _dashAssist;
+    Ui.SegBar _barHull, _barShield, _barFuel, _barCargo, _barThrottle;
+    Text _tgtKind, _tgtName, _tgtRows, _tgtTool;
+    Ui.SegBar _tgtHp, _tgtWs;
+    Text _tgtHpLbl, _tgtWsLbl;
+    RectTransform _radarPane;
+    readonly Image[] _radarDots = new Image[18];
+    readonly Material[] _btnMat = new Material[4];
+    readonly Text[] _btnText = new Text[4];
+    int _dashFrame;
+    static readonly Color DASH_BG = new Color(0.016f, 0.028f, 0.055f, 1f);
+    static readonly Color BTN_OFF = new Color(0.04f, 0.08f, 0.11f);
+    static readonly Color BTN_AMBER = new Color(1f, 0.62f, 0.2f) * 2.2f;
+    static readonly Color BTN_CYAN = new Color(0.35f, 0.85f, 1f) * 2.2f;
+    static readonly Color BTN_CYAN_DIM = new Color(0.12f, 0.3f, 0.38f);
+
     void BuildCockpit()
     {
-        float s = Data.SHIP_SCALE;
         var root = new GameObject("Cockpit");
-        root.transform.SetParent(transform, false);
-        root.transform.localPosition = COCKPIT;
+        root.transform.SetParent(transform, false);   // the ship's origin: the model's own transforms do the rest
         _cockpitFrame = root.transform;
+        BuildCockpitFallback(root.transform);
+        root.SetActive(false);
+        LoadCockpit();
+    }
+
+    async void LoadCockpit()
+    {
+        try
+        {
+            string path = System.IO.Path.Combine(Application.streamingAssetsPath, "cockpit_interior.glb");
+            if (!System.IO.File.Exists(path)) { cockpitState = "no glb"; return; }
+            var bytes = System.IO.File.ReadAllBytes(path);
+            var gltf = new GLTFast.GltfImport();
+            bool ok = await gltf.Load(bytes);
+            if (!ok || this == null || _cockpitFrame == null) { cockpitState = "load failed"; return; }
+            var holder = new GameObject("Interior");
+            holder.transform.SetParent(_cockpitFrame, false);
+            holder.transform.localScale = Vector3.one * Data.SHIP_SCALE;   // the root's ×3, as the handoff asks; no flip, no turn
+            ok = await gltf.InstantiateSceneAsync(holder.transform, 0);
+            if (!ok || this == null || _cockpitFrame == null) { cockpitState = "scene failed"; return; }
+            var h = holder.transform;
+            _eye = FindDeep(h, "eye");
+            // the screens: the placeholder glass off, a canvas on each mount
+            foreach (var mr in h.GetComponentsInChildren<MeshRenderer>(true))
+                if (mr.name == "screen_l" || mr.name == "screen_c" || mr.name == "screen_r") mr.enabled = false;
+            var cl = FindDeep(h, "canvas_l"); var cc = FindDeep(h, "canvas_c"); var cr = FindDeep(h, "canvas_r");
+            // v2 (2026-09-21): shallower screens, 1.56 × 0.49 and 1.82 × 0.53 model units (1,024 × 322 and 1,024 × 298 px)
+            if (cl != null) BuildLeftScreen(CockpitCanvas(cl, 1.56f, 0.49f, "ScreenL"));
+            if (cc != null) BuildCentreScreen(CockpitCanvas(cc, 1.82f, 0.53f, "ScreenC"));
+            if (cr != null) BuildRightScreen(CockpitCanvas(cr, 1.56f, 0.49f, "ScreenR"));
+            // the buttons: a label on each mount, the indicator mesh's own material to light
+            string[] btn = { "laser", "cannon", "lock", "scan" };
+            string[] lbl = { "1 · LASER", "2 · CANNON", "Z · LOCK", "R · SCAN" };
+            for (int i = 0; i < 4; i++)
+            {
+                var m = FindDeep(h, "canvas_button_" + btn[i]);
+                if (m != null)
+                {
+                    var c = CockpitCanvas(m, 0.60f, 0.161f, "Btn_" + btn[i], false);   // v2: 0.60 × 0.161 (1,024 × 275 px)
+                    _btnText[i] = Ui.Label(c, lbl[i], "mono_semi", 110, Ui.TEXT, TextAnchor.MiddleCenter);
+                    Ui.At(_btnText[i].rectTransform, Ui.MID, Ui.MID, Vector2.zero, c.sizeDelta);
+                }
+                var ind = FindDeep(h, "button_" + btn[i] + "_indicator");
+                var imr = ind != null ? ind.GetComponent<MeshRenderer>() : null;
+                if (imr != null) { _btnMat[i] = imr.material; _btnMat[i].EnableKeyword("_EMISSION"); }
+            }
+            // the cabin fill (v2, 2026-09-21): the closed roof and rear keep the sun out, so two modest shadowless point
+            // lights on the cockpit layer alone sit on the handoff's mounts, a cool one forward and a warm one aft; they
+            // go with the interior root, so they are off whenever it is hidden
+            string[] lamps = { "cabin_light_front", "cabin_light_rear" };
+            Color[] lampCol = { Data.Hex("#a3c7ec"), Data.Hex("#f0d4ad") };
+            for (int i = 0; i < 2; i++)
+            {
+                var m = FindDeep(h, lamps[i]);
+                if (m == null) continue;
+                var lg = new GameObject("CabinLight");
+                lg.transform.SetParent(m, false);
+                var l = lg.AddComponent<Light>();
+                l.type = LightType.Point;
+                l.color = lampCol[i];
+                l.intensity = 0.55f;
+                l.range = 5f * Data.SHIP_SCALE;
+                l.shadows = LightShadows.None;
+                l.cullingMask = 1 << COCKPIT_LAYER;
+            }
+            if (_cockpitFallback != null) { Object.Destroy(_cockpitFallback.gameObject); _cockpitFallback = null; }
+            foreach (var t in h.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = COCKPIT_LAYER;
+            var eyeLocal = _eye != null ? transform.InverseTransformPoint(_eye.position) : Vector3.zero;
+            cockpitState = "loaded · eye " + (_eye != null ? eyeLocal.ToString("0.0") + " (COCKPIT " + COCKPIT.ToString("0.0") + ")" : "missing") + " · screens " + (cl != null ? "L" : "-") + (cc != null ? "C" : "-") + (cr != null ? "R" : "-");
+            Debug.Log("cockpit: " + cockpitState);
+        }
+        catch (System.Exception e)
+        {
+            cockpitState = "error " + e.Message;
+            Debug.LogWarning("cockpit: " + e);
+        }
+    }
+
+    /// A world-space canvas on a mount: identity local pose, 1024 px wide, scaled so its width is `w` model units
+    /// (the interior's ×3 comes down the hierarchy), an opaque face behind the content unless `face` is off.
+    RectTransform CockpitCanvas(Transform mount, float w, float h, string name, bool face = true)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(mount, false);
+        go.layer = COCKPIT_LAYER;
+        var c = go.AddComponent<Canvas>();
+        c.renderMode = RenderMode.WorldSpace;
+        var rt = go.GetComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(1024f, 1024f * h / w);
+        rt.localPosition = Vector3.zero;
+        rt.localRotation = Quaternion.identity;
+        rt.localScale = Vector3.one * (w / 1024f);
+        if (face) Ui.Fill(rt, DASH_BG);
+        return rt;
+    }
+
+    Text DashText(RectTransform p, string s, string kind, int size, Color c, float x, float y, float w, TextAnchor a = TextAnchor.UpperLeft)
+    {
+        var t = Ui.Label(p, s, kind, size, c, a);
+        Ui.At(t.rectTransform, Ui.TL, Ui.TL, new Vector2(x, -y), new Vector2(w, size * 1.5f));
+        return t;
+    }
+
+    Ui.SegBar DashBar(RectTransform p, float x, float y, float w, float h)
+    {
+        var r = Ui.Rect("Bar", p, Ui.TL, Ui.TL, new Vector2(x, -y), new Vector2(w, h));
+        var b = r.gameObject.AddComponent<Ui.SegBar>();
+        b.raycastTarget = false;
+        return b;
+    }
+
+    /// The left screen: ship systems. Hull, shield and fuel as bars with a percentage, the hold's slots.
+    void BuildLeftScreen(RectTransform c)
+    {
+        // 1,024 × 322: the title row with the hold on its right, then three tall rows, label, bar, percentage
+        DashText(c, "SHIP SYSTEMS", "mono", 30, Ui.CYAN, 40f, 12f, 500f);
+        DashText(c, "HOLD", "mono", 26, Ui.MUTED, 600f, 16f, 180f, TextAnchor.UpperRight);
+        _dashCargo = DashText(c, "", "mono_semi", 32, Ui.AMBER, 790f, 10f, 194f, TextAnchor.UpperRight);
+        _barCargo = DashBar(c, 600f, 58f, 384f, 8f);
+        string[] rows = { "HULL", "SHIELD", "FUEL" };
+        var bars = new Ui.SegBar[3]; var txt = new Text[3];
+        for (int i = 0; i < 3; i++)
+        {
+            float y = 84f + i * 76f;
+            DashText(c, rows[i], "mono", 32, Ui.TEXT, 40f, y, 180f);
+            bars[i] = DashBar(c, 230f, y + 12f, 540f, 26f);
+            txt[i] = DashText(c, "", "mono_semi", 36, Ui.CYAN, 790f, y - 4f, 194f, TextAnchor.UpperRight);
+        }
+        _barHull = bars[0]; _barShield = bars[1]; _barFuel = bars[2];
+        _dashHull = txt[0]; _dashShield = txt[1]; _dashFuel = txt[2];
+    }
+
+    /// The centre screen: flight. The speed large, the throttle, and a radar disc of what is round the ship.
+    void BuildCentreScreen(RectTransform c)
+    {
+        // 1,024 × 298: the speed large on the left, the throttle under it, the radar square on the right
+        DashText(c, "FLIGHT", "mono", 30, Ui.CYAN, 40f, 12f, 300f);
+        _dashAssist = DashText(c, "", "mono", 24, Ui.HUD_DIM, 280f, 16f, 440f, TextAnchor.UpperRight);
+        _dashSpeed = DashText(c, "000", "mono_semi", 130, Ui.TEXT, 40f, 50f, 380f);
+        DashText(c, "m/s", "mono", 30, Ui.MUTED, 350f, 134f, 120f);
+        DashText(c, "THROTTLE", "mono", 26, Ui.TEXT, 40f, 226f, 200f);
+        _barThrottle = DashBar(c, 240f, 232f, 350f, 22f);
+        _dashThrottle = DashText(c, "", "mono_semi", 26, Ui.AMBER, 600f, 224f, 120f, TextAnchor.UpperRight);
+        // the radar: a square pane, a cross, the ship at the centre, contacts as dots
+        _radarPane = Ui.Rect("Radar", c, Ui.TL, Ui.TL, new Vector2(760f, -34f), new Vector2(230f, 230f));
+        Ui.Fill(_radarPane, new Color(0.03f, 0.06f, 0.1f, 1f));
+        Ui.Fill(Ui.Rect("H", _radarPane, Ui.MID, Ui.MID, Vector2.zero, new Vector2(230f, 2f)), Ui.HUD_FAINT);
+        Ui.Fill(Ui.Rect("V", _radarPane, Ui.MID, Ui.MID, Vector2.zero, new Vector2(2f, 230f)), Ui.HUD_FAINT);
+        Ui.Fill(Ui.Rect("Ship", _radarPane, Ui.MID, Ui.MID, Vector2.zero, new Vector2(10f, 10f)), Ui.TEXT);
+        for (int i = 0; i < _radarDots.Length; i++)
+        {
+            _radarDots[i] = Ui.Fill(Ui.Rect("Dot", _radarPane, Ui.MID, Ui.MID, Vector2.zero, new Vector2(10f, 10f)), Ui.AMBER);
+            _radarDots[i].gameObject.SetActive(false);
+        }
+    }
+
+    /// The right screen: what the beam is on. A rock in the sights with its integrity and its weak spot (no lock on
+    /// rocks); the lock readout for the cargo ship and a raider; the laser's reach against the range.
+    void BuildRightScreen(RectTransform c)
+    {
+        // 1,024 × 322: the name large, one line of figures, two short bars with their labels beside them, the tool line
+        DashText(c, "TARGET", "mono", 30, Ui.CYAN, 40f, 12f, 300f);
+        _tgtKind = DashText(c, "", "mono", 24, Ui.HUD_DIM, 460f, 16f, 524f, TextAnchor.UpperRight);
+        _tgtName = DashText(c, "No target", "mono_semi", 48, Ui.AMBER, 40f, 48f, 944f);
+        _tgtRows = DashText(c, "", "mono", 30, Ui.TEXT, 40f, 116f, 944f);
+        _tgtHpLbl = DashText(c, "INTEGRITY", "mono", 26, Ui.TEXT, 40f, 164f, 300f);
+        _tgtHp = DashBar(c, 350f, 170f, 634f, 24f);
+        _tgtWsLbl = DashText(c, "WEAK SPOT", "mono", 26, Ui.TEXT, 40f, 210f, 300f);
+        _tgtWs = DashBar(c, 350f, 216f, 634f, 20f);
+        _tgtTool = DashText(c, "", "mono", 30, Ui.CYAN, 40f, 262f, 944f);
+    }
+
+    /// The screens and the buttons, ten times a second while the cockpit view is on.
+    void TickCockpit()
+    {
+        if (++_dashFrame % 6 != 0) return;
+        if (_barHull != null)
+        {
+            float hullMax = Mathf.Max(1f, State.Stat("hull").hp), shMax = Mathf.Max(1f, State.ShieldMax), tank = Mathf.Max(1f, State.Stat("tank").cap);
+            float hk = State.hull / hullMax, sk = State.shield / shMax, fk = State.fuel / tank;
+            _barHull.Set(hk, hk < 0.25f ? Ui.RED : Ui.CYAN); _dashHull.text = Mathf.RoundToInt(hk * 100f) + "%";
+            _barShield.Set(sk, sk <= 0f ? Ui.RED : Ui.CYAN); _dashShield.text = Mathf.RoundToInt(sk * 100f) + "%";
+            _barFuel.Set(fk, fk < 0.25f ? Ui.RED : Ui.CYAN); _dashFuel.text = Mathf.RoundToInt(fk * 100f) + "%";
+            int us = State.UsedSlots(), ns = Mathf.Max(1, State.CargoSlots());
+            _barCargo.Set(us / (float)ns, us >= ns ? Ui.RED : Ui.AMBER); _dashCargo.text = us + " / " + ns;
+        }
+        if (_dashSpeed != null)
+        {
+            _dashSpeed.text = Mathf.RoundToInt(Speed * Data.METRE).ToString("000");
+            _barThrottle.Set(throttle, afterburning ? Ui.RED : Ui.AMBER);
+            _dashThrottle.text = Mathf.RoundToInt(throttle * 100f) + "%";
+            _dashAssist.text = drifting ? "DRIFT" : afterburning ? "AFTERBURNER" : lockKind != "" && lockKind != "rock" ? "LOCK STEERING" : "MANUAL";
+            // the radar: raiders red, pinged rocks amber, the cargo ship cyan, within the scanner's range, forward up
+            float R = Mathf.Max(1f, State.Stat("scanner").range);
+            var inv = Quaternion.Inverse(transform.rotation);
+            int n = 0;
+            System.Action<Vector3, Color, float> dot = (p, col, size) =>
+            {
+                if (n >= _radarDots.Length) return;
+                var l = inv * (p - TruePos);
+                var xy = new Vector2(l.x, l.z) / R * 105f;   // the v2 pane is 230 px square
+                if (xy.magnitude > 110f) return;
+                var d = _radarDots[n++];
+                d.gameObject.SetActive(true);
+                d.rectTransform.anchoredPosition = xy;
+                d.rectTransform.sizeDelta = new Vector2(size, size);
+                d.color = col;
+            };
+            if (carrier != null) dot(carrier.truePos, Ui.CYAN, 14f);
+            if (game.raiders != null) foreach (var r in game.raiders.raiders) if (!r.dead) dot(r.pos, Ui.RED, 10f);
+            if (game.raiders != null) foreach (var k in game.raiders.rockets) if (k.hostile) dot(k.pos, Ui.RED, 6f);
+            foreach (var m in belt.Marked(State.time, TruePos, 12)) dot(belt.RockPos(m.id), belt.ore[m.id] >= 0 ? Data.ORES[belt.ore[m.id]].color : Ui.MUTED, 8f);
+            for (int i = n; i < _radarDots.Length; i++) if (_radarDots[i].gameObject.activeSelf) _radarDots[i].gameObject.SetActive(false);
+        }
+        if (_tgtName != null)
+        {
+            float reach = State.Stat("range").reach;
+            bool rockUp = false, wsUp = false;
+            if (lockKind == "raider" && lockRaider != null && !lockRaider.dead)
+            {
+                _tgtKind.text = "LOCKED";
+                _tgtName.text = "Pirate raider";
+                float rd = Mathf.Max(0f, (lockRaider.pos - LaserOrigin()).magnitude - Raiders.RADIUS);
+                _tgtRows.text = "RANGE " + Data.Fm(rd) + " m · SHIELD " + Mathf.CeilToInt(Mathf.Max(0f, lockRaider.shield)) + " · " + (lockRaider.state == "attack" ? "HOSTILE" : "IDLE");
+                _tgtHpLbl.text = "RAIDER HULL"; _tgtHp.Set(lockRaider.hp / Mathf.Max(1f, lockRaider.maxHp), Ui.RED); rockUp = true;
+                _tgtTool.text = weapon == "gun" ? "AUTOCANNON · the nose follows the lock" : weapon == "rocket" ? "SEEKER ROCKETS · " + State.RocketsAboard + " aboard" : "MINING LASER · 2 for the autocannon";
+            }
+            else if (lockKind == "station" && carrier != null)
+            {
+                _tgtKind.text = "LOCKED";
+                _tgtName.text = "Cargo ship";
+                _tgtRows.text = "RANGE " + Data.Fm(lockDist) + " m · " + CargoShip.BayName(carrier.NearestSide(TruePos)).ToUpperInvariant() + (lockDist < Data.DOCK_RANGE ? " · H DOCKS" : "");
+                _tgtTool.text = "LOCK STEERING · Z releases";
+            }
+            else if (target >= 0 && target < belt.count && belt.alive[target])
+            {
+                int i = target;
+                float td = Mathf.Max(0f, (belt.RockPos(i) - LaserOrigin()).magnitude - belt.radius[i]);
+                _tgtKind.text = belt.ore[i] >= 0 ? "ORE · " + Data.ORES[belt.ore[i]].name.ToUpperInvariant() : "BARREN";
+                _tgtName.text = (belt.ore[i] < 0 ? "Barren" : Data.ORES[belt.ore[i]].name) + " rock";
+                _tgtRows.text = Belt.CLS_NAME[belt.cls[i]].ToUpperInvariant() + " · RANGE " + Data.Fm(td) + " m";
+                _tgtHpLbl.text = "ROCK INTEGRITY"; _tgtHp.Set(belt.hp[i] / Mathf.Max(1f, belt.hpMax[i]), Ui.AMBER); rockUp = true;
+                if (wsRock == i) { _tgtWs.Set(wsCharge, wsHit ? Ui.TEXT : Ui.CYAN); _tgtWsLbl.text = wsHit ? "WEAK SPOT " + Mathf.RoundToInt(wsCharge * 100f) + "%" : "WEAK SPOT"; wsUp = true; }
+                bool canCut = belt.ore[i] < 0 || Data.ORES[belt.ore[i]].unlock <= State.up["laser"] + 1;
+                _tgtTool.text = !canCut ? "MINING LASER · needs Lv" + Data.ORES[belt.ore[i]].unlock : td <= reach ? (laserOn ? "MINING LASER · CUTTING" : "MINING LASER · IN RANGE") : "MINING LASER · OUT OF RANGE";
+            }
+            else
+            {
+                _tgtKind.text = "";
+                _tgtName.text = "No target";
+                _tgtRows.text = "Put the crosshair on a rock";
+                _tgtTool.text = "MINING LASER · " + Data.Fm(reach) + " m reach";
+            }
+            _tgtHpLbl.gameObject.SetActive(rockUp); _tgtHp.gameObject.SetActive(rockUp);
+            _tgtWsLbl.gameObject.SetActive(wsUp); _tgtWs.gameObject.SetActive(wsUp);
+        }
+        // the buttons: the indicators lit with the state, the cannon's label following the weapon
+        if (_btnMat[0] != null) _btnMat[0].SetColor("emissiveFactor", weapon == "laser" ? BTN_AMBER : BTN_OFF);
+        if (_btnMat[1] != null) _btnMat[1].SetColor("emissiveFactor", weapon == "laser" ? BTN_OFF : BTN_AMBER);
+        if (_btnText[1] != null) _btnText[1].text = weapon == "rocket" ? "3 · ROCKETS" : "2 · CANNON";
+        if (_btnMat[2] != null) _btnMat[2].SetColor("emissiveFactor", lockKind != "" ? BTN_AMBER : BTN_CYAN_DIM);
+        if (_btnMat[3] != null) _btnMat[3].SetColor("emissiveFactor", PulseVisible ? BTN_CYAN : radarCd > 0f ? BTN_OFF : BTN_CYAN_DIM);
+    }
+
+    /// The primitive frame from 2026-09-20, kept as the stand-in until the model lands: a few dark bars round the
+    /// pilot's eye and an amber instrument strip, at the cockpit point.
+    void BuildCockpitFallback(Transform parent)
+    {
+        float s = Data.SHIP_SCALE;
+        var root = new GameObject("Frame");
+        root.transform.SetParent(parent, false);
+        root.transform.localPosition = COCKPIT;
+        _cockpitFallback = root.transform;
         var dark = new Material(Game.Sh("Standard"));
         dark.color = new Color(0.09f, 0.1f, 0.12f);
         dark.SetFloat("_Metallic", 0.3f);
@@ -2567,7 +2865,6 @@ public class Ship : MonoBehaviour
         part(new Vector3(-3.3f, -0.9f, 0.8f), new Vector3(0.24f, 0.24f, 3.8f), Vector3.zero, dark, "SillL");
         part(new Vector3(3.3f, -0.9f, 0.8f), new Vector3(0.24f, 0.24f, 3.8f), Vector3.zero, dark, "SillR");
         foreach (var t in root.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = COCKPIT_LAYER;
-        root.SetActive(false);
     }
 
     /// Every part under the ship onto HULL_LAYER, but the laser's line (drawn from the cockpit too) and the cockpit frame.
@@ -2597,8 +2894,8 @@ public class Ship : MonoBehaviour
     /// The cockpit camera: at the pilot's eye, rigid to the hull, the free look turning the head.
     void CockpitPose(out Vector3 camPos, out Vector3 look, out Vector3 up)
     {
-        var q = transform.rotation * Quaternion.AngleAxis(lookYaw * Mathf.Rad2Deg, Vector3.up) * Quaternion.AngleAxis(lookPitch * Mathf.Rad2Deg, Vector3.right);
-        camPos = transform.TransformPoint(COCKPIT);
+        var q = transform.rotation * Quaternion.AngleAxis(lookYaw * Mathf.Rad2Deg, Vector3.up) * Quaternion.AngleAxis(lookPitch * Mathf.Rad2Deg + COCKPIT_TILT, Vector3.right);
+        camPos = _eye != null ? _eye.position : transform.TransformPoint(COCKPIT);   // the model's eye empty once it has landed
         look = camPos + q * Vector3.forward * 200f;
         up = q * Vector3.up;
     }

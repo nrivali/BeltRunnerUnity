@@ -356,7 +356,7 @@ namespace UnityEngine
     public enum DepthTextureMode { None = 0, Depth = 1, DepthNormals = 2 }
 
     public class Light : Behaviour
-    {
+    { public int cullingMask = -1;
         public void AddCommandBuffer(Rendering.LightEvent e, Rendering.CommandBuffer b) { }
         public void RemoveCommandBuffer(Rendering.LightEvent e, Rendering.CommandBuffer b) { }
         public LightType type { get; set; }

@@ -307,7 +307,7 @@ public class Outpost
         }
         bool flying = game.started && !ship.docked && ship.warp == null && ship.cut == null && ship.CanFly;
         engaged = flying && d < ENGAGE;
-        if (engaged && !_woke) { _woke = true; game.Toast("Raider outpost · its turrets are tracking you", true); Audio.Play("alarm"); }
+        if (engaged && !_woke) { _woke = true; game.Toast("Raider outpost · its turrets are tracking you", true); Audio.EnemyAlert(); }
         if (!engaged && d > ENGAGE * 1.3f) _woke = false;
         // the turrets: each swings onto the ship and fires while it is in reach and on the mount; at rest they point outward
         foreach (var t in turrets)

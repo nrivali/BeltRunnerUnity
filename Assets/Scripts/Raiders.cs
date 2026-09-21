@@ -295,7 +295,7 @@ public class Raiders
         }
         ambushes++;
         game.Toast(n == 1 ? "A raider is on you · it came out of the belt" : n + " raiders are on you · they came out of the belt", true);
-        Audio.Play("alarm");
+        Audio.EnemyAlert();
         _warned = true;
     }
 
@@ -712,7 +712,7 @@ public class Raiders
             if (r.state == "idle" && canAttack && d < ENGAGE)
             {
                 r.state = "attack";
-                if (threat == 0 && !_warned) { game.Toast("Pirate raiders inbound", true); Audio.Play("alarm"); _warned = true; }
+                if (threat == 0 && !_warned) { game.Toast("Pirate raiders inbound", true); Audio.EnemyAlert(); _warned = true; }
             }
             if (r.state == "attack" && (!canAttack || d > GIVE_UP)) { r.state = "idle"; r.wp = r.home; }
             if (r.ambush && !r.dead)

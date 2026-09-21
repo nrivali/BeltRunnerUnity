@@ -65,6 +65,7 @@ public class Game : MonoBehaviour
             if (args[i] == "-transit") _transit = true;   // a test: start on the pad in a sandbox with the contract taken, send the cargo ship to the outpost at frame 60, shoot every 45 frames (transit_1 to transit_9) and quit
             if (args[i] == "-depart") _depart = true;   // a test: start on the pad in a sandbox, play the departure cutscene, shoot it every 45 frames (depart_1 to depart_9) and quit
             if (args[i] == "-raid") { _combat = true; _raid = true; }   // a test: the combat sandbox set 5,500 u off the raider outpost with the contract taken, the trigger held from frame 60, a shot every 60 frames (raid_1 to raid_12), then quits
+            if (args[i] == "-cockpit") { _combat = true; _cockpit = true; }   // a test (2026-09-21): the combat sandbox in the cockpit view (with -face rock for a rock in the sights): a ping at 120, shots at 150, 300 (cutting), 360 (looking right) and 420 (back on the chase camera), then quits
             if (args[i] == "-radar") { _combat = true; _radar = true; }   // a test: the combat sandbox pings the radar at frame 90 and shoots every 15 frames (radar_1 to radar_9), then quits
             if (args[i] == "-tab" && i + 1 < args.Length) _tab = args[i + 1];   // with -dock: the hangar window opened on this tab (inv | ship | depot | raid) for the last two shots
             if (args[i] == "-ore") _ore = true;           // with -dock / -depart / -combat: a few stacks in the hold and the storage, so the slot grids show faces
@@ -571,7 +572,7 @@ public class Game : MonoBehaviour
     int _combatGun = 0, _combatRocket = 0;
     string _combatFace = "";
     bool _combatTorch = true, _combatTorchPoint;
-    bool _depart, _dock, _radar, _ore, _raid, _transit; int _departFrame; string _tab = "";
+    bool _depart, _dock, _radar, _ore, _raid, _transit, _cockpit; int _departFrame; string _tab = "";
     string _combatSide = "", _combatShader = "";
     int _combatStandoff = -1;
     int _combatRock = -1;
@@ -846,6 +847,23 @@ public class Game : MonoBehaviour
             if (raiders.HostileRockets > 0 && ship.flareCd <= 0f && State.flares > 0) ship.Flare();   // the countermeasure (2026-09-19): a flare for every seeker the battery sends
             if (_combatFrame > 60 && (_combatFrame - 60) % 60 == 0 && _combatFrame <= 60 + 60 * 12) { int n = (_combatFrame - 60) / 60; Shot("raid_" + n); Debug.Log("raid shot " + n + " · " + outpost.Status + " · launched " + outpost.launched + " · " + raiders.Stats() + " · rockets at ship " + raiders.rocketsLaunchedAtShip + " decoyed " + raiders.rocketsDecoyed + " shot down " + raiders.rocketsShotDown + " hits " + raiders.rocketHits + " · flares " + State.flares + " · raid " + State.raid + " · earned " + State.earned.ToString("0")); }
             if (_combatFrame == 60 + 60 * 12 + 20) Quit();
+        }
+        if (_combat && _cockpit)
+        {
+            // the cockpit test: the view on at once, a ping, the beam on the faced rock (its weak spot on the right screen),
+            // a look to the right, then the chase camera for the comparison
+            if (_combatFrame == 2) { if (!State.cockpitView) ship.ToggleCockpit(); ship.weapon = "laser"; raiders.holdFire = true; }   // the sandbox starts on the autocannon; the raiders hold their fire so their bolts do not flare across the shots
+            if (_combatFrame == 120) ship.Radar();
+            if (_combatFrame == 150) { Shot("cockpit_1"); Debug.Log("cockpit shot 1 · " + ship.cockpitState + " · view " + ship.Cockpit + " · fov " + ship.cam.fieldOfView.ToString("0")); }
+            if (_combatFrame == 180) ship.autoFire = true;
+            if (_combatFrame == 300) { Shot("cockpit_2"); Debug.Log("cockpit shot 2 · target " + ship.target + " · laser " + ship.laserOn + " · weak spot " + ship.wsRock + " charge " + ship.wsCharge.ToString("0.00") + " hit " + ship.wsHit); }
+            if (_combatFrame >= 330 && _combatFrame <= 360) { ship.autoFire = false; ship.lookYaw = 0.9f; }
+            if (_combatFrame == 360) Shot("cockpit_3");
+            if (_combatFrame >= 361 && _combatFrame <= 390) { ship.lookYaw = 3.05f; ship.lookPitch = -0.15f; }   // a glance back at the hatch (v2's cabin)
+            if (_combatFrame == 390) Shot("cockpit_4");
+            if (_combatFrame == 391) { ship.lookYaw = 0f; ship.lookPitch = 0f; ship.ToggleCockpit(); }
+            if (_combatFrame == 450) { Shot("cockpit_chase"); Debug.Log("cockpit test done · " + ship.cockpitState + " · view " + ship.Cockpit); }
+            if (_combatFrame == 470) Quit();
         }
         if (_combat && _radar)
         {

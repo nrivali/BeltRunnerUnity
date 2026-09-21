@@ -367,6 +367,9 @@ public class Audio : MonoBehaviour
 
     // ---- static conveniences
     public static void Play(string name, float extraDb = 0f) { if (I != null) I.Sfx(name, extraDb); }
+    /// The enemy alert (raiders inbound, an ambush, the outpost waking): at half volume, -6 dB, since 2026-09-21 (the user's: "turn the enemy alert sound down · 50%")
+    public const float ENEMY_ALERT_VOLUME = 0.5f;
+    public static void EnemyAlert() { if (ENEMY_ALERT_VOLUME <= 0f) return; Play("alarm", 20f * Mathf.Log10(ENEMY_ALERT_VOLUME)); }
     /// A gun shot: its own source, one-shot voices, so every shot plays through and lands on the shot however fast the gun fires.
     public static void Shot(string name, float extraDb = 0f) { if (I != null) I.GunShot(name, extraDb); }
 
