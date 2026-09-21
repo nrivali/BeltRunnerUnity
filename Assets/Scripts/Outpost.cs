@@ -14,7 +14,11 @@ public class Outpost
 {
     public const int TURRETS = 3;
     public const float TURRET_HP = 150f, CORE_HP = 500f;
-    public const float TURRET_REACH = 7000f;                     // 875 m: the turrets open fire from here (the raiders from 750 m)
+    public const float TURRET_REACH = 10000f;                    // 1,250 m: the turrets open fire from here (the raiders from 750 m); 7,000 u until 2026-09-19 (the user's: harder raids)
+    public const float TURRET_BOLT_SPEED = 4200f;                // a turret bolt: half as fast again as a raider's 2,600, so the lead is harder to dodge; its 2.6 s life covers 10,900 u
+    // the rocket battery (2026-09-19, the user's): seekers at the ship while the core stands and the ship is engaged in reach
+    public const float ROCKET_REACH = 11000f, ROCKET_EVERY = 8f;
+    public const int ROCKETS_ALOFT = 2;
     public const float TURRET_DMG = 6f, TURRET_RATE = 2.5f;      // a bolt and a half of the raiders' each, 2.5 a second per turret
     public const float TURRET_SPREAD = 0.045f;                   // about 2.5 degrees: half the raiders' spread, since a turret has a steady mount
     public const float TURRET_SLEW = 4f;                         // how fast a turret swings onto the ship (an exponential ease)
@@ -50,6 +54,7 @@ public class Outpost
     public int launched;                       // defenders launched this raid
     readonly List<Raiders.Raider> _defenders = new List<Raiders.Raider>();
     float _launchT = 2f, _smokeT, _blink, _shieldFlash;
+    float _rocketT = 4f;   // the battery's next seeker
     Vector3 _dir;
     Transform _root, _ring, _shield;
     Material _hull, _dark, _plate, _trim, _lamp, _shieldMat;
@@ -132,7 +137,7 @@ public class Outpost
         if (_root != null) Object.Destroy(_root.gameObject);
         _root = null; _ring = null; _shield = null;
         turrets.Clear(); _beacons.Clear(); _lit.Clear(); _defenders.Clear(); _bumpIds.Clear();
-        built = false; destroyed = false; engaged = false; turretsFiring = 0; launched = 0; coreHp = CORE_HP; _woke = false; field = null; _launchT = 2f;
+        built = false; destroyed = false; engaged = false; turretsFiring = 0; launched = 0; coreHp = CORE_HP; _woke = false; field = null; _launchT = 2f; _rocketT = 4f;
     }
 
     /// The Kessler Belt's outpost, off the last of its rich pockets (the belt is seeded, so it is always the same one).
@@ -322,12 +327,27 @@ public class Outpost
             // a steadier gunner than a raider: the lead a little off shot by shot, the spread half theirs
             float leadErr = Random.Range(0.75f, 1.1f);
             var muzzle = hp + t.aim * (TURRET_R + 260f);
-            var dir = (sp + ship.vel * (td / Raiders.BOLT_SPEED) * leadErr - muzzle).normalized + new Vector3(Random.Range(-TURRET_SPREAD, TURRET_SPREAD), Random.Range(-TURRET_SPREAD, TURRET_SPREAD), Random.Range(-TURRET_SPREAD, TURRET_SPREAD));
-            game.raiders.Fire(muzzle, dir.normalized, TURRET_DMG, false);
+            var dir = (sp + ship.vel * (td / TURRET_BOLT_SPEED) * leadErr - muzzle).normalized + new Vector3(Random.Range(-TURRET_SPREAD, TURRET_SPREAD), Random.Range(-TURRET_SPREAD, TURRET_SPREAD), Random.Range(-TURRET_SPREAD, TURRET_SPREAD));
+            game.raiders.Fire(muzzle, dir.normalized, TURRET_DMG, false, TURRET_BOLT_SPEED);
             if (game.sparks != null) game.sparks.Burst(muzzle, 5, 70f, Data.Hex("#ffb060"), 0.9f);
             float att = td <= 300f ? 0f : -20f * Mathf.Log10(td / 300f);   // the same blaster, quieter with distance
             if (att > -30f) Audio.Shot("blaster", att);
         }
+        // the rocket battery (2026-09-19): while the core stands and the ship is engaged within ROCKET_REACH, a seeker from
+        // the top of the core every ROCKET_EVERY seconds, ROCKETS_ALOFT in the air at a time; the first comes a few seconds
+        // into the approach
+        if (engaged && d < ROCKET_REACH && !game.raiders.holdFire)
+        {
+            _rocketT -= dt;
+            if (_rocketT <= 0f && game.raiders.HostileRockets < ROCKETS_ALOFT)
+            {
+                _rocketT = ROCKET_EVERY;
+                var from = pos + Vector3.up * (CORE_R + 80f);
+                game.raiders.LaunchHostile(from, (sp - from).normalized);
+                if (game.sparks != null) game.sparks.Burst(from, 20, 120f, Data.Hex("#ffb060"), 1f);
+            }
+        }
+        else _rocketT = Mathf.Min(_rocketT, 3f);
         if (turretsFiring > 0) game.raiders.threat += turretsFiring;   // the combat music, the THREAT readout and the lock rules follow
         // the hangar: while the core stands and the ship is close, raiders launch, two in the air at a time, six a raid
         _defenders.RemoveAll(r => r.dead);

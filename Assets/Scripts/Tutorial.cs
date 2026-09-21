@@ -23,7 +23,7 @@ public class Tutorial
         new Step("hud", "The HUD", "The band along the bottom: SHIP is hull, shield, fuel and hold. FLIGHT is speed and the way home. TARGET is what you are looking at. WEAPON is the one in hand.", null, false, "status", "target"),
         new Step("radar", "Find ore", "Press R to pulse the radar. Coloured veins mean ore. Grey rock is barren, so skip it.", "press R", false, "readout"),
         new Step("lock", "Lock a rock", "Put the mouse on a copper rock, orange veins, and press Z to lock it.", "press Z on a copper rock", false, "target"),
-        new Step("mine", "Cut it", "Get within laser reach and hold the left mouse button. When the rock breaks, fly through the glow to collect.", "collect copper", false, "target"),
+        new Step("mine", "Cut it", "Get within laser reach, put the crosshair on it and hold the left mouse button. When the rock breaks, the ore comes to you.", "collect copper", false, "target"),
         new Step("weapons", "Weapons", "2 is the autocannon, 3 the seeker rockets, 1 the mining laser. The wheel cycles them. Try one.", "press 2 or 3", false, "weapon"),
         new Step("combat", "Raiders", "Raiders hold the rich pockets. Lock one with Z and fire; a rocket chases it on its own. Your shield soaks hits and recharges once they stop.", null, false, "status"),
         new Step("return", "Head home", "Follow the CARGO SHIP readout. Within " + Data.Fm(Data.DOCK_RANGE) + " press H and approach control brings you in.", "dock with the cargo ship", false, "marker"),

@@ -126,6 +126,11 @@ public class Ship : MonoBehaviour
     public string weapon = "laser";   // 1, 2, 3 and the wheel: "laser" cuts rock, "gun" is the autocannon, "rocket" the seekers
     float _gunCd, _gunWarnT, _rocketWarnT;
     public float rocketCd;            // the seeker tube's reload, seconds left
+    // the flares (2026-09-19, the user's countermeasure to the outpost's seekers): B drops a burning decoy the rockets go
+    // for instead; FLARES aboard, restocked on the pad (State.flares), one every FLARE_CD
+    public const int FLARES = 4;
+    public const float FLARE_CD = 1.5f;
+    public float flareCd;
     public static string WeaponName(string w) { return w == "gun" ? "Autocannon" : w == "rocket" ? "Seeker rockets" : "Mining laser"; }
     public HoverInfo hover;                     // what the mouse is over (refreshed at 10 Hz, and afresh on Q)
     int _hoverFrame;
@@ -153,6 +158,17 @@ public class Ship : MonoBehaviour
     public float lookYaw, lookPitch;
     // the camera feel: this frame's control deflections (for the swing and the bank) and the eased camera state
     public const float FOV = 62f;
+    // ---- the cockpit view (2026-09-20, the user's): P puts the camera in the cockpit, rigid to the hull, with the free look
+    // still yours; the hull is culled from the camera (its parts are put on HULL_LAYER) and a simple canopy frame and dash
+    // on COCKPIT_LAYER, children of the ship at the cockpit point, are drawn only then. State.cockpitView remembers it
+    public const int HULL_LAYER = 9, COCKPIT_LAYER = 10;
+    public const float COCKPIT_FOV = FOV + 10f;
+    public static readonly Vector3 COCKPIT = new Vector3(0f, 4.5f, 5f) * Data.SHIP_SCALE;   // the pilot's eye in the ship's frame
+    public bool Cockpit { get { return State.cockpitView; } }
+    Transform _cockpitFrame;
+    int _baseMask = -1;
+    bool _cockpitCulled;
+    int _layerFrame;
     float _ctlYaw, _ctlPitch, _ctlRoll;
     float _fov = FOV;
     public float camYaw, camPitch, camRoll;   // the eased control deflections the camera swing uses (the HUD reads them too)
@@ -168,6 +184,21 @@ public class Ship : MonoBehaviour
     int _spotKey = -1;
     float _burnT;
     Vector3 _spotPos;   // true
+    // ---- the weak spot (2026-09-19, the user's mining minigame): a glowing seam on the rock under the beam. The beam on
+    // it cuts at WS_MULT; held on it for WS_HOLD it cracks, a burst of WS_BURST of the rock's full health, and the seam
+    // moves; left alone it moves anyway after WS_MOVE. It sits on the side facing the ship, 12 to 50 degrees off the
+    // line to it, so it is reachable without going round the rock
+    public const float WS_HOLD = 1.1f;
+    public const float WS_MOVE = 5f;
+    public const float WS_MULT = 2.5f;
+    public const float WS_BURST = 0.12f;
+    public int wsRock = -1;
+    public Vector3 wsLocal;   // from the rock's centre, world axes (a belt rock does not spin)
+    public float wsR, wsT, wsCharge;
+    public bool wsHit;        // the beam was on it this frame
+    public int wsCracks;      // cracked so far, for the log
+    Transform _wsShell, _wsCore;
+    Material _wsShellMat, _wsCoreMat;
     Transform _spotGlow;
     Material _spotMat;
     Light _spotLight;
@@ -412,6 +443,115 @@ public class Ship : MonoBehaviour
         fmr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         _pulseFlash = fg.transform;
         fg.SetActive(false);
+        BuildWeakSpot();
+        BuildCockpit();
+    }
+
+    // ---- the weak spot
+    /// The seam's marker: a soft cyan rim shell (the pulse's shader) round a bright core, both sitting on the rock's surface.
+    void BuildWeakSpot()
+    {
+        var sg = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        Object.Destroy(sg.GetComponent<Collider>());
+        sg.name = "WeakSpotShell";
+        _wsShellMat = new Material(Game.Sh("BeltRunner/Pulse"));
+        _wsShellMat.SetColor("_Color", new Color(0.5f, 0.95f, 1f, 0.6f));
+        _wsShellMat.SetFloat("_Rim", 2f);
+        var smr = sg.GetComponent<MeshRenderer>();
+        smr.sharedMaterial = _wsShellMat;
+        smr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        _wsShell = sg.transform;
+        sg.SetActive(false);
+        var cg = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        Object.Destroy(cg.GetComponent<Collider>());
+        cg.name = "WeakSpotCore";
+        _wsCoreMat = new Material(Game.Sh("BeltRunner/Spark"));
+        _wsCoreMat.SetColor("_Color", new Color(0.7f, 0.97f, 1f, 0.9f));
+        var cmr = cg.GetComponent<MeshRenderer>();
+        cmr.sharedMaterial = _wsCoreMat;
+        cmr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        _wsCore = cg.transform;
+        cg.SetActive(false);
+    }
+
+    /// A fresh seam on rock `i`: on the side facing the ship, 12 to 50 degrees off the line to it, on the 0.85 sphere the
+    /// beam's end is computed on, so the two compare directly. The seam is a fifth of the radius across, 6 u at least.
+    void PlaceWeakSpot(int i)
+    {
+        wsRock = i;
+        wsT = 0f;
+        wsCharge = 0f;
+        wsHit = false;
+        float r = belt.radius[i];
+        var n = (LaserOrigin() - belt.RockPos(i)).normalized;
+        var ax = Mathf.Abs(n.x) < 0.9f ? Vector3.right : Vector3.up;
+        var t1 = Vector3.Cross(n, ax).normalized;
+        var t2 = Vector3.Cross(n, t1);
+        float ang = Random.Range(12f, 50f) * Mathf.Deg2Rad, ph = Random.value * Mathf.PI * 2f;
+        var dir = (n * Mathf.Cos(ang) + (t1 * Mathf.Cos(ph) + t2 * Mathf.Sin(ph)) * Mathf.Sin(ang)).normalized;
+        wsLocal = dir * r * 0.85f;
+        wsR = Mathf.Max(6f, r * 0.2f);
+    }
+
+    void ClearWeakSpot()
+    {
+        wsRock = -1;
+        wsCharge = 0f;
+        wsHit = false;
+        if (_wsShell != null) { _wsShell.gameObject.SetActive(false); _wsCore.gameObject.SetActive(false); }
+    }
+
+    /// The beam has been held on the seam for WS_HOLD: the crack. A burst of damage, a scorch, sparks in the seam's
+    /// colour and the beam's, a crack of rock and the hit marker, and the seam moves on.
+    void CrackWeakSpot()
+    {
+        int i = wsRock;
+        var at = belt.RockPos(i) + wsLocal;
+        belt.Damage(i, belt.hpMax[i] * WS_BURST);
+        belt.Scorch(i, at, wsR * 1.5f);
+        if (game.sparks != null)
+        {
+            var v = belt.RockVel(i);
+            game.sparks.Burst(at, 90, 140f + wsR * 2f, new Color(0.7f, 0.97f, 1f), 1.3f, v);
+            game.sparks.Burst(at, 50, 80f, Data.Hex("#ffb060"), 1.6f, v);
+        }
+        spotHeat = Mathf.Min(1f, spotHeat + 0.2f);
+        Audio.Play("rock_break", -9f);
+        Audio.Play("hit_marker", -2f);
+        wsCracks++;
+        PlaceWeakSpot(i);
+    }
+
+    /// Runs after TickLaser each frame: the seam's life (it moves on after WS_MOVE, its charge drains when the beam is off
+    /// it), when it is dropped (the ship docked or the rock gone, or the beam off the rock with the rock beyond a reach and
+    /// a half, so a slip off the rock while chasing the seam does not lose it), and the marker.
+    void TickWeakSpot(float dt)
+    {
+        if (_wsShell == null) return;
+        if (wsRock >= 0 && (docked || !CanFly || wsRock >= belt.count || !belt.alive[wsRock])) ClearWeakSpot();
+        if (wsRock >= 0 && target != wsRock)
+        {
+            float d = (belt.RockPos(wsRock) - LaserOrigin()).magnitude - belt.radius[wsRock];
+            if (d > State.Stat("range").reach * 1.5f) ClearWeakSpot();
+        }
+        bool show = wsRock >= 0 && weapon == "laser" && cut == null;
+        if (_wsShell.gameObject.activeSelf != show) { _wsShell.gameObject.SetActive(show); _wsCore.gameObject.SetActive(show); }
+        if (!show) { wsHit = false; return; }
+        wsT += dt;
+        if (!wsHit) wsCharge = Mathf.Max(0f, wsCharge - dt / 0.5f);
+        if (wsT > WS_MOVE) PlaceWeakSpot(wsRock);
+        float t = Time.time;
+        var at = belt.RockPos(wsRock) + wsLocal - game.worldOffset;
+        float pulse = 1f + 0.12f * Mathf.Sin(t * 7f);
+        float shrink = 1f - 0.45f * wsCharge;   // the shell closes in as the charge builds
+        _wsShell.position = at;
+        _wsShell.localScale = Vector3.one * wsR * 2f * pulse * shrink;
+        _wsCore.position = at;
+        _wsCore.localScale = Vector3.one * wsR * (0.7f + 0.5f * wsCharge) * (wsHit ? 1.1f + 0.2f * Random.value : 1f);
+        var col = wsHit ? Color.Lerp(new Color(0.7f, 0.97f, 1f), Color.white, wsCharge) : new Color(0.5f, 0.95f, 1f);
+        _wsShellMat.SetColor("_Color", new Color(col.r, col.g, col.b, wsHit ? 0.9f : 0.5f + 0.2f * Mathf.Sin(t * 7f)));
+        _wsCoreMat.SetColor("_Color", new Color(col.r, col.g, col.b, wsHit ? 1f : 0.75f));
+        wsHit = false;   // TickLaser sets it again next frame
     }
 
     void TickPulse(float dt)
@@ -807,9 +947,13 @@ public class Ship : MonoBehaviour
         if (++_hoverFrame % 6 == 0) hover = HoverPick();
         TickLock();
         TickLaser(dt);
+        TickWeakSpot(dt);
         TickDish(dt);
         radarCd = Mathf.Max(0f, radarCd - dt);
         if (Input.GetKeyDown(KeyCode.R)) Radar();
+        flareCd = Mathf.Max(0f, flareCd - dt);
+        if (Input.GetKeyDown(KeyCode.B)) Flare();
+        if (Input.GetKeyDown(KeyCode.P) && game.hud != null && !game.hud.MenuVisible) ToggleCockpit();
         if (Input.GetKeyDown(KeyCode.G)) ToggleOvercharge();
         if (Input.GetKeyDown(KeyCode.F)) ToggleTorch();
         if (Input.GetKeyDown(KeyCode.H)) StartApproach();   // H: E is yaw now
@@ -1204,10 +1348,12 @@ public class Ship : MonoBehaviour
             lookYaw *= Mathf.Exp(-4f * dt);
             lookPitch *= Mathf.Exp(-4f * dt);
         }
-        _autoSteer = flying && lockKind != "";
+        // a rock lock only brackets the rock and reads its range (2026-09-19, the user's: the laser is aimed, not locked on);
+        // the cargo ship and a raider still steer the nose
+        _autoSteer = flying && lockKind != "" && lockKind != "rock";
         if (_autoSteer)
         {
-            // Q lock: the ship turns itself to put the locked object on the nose ray (a rock, the cargo ship or a raider,
+            // Q lock: the ship turns itself to put the locked object on the nose ray (the cargo ship or a raider,
             // which the ship follows round while the mouse works the gun) (the laser's line, not the camera's);
             // the mouse is ignored until the lock is released (roll is still yours). Proportional: full rate beyond about
             // eleven degrees off, easing in as the nose comes on, and the authority itself eases in over the first 0.4 s
@@ -2022,6 +2168,8 @@ public class Ship : MonoBehaviour
         target = belt.RayHit(origin, fwd, reach);
         laserOn = false;
         _laser.enabled = false;
+        // the weak spot: a fresh seam the first time the nose ray lands on a rock the laser can cut
+        if (target >= 0 && target != wsRock && !docked && (belt.ore[target] < 0 || Data.ORES[belt.ore[target]].unlock <= State.up["laser"] + 1)) PlaceWeakSpot(target);
         // 1, 2 and 3 pick the weapon (the wheel is the throttle now)
         if (CanFly && !docked && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible)
         {
@@ -2079,6 +2227,7 @@ public class Ship : MonoBehaviour
         // ahead, else the nearest in reach; the magazine restocks on the pad
         var rk = State.Stat("rocket");
         if (docked || State.rockets < 0) State.rockets = rk.slots;
+        if (docked || State.flares < 0) State.flares = Mathf.Max(State.flares, FLARES);   // the flares restock on the pad too (a workshop pack above four is kept)
         rocketCd = Mathf.Max(0f, rocketCd - dt);
         _rocketWarnT -= dt;
         if (weapon == "rocket")
@@ -2119,13 +2268,29 @@ public class Ship : MonoBehaviour
         {
             float oc = (overcharge && State.fuel > 0f) ? State.Stat("overcharge").mult : 1f;
             bool canCut = belt.ore[target] < 0 || Data.ORES[belt.ore[target]].unlock <= State.up["laser"] + 1;
+            // the beam ends where the nose ray meets the rock (2026-09-19, the user's: it used to bend onto the rock's centre,
+            // which read as a lock-on): the ray's entry into a sphere of 0.85 of the radius, since the meshes sit inside the
+            // nominal sphere; a grazing hit outside that sphere lands at the ray's closest point, pulled in onto it
             var rp = belt.RockPos(target);
-            end = rp - (rp - origin).normalized * belt.radius[target] * 0.85f;
+            float rc = belt.radius[target] * 0.85f;
+            var toC = rp - origin;
+            float along = Vector3.Dot(toC, fwd);
+            float off2 = toC.sqrMagnitude - along * along;
+            if (off2 < rc * rc) end = origin + fwd * (along - Mathf.Sqrt(rc * rc - off2));
+            else end = rp + (origin + fwd * along - rp).normalized * rc;
             if (canCut)
             {
                 laserOn = true;
-                float rate = State.Stat("laser").rate * oc;
+                float rate = State.Stat("laser").rate * oc * (1f + 0.25f * State.lens);   // a Voidcrystal lens from the workshop adds a quarter each (2026-09-20)
+                // the beam on the seam: the cut at WS_MULT, and the charge toward the crack
+                wsHit = wsRock == target && (end - (rp + wsLocal)).sqrMagnitude < wsR * wsR;
+                if (wsHit) rate *= WS_MULT;
                 belt.Damage(target, rate * 5f * dt);
+                if (wsHit)
+                {
+                    wsCharge = Mathf.Min(1f, wsCharge + dt / WS_HOLD);
+                    if (wsCharge >= 1f) { CrackWeakSpot(); wsHit = true; }
+                }
                 if (oc > 1f)
                 {
                     State.fuel = Mathf.Max(0f, State.fuel - Data.OVER_BURN * oc * dt);
@@ -2226,6 +2391,24 @@ public class Ship : MonoBehaviour
         else game.Toast("Radar: " + scanCount + " ore rocks within " + Data.Fm(range) + " m · nearest " + belt.RockName(scanNearest) + " at " + Data.Fm(scanDist) + " m", false);
     }
 
+    /// B: a flare (2026-09-19). A burning decoy dropped just behind the ship, thrown back off its way, that the outpost's
+    /// seeker rockets go for instead of the ship. Four aboard, restocked on the pad, one every FLARE_CD.
+    public void Flare()
+    {
+        if (docked || !CanFly || cut != null || game.raiders == null || flareCd > 0f) return;
+        if (State.flares <= 0)
+        {
+            game.Toast("No flares left · the pad restocks them", true);
+            Audio.Play("laser_off", -4f);
+            return;
+        }
+        State.flares--;
+        flareCd = FLARE_CD;
+        int lured = game.raiders.LaunchFlare(TruePos - Forward * 40f, vel - Forward * 150f + Random.insideUnitSphere * 40f);
+        Audio.Play("retro", 3f);
+        game.Toast("Flare away" + (lured > 0 ? " · " + lured + (lured == 1 ? " rocket" : " rockets") + " decoyed" : "") + " · " + State.flares + " left", lured == 0 && game.raiders.HostileRockets > 0);
+    }
+
     void ToggleOvercharge()
     {
         float m = State.Stat("overcharge").mult;
@@ -2245,6 +2428,8 @@ public class Ship : MonoBehaviour
     public void UpdateCamera(float dt)
     {
         float s = Data.SHIP_SCALE;
+        // the cockpit view's culling: in flight, and over the last of the departure's blend into the cockpit
+        SetCockpitCulling(Cockpit && ((cut == null && !docked && warp == null) || (cut != null && cut.mode == "depart" && cut.t > cut.dur - 0.9f)));
         if (warp != null)
         {
             // the exterior shot: behind and beside the carrier as it jumps, ahead of it as it arrives
@@ -2282,14 +2467,15 @@ public class Ship : MonoBehaviour
         // a touch out with speed otherwise
         var eng = State.Stat("engine");
         float spFrac = eng.max > 0f ? Mathf.Clamp01(vel.magnitude / eng.max) : 0f;
-        float fovWant = FOV + 4f * spFrac;
+        float fov0 = Cockpit ? COCKPIT_FOV : FOV;   // the cockpit lens is wider
+        float fovWant = fov0 + 4f * spFrac;
         // the burner's intensity, and a kick in the field of view the instant it lights
         bool wasBurning = burnK > 0.5f;
         burnK = Mathf.Lerp(burnK, afterburning ? 1f : 0f, 1f - Mathf.Exp(-(afterburning ? 3f : 2f) * dt));
         if (afterburning && !wasBurning && burnK > 0.5f) _burnKick = 1f;
         _burnKick *= Mathf.Exp(-5f * dt);
-        if (afterburning) fovWant = FOV + 14f + 3f * State.Stat("thrusters").mult + 7f * _burnKick;
-        else if (drifting) fovWant = FOV - 9f;
+        if (afterburning) fovWant = fov0 + 14f + 3f * State.Stat("thrusters").mult + 7f * _burnKick;
+        else if (drifting) fovWant = fov0 - 9f;
         _fov = Mathf.Lerp(_fov, fovWant, 1f - Mathf.Exp(-(fovWant > _fov ? 3f : 4f) * dt));
         cam.fieldOfView = _fov;
         // the turn: the chase camera hangs back on the outside of the turn, the look point leads into it, and the frame
@@ -2331,9 +2517,97 @@ public class Ship : MonoBehaviour
         _camQ = transform.rotation;
     }
 
-    /// The chase camera's place, look point and up from the smoothed heading, the turn lean and the free look.
+    // ---- the cockpit view
+    /// P: cockpit or chase. The hull's parts go on HULL_LAYER as the view is entered (and again now and then, since the
+    /// fitting variants arrive later), so the camera inside the hull sees out.
+    public void ToggleCockpit()
+    {
+        State.cockpitView = !State.cockpitView;
+        if (State.cockpitView) ApplyLayers();
+        Audio.Play("ui_tab");
+        game.Toast(State.cockpitView ? "Cockpit view · P for the chase camera" : "Chase camera · P for the cockpit", false);
+        State.Save();
+    }
+
+    /// The canopy frame and the dash: a few dark bars round the pilot's eye, an amber instrument strip below, children
+    /// of the ship at the cockpit point, on COCKPIT_LAYER so only the cockpit camera draws them.
+    void BuildCockpit()
+    {
+        float s = Data.SHIP_SCALE;
+        var root = new GameObject("Cockpit");
+        root.transform.SetParent(transform, false);
+        root.transform.localPosition = COCKPIT;
+        _cockpitFrame = root.transform;
+        var dark = new Material(Game.Sh("Standard"));
+        dark.color = new Color(0.09f, 0.1f, 0.12f);
+        dark.SetFloat("_Metallic", 0.3f);
+        dark.SetFloat("_Glossiness", 0.35f);
+        var strip = new Material(Game.Sh("Standard"));
+        strip.color = new Color(0.9f, 0.6f, 0.2f);
+        strip.EnableKeyword("_EMISSION");
+        strip.SetColor("_EmissionColor", new Color(1f, 0.65f, 0.25f) * 1.6f);
+        System.Action<Vector3, Vector3, Vector3, Material, string> part = (at, size, euler, m, name) =>
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Object.Destroy(go.GetComponent<Collider>());
+            go.name = name;
+            go.transform.SetParent(root.transform, false);
+            go.transform.localPosition = at * s;
+            go.transform.localRotation = Quaternion.Euler(euler);
+            go.transform.localScale = size * s;
+            var mr = go.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = m;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        };
+        part(new Vector3(0f, -1.5f, 2.4f), new Vector3(6.4f, 0.5f, 1.9f), new Vector3(-18f, 0f, 0f), dark, "Dash");
+        part(new Vector3(0f, -1.18f, 2.05f), new Vector3(3.6f, 0.06f, 0.5f), new Vector3(-18f, 0f, 0f), strip, "Instruments");
+        part(new Vector3(-2.7f, 0.4f, 2.5f), new Vector3(0.2f, 3.6f, 0.2f), new Vector3(0f, 0f, -14f), dark, "PillarL");
+        part(new Vector3(2.7f, 0.4f, 2.5f), new Vector3(0.2f, 3.6f, 0.2f), new Vector3(0f, 0f, 14f), dark, "PillarR");
+        part(new Vector3(0f, 1.95f, 2.4f), new Vector3(5.4f, 0.16f, 0.2f), Vector3.zero, dark, "TopBar");
+        part(new Vector3(-3.3f, -0.9f, 0.8f), new Vector3(0.24f, 0.24f, 3.8f), Vector3.zero, dark, "SillL");
+        part(new Vector3(3.3f, -0.9f, 0.8f), new Vector3(0.24f, 0.24f, 3.8f), Vector3.zero, dark, "SillR");
+        foreach (var t in root.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = COCKPIT_LAYER;
+        root.SetActive(false);
+    }
+
+    /// Every part under the ship onto HULL_LAYER, but the laser's line (drawn from the cockpit too) and the cockpit frame.
+    void ApplyLayers()
+    {
+        foreach (var t in GetComponentsInChildren<Transform>(true))
+        {
+            if (t == transform || t.name == "Laser") continue;
+            if (_cockpitFrame != null && (t == _cockpitFrame || t.IsChildOf(_cockpitFrame))) continue;
+            t.gameObject.layer = HULL_LAYER;
+        }
+        if (_cockpitFrame != null) foreach (var t in _cockpitFrame.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = COCKPIT_LAYER;
+    }
+
+    /// The camera's culling for the view: in the cockpit the hull is dropped and the frame drawn; outside, the reverse.
+    void SetCockpitCulling(bool on)
+    {
+        if (cam == null) return;
+        if (_baseMask == -1 && !_cockpitCulled) _baseMask = cam.cullingMask;
+        if (on && ++_layerFrame % 120 == 1) ApplyLayers();   // the fitting variants and the model arrive after boot
+        if (on == _cockpitCulled && _cockpitFrame != null && _cockpitFrame.gameObject.activeSelf == on) return;
+        _cockpitCulled = on;
+        cam.cullingMask = on ? (_baseMask & ~(1 << HULL_LAYER)) | (1 << COCKPIT_LAYER) : _baseMask & ~(1 << COCKPIT_LAYER);
+        if (_cockpitFrame != null) _cockpitFrame.gameObject.SetActive(on);
+    }
+
+    /// The cockpit camera: at the pilot's eye, rigid to the hull, the free look turning the head.
+    void CockpitPose(out Vector3 camPos, out Vector3 look, out Vector3 up)
+    {
+        var q = transform.rotation * Quaternion.AngleAxis(lookYaw * Mathf.Rad2Deg, Vector3.up) * Quaternion.AngleAxis(lookPitch * Mathf.Rad2Deg, Vector3.right);
+        camPos = transform.TransformPoint(COCKPIT);
+        look = camPos + q * Vector3.forward * 200f;
+        up = q * Vector3.up;
+    }
+
+    /// The chase camera's place, look point and up from the smoothed heading, the turn lean and the free look. With the
+    /// cockpit view on it is the cockpit's pose instead, so the cutscene blends that end on the chase camera land there.
     void ChasePose(out Vector3 camPos, out Vector3 look, out Vector3 up)
     {
+        if (Cockpit) { CockpitPose(out camPos, out look, out up); return; }
         float s = Data.SHIP_SCALE;
         var lq = _camQ * Quaternion.AngleAxis(lookYaw * Mathf.Rad2Deg, Vector3.up) * Quaternion.AngleAxis(lookPitch * Mathf.Rad2Deg, Vector3.right);
         var f = lq * Vector3.forward;

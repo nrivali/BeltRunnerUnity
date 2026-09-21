@@ -23,6 +23,7 @@ public static class State
     public static float shipFuel = 1200f;   // the cargo ship's fuel supply, which the ship's tank fills from while docked
     public static float parts = 120f;       // repair parts aboard the cargo ship, one per hull point mended while docked
     public static int rockets = -1;         // seeker rockets aboard; -1 (a fresh pilot, an older save) means a full magazine, filled on the pad
+    public static int flares = -1;          // flares aboard (2026-09-19, the countermeasure to the outpost's seekers); -1 likewise
     public static int raid = 0;             // the raid contract (2026-09-19): 0 open, 1 accepted, 2 the outpost is down (paid if it was accepted)
     public static int raids = 0;            // outposts put down under contract, all told: the reward grows with it
     public static float raidAt = 0f;        // play time at which a rebuilt outpost and a fresh contract post
@@ -46,6 +47,7 @@ public static class State
     public static float musicVolume = 1f;
     public static int display = 1;   // 0 full screen (exclusive), 1 borderless (a full-screen window), 2 windowed
     public static bool controlsShown = true;   // C hides the flight controls list; remembered in the save
+    public static bool cockpitView;            // P: the first-person cockpit view (2026-09-20); remembered in the save
     public static bool hasSave = false;
     public static bool sandbox = false;   // a test session (-combat): the save file is never written
 
@@ -339,6 +341,84 @@ public static class State
         return n;
     }
 
+    // ---- the workshop (2026-09-20, the user's: "something else you can use resources for besides just selling them"):
+    // ore turned into supplies and fittings. Docked, a recipe draws on the hold and the storage; in flight the hold alone,
+    // and only the field recipes (the ones marked inFlight) are live.
+    public class Recipe { public string id, name, effect; public string[] ores; public float[] units; public bool inFlight; }
+    public static readonly Recipe[] RECIPES =
+    {
+        new Recipe { id = "fuel",    name = "Reactor fuel",     ores = new[] { "iron", "copper" },       units = new[] { 10f, 2f }, effect = "+80 fuel supply aboard the cargo ship", inFlight = false },
+        new Recipe { id = "parts",   name = "Repair parts",     ores = new[] { "iron" },                 units = new[] { 8f },      effect = "+20 repair parts aboard the cargo ship", inFlight = false },
+        new Recipe { id = "patch",   name = "Hull patch",       ores = new[] { "iron", "copper" },       units = new[] { 6f, 2f },  effect = "+20 hull, here and now", inFlight = true },
+        new Recipe { id = "flares",  name = "Flare pack",       ores = new[] { "copper" },               units = new[] { 4f },      effect = "+2 flares, up to 8 aboard", inFlight = true },
+        new Recipe { id = "rockets", name = "Rocket reload",    ores = new[] { "copper", "iron" },       units = new[] { 8f, 3f },  effect = "+2 seeker rockets, up to the magazine", inFlight = true },
+        new Recipe { id = "lens",    name = "Voidcrystal lens", ores = new[] { "crystal", "platinum" },  units = new[] { 3f, 5f },  effect = "the laser cuts 25% faster, for good (up to 4 lenses)", inFlight = false },
+    };
+    public const int LENS_MAX = 4, FLARES_MAX = 8;
+    public static int lens;   // Voidcrystal lenses fitted: each adds a quarter to the laser's cut rate (Ship.TickLaser); saved
+    public static int FlaresAboard { get { return flares < 0 ? Ship.FLARES : flares; } }
+    public static int RocketsAboard { get { return rockets < 0 ? Mathf.RoundToInt(Stat("rocket").slots) : rockets; } }
+
+    public static float HaveOre(string k, bool docked) { return cargo[k] + (docked ? store[k] : 0f); }
+
+    /// Ore out of the hold first, then the storage when docked.
+    static void TakeOre(string k, float units, bool docked)
+    {
+        float fromHold = Mathf.Min(units, cargo[k]);
+        cargo[k] -= fromHold;
+        if (cargo[k] < 0.01f) cargo[k] = 0f;
+        if (docked && units - fromHold > 0.01f)
+        {
+            store[k] = Mathf.Max(0f, store[k] - (units - fromHold));
+            if (store[k] < 0.01f) store[k] = 0f;
+        }
+    }
+
+    /// Whether a recipe can be made now; `why` says what is short or full when it cannot.
+    public static bool CanMake(Recipe r, bool docked, out string why)
+    {
+        why = "";
+        if (!r.inFlight && !docked) { why = "on the pad only"; return false; }
+        var missing = new System.Text.StringBuilder();
+        for (int i = 0; i < r.ores.Length; i++)
+        {
+            float have = HaveOre(r.ores[i], docked);
+            if (have + 0.01f < r.units[i]) { if (missing.Length > 0) missing.Append(", "); missing.Append(Data.Fmt(r.units[i] - have)).Append(" more ").Append(Data.ORES[Data.OreIndex(r.ores[i])].name); }
+        }
+        if (missing.Length > 0) { why = "needs " + missing; return false; }
+        switch (r.id)
+        {
+            case "fuel": if (shipFuel >= Data.CARGO_FUEL_CAP - 0.5f) { why = "the fuel supply is full"; return false; } break;
+            case "parts": if (parts >= Data.PARTS_CAP - 0.5f) { why = "the parts store is full"; return false; } break;
+            case "patch": if (hull >= Stat("hull").hp - 0.5f) { why = "the hull is whole"; return false; } break;
+            case "flares": if (FlaresAboard >= FLARES_MAX) { why = "the flare racks are full"; return false; } break;
+            case "rockets": if (RocketsAboard >= Mathf.RoundToInt(Stat("rocket").slots)) { why = "the magazine is full"; return false; } break;
+            case "lens": if (lens >= LENS_MAX) { why = "no room for another lens"; return false; } break;
+        }
+        return true;
+    }
+
+    /// Makes the recipe: the ore taken, the result applied, the save written. Returns the toast.
+    public static string Make(Recipe r, bool docked)
+    {
+        string why;
+        if (!CanMake(r, docked, out why)) return "Cannot make " + r.name.ToLowerInvariant() + " · " + why;
+        for (int i = 0; i < r.ores.Length; i++) TakeOre(r.ores[i], r.units[i], docked);
+        string got;
+        switch (r.id)
+        {
+            case "fuel": { float add = Mathf.Min(80f, Data.CARGO_FUEL_CAP - shipFuel); shipFuel += add; got = "+" + Data.Fmt(add) + " fuel supply · " + Data.Fmt(shipFuel) + " aboard"; break; }
+            case "parts": { float add = Mathf.Min(20f, Data.PARTS_CAP - parts); parts += add; got = "+" + Data.Fmt(add) + " repair parts · " + Data.Fmt(parts) + " aboard"; break; }
+            case "patch": { float max = Stat("hull").hp; float add = Mathf.Min(20f, max - hull); hull += add; got = "+" + Data.Fmt(add) + " hull · " + Mathf.RoundToInt(hull) + " / " + Mathf.RoundToInt(max); break; }
+            case "flares": { flares = Mathf.Min(FLARES_MAX, FlaresAboard + 2); got = flares + " flares aboard"; break; }
+            case "rockets": { int mag = Mathf.RoundToInt(Stat("rocket").slots); rockets = Mathf.Min(mag, RocketsAboard + 2); got = rockets + " / " + mag + " rockets aboard"; break; }
+            case "lens": { lens++; got = "the laser cuts " + (25 * lens) + "% faster · " + lens + (lens == 1 ? " lens" : " lenses") + " fitted"; break; }
+            default: got = ""; break;
+        }
+        Save();
+        return "Made " + r.name.ToLowerInvariant() + " · " + got;
+    }
+
     /// Storage room for any ore at all (a drone only goes out if there is somewhere to put what it brings back).
     public static bool StoreAnyRoom()
     {
@@ -400,7 +480,7 @@ public static class State
     [Serializable] public class Bag { public float iron, copper, gold, platinum, crystal, cobalt, beryl; }
     [Serializable] public class Ups { public int laser, cargo, engine, tank, scanner, range, hull, shield, thrusters, overcharge, gun, rocket; }
     [Serializable] public class Dep { public int laser, collectors; }
-    [Serializable] public class Settings { public bool sound = true; public float volume = 1f; public bool music = true; public float music_volume = 1f; public float hud = 1f; public bool controls = true; public int display = 1; public float brightness = 1f; }
+    [Serializable] public class Settings { public bool sound = true; public float volume = 1f; public bool music = true; public float music_volume = 1f; public float hud = 1f; public bool controls = true; public int display = 1; public float brightness = 1f; public bool cockpit; }
     [Serializable]
     public class SaveData
     {
@@ -412,6 +492,8 @@ public static class State
         public string zone;
         public int tut;
         public int rockets = -1;
+        public int flares = -1;
+        public int lens;
         public int raid, raids;
         public float raidAt;
         public bool raidStation;
@@ -438,7 +520,7 @@ public static class State
             cargo = ToBag(cargo), store = ToBag(store), market = ToBag(market),
             up = new Ups { laser = up["laser"], cargo = up["cargo"], engine = up["engine"], tank = up["tank"], scanner = up["scanner"], range = up["range"], hull = up["hull"], thrusters = up["thrusters"], overcharge = up["overcharge"], gun = up["gun"], rocket = up["rocket"], shield = up["shield"] },
             depot = new Dep { laser = depot["laser"], collectors = depot["collectors"] }, droneUnits = droneUnits,
-            zone = zoneId, tut = tut, rockets = rockets, raid = raid, raids = raids, raidAt = raidAt, raidStation = raidStation, settings = new Settings { sound = soundOn, volume = volume, music = musicOn, music_volume = musicVolume, hud = hudScale, controls = controlsShown, display = display, brightness = brightness },
+            zone = zoneId, tut = tut, rockets = rockets, flares = flares, lens = lens, raid = raid, raids = raids, raidAt = raidAt, raidStation = raidStation, settings = new Settings { sound = soundOn, volume = volume, music = musicOn, music_volume = musicVolume, hud = hudScale, controls = controlsShown, display = display, brightness = brightness, cockpit = cockpitView },
         };
         try
         {
@@ -470,6 +552,8 @@ public static class State
         zoneId = string.IsNullOrEmpty(s.zone) ? "kessler" : s.zone;
         tut = s.tut;
         rockets = s.rockets;
+        flares = s.flares;
+        lens = s.lens;
         raid = s.raid; raids = s.raids; raidAt = s.raidAt; raidStation = s.raidStation;
         FromBag(s.cargo, cargo);
         FromBag(s.store, store);
@@ -490,7 +574,7 @@ public static class State
         }
         droneUnits = s.droneUnits;
         hull = Mathf.Min(hull, Stat("hull").hp);
-        if (s.settings != null) { display = Mathf.Clamp(s.settings.display, 0, 2); soundOn = s.settings.sound; volume = s.settings.volume; musicOn = s.settings.music; musicVolume = s.settings.music_volume; hudScale = s.settings.hud > 0f ? s.settings.hud : 1f; controlsShown = s.settings.controls; brightness = s.settings.brightness > 0f ? Mathf.Clamp(s.settings.brightness, 0.5f, 1.5f) : 1f; }
+        if (s.settings != null) { display = Mathf.Clamp(s.settings.display, 0, 2); soundOn = s.settings.sound; volume = s.settings.volume; musicOn = s.settings.music; musicVolume = s.settings.music_volume; hudScale = s.settings.hud > 0f ? s.settings.hud : 1f; controlsShown = s.settings.controls; cockpitView = s.settings.cockpit; brightness = s.settings.brightness > 0f ? Mathf.Clamp(s.settings.brightness, 0.5f, 1.5f) : 1f; }
         hasSave = true;
         return true;
     }
@@ -512,6 +596,8 @@ public static class State
         marketT = 0f;
         zoneId = "kessler";
         rockets = -1;
+        flares = -1;
+        lens = 0;
         raid = 0; raids = 0; raidAt = 0f; raidStation = false;
         tut = 0;
         mined = 0f;

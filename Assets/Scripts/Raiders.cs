@@ -40,6 +40,8 @@ public class Raiders
         public string state = "idle";
         public bool dead;
         public bool frozen;   // the combat test: holds its place (still turns to face the ship and fires)
+        public bool ambush;   // a wandering raider (2026-09-19): it came for the ship out in the belt and goes for good once it gives up
+        public float idleT;   // how long an ambush raider has stood idle, for its removal
         // the attack: a run in (weaving), a strafing pass at a radius and direction of its own, a breakaway, then again
         public string move = "run";
         public float moveT, orbitR = 400f, orbitDir = 1f, weave;
@@ -60,6 +62,7 @@ public class Raiders
         public Transform node;
         public float life, dmg;
         public bool player;
+        public float speed;   // a raider's BOLT_SPEED, the player's PLAYER_BOLT_SPEED, or the outpost turrets' faster one (2026-09-19)
     }
 
     public Game game;
@@ -99,8 +102,19 @@ public class Raiders
         public float spd, life, smokeT;
         public Raider target;
         public Transform node;
+        public bool hostile;   // the outpost's (2026-09-19): it chases the ship, or a flare that has drawn it off
+        public Flare flare;
     }
     public const float ROCKET_SPEED = 2400f, ROCKET_ACCEL = 1800f, ROCKET_KICK = 300f, ROCKET_TURN = 70f * Mathf.Deg2Rad, ROCKET_LIFE = 12f, ROCKET_HIT_R = 70f;
+    // ---- hostile rockets and flares (2026-09-19, the user's: the outpost fires seekers, the ship gets a countermeasure)
+    public const float HOSTILE_ROCKET_DMG = 22f;     // a hit on the ship: most of a base shield, or nearly half a base hull
+    public const float HOSTILE_ROCKET_TURN = 55f * Mathf.Deg2Rad;   // a little slower round than the player's, so a hard turn at the last moment can throw one
+    public const float FLARE_LIFE = 6f, FLARE_LURE = 3500f;   // a flare burns 6 s and draws every hostile rocket within 3,500 u (437 m) of the ship
+    public const float FLARE_TAKE = 0.85f;           // a rocket falls for a flare this often
+    public class Flare { public Vector3 pos, vel; public float life; public Transform node; }
+    public readonly List<Flare> flares = new List<Flare>();
+    public int rocketsLaunchedAtShip, rocketsDecoyed, rocketsShotDown, rocketHits;   // for the log
+    public int HostileRockets { get { int n = 0; foreach (var k in rockets) if (k.hostile) n++; return n; } }
     public readonly List<Rocket> rockets = new List<Rocket>();
     Material _rocketBody, _rocketFlame, _rocketNose;
     readonly List<Transform> _rocketPool = new List<Transform>();
@@ -112,6 +126,15 @@ public class Raiders
     public const float DEBRIS_LIFE = 60f;
     const int DEBRIS_MAX = 80;
     bool _warned;
+    // ---- ambushes (2026-09-19, the user's: "random raiders that attack you in the belt"): out in any belt but the Hub's,
+    // with no fight on and nothing else near, one to three raiders drop in 5,000 to 7,000 u out, behind or beside the
+    // ship, already on the attack. The wait between them is AMBUSH_MIN to AMBUSH_MAX seconds of flight, shortened by the
+    // zone's danger; only time flying clear of the cargo ship's cover counts
+    public const float AMBUSH_MIN = 150f, AMBUSH_MAX = 300f;
+    public const float AMBUSH_NEAR = 5000f, AMBUSH_FAR = 7000f;
+    float _ambushT = -1f;
+    bool _hub;
+    public int ambushes;   // sprung so far, for the log
 
     public Raiders(Game g)
     {
@@ -150,12 +173,15 @@ public class Raiders
         bolts.Clear();
         foreach (var k in rockets) if (k.node != null) k.node.gameObject.SetActive(false);
         rockets.Clear();
+        foreach (var f in flares) if (f.node != null) Object.Destroy(f.node.gameObject);
+        flares.Clear();
         foreach (var h in _hulks) if (h.node != null) Object.Destroy(h.node.gameObject);
         _hulks.Clear();
         foreach (var d in _debris) if (d.node != null) Object.Destroy(d.node.gameObject);
         _debris.Clear();
         threat = 0;
         _warned = false;
+        _ambushT = -1f;
     }
 
     /// Pirate holds by the rich pockets: one hold each, one to three raiders (more in a more dangerous zone).
@@ -163,6 +189,7 @@ public class Raiders
     {
         Clear();
         danger = zone.danger;
+        _hub = zone.hub;
         if (zone.hub || danger <= 0f) return;
         // a hold at some of the rich pockets (three, plus six per point of danger), never at all of them
         var pockets = new List<Belt.Field>();
@@ -237,6 +264,49 @@ public class Raiders
     public void StandDown()
     {
         foreach (var r in raiders) { r.state = "idle"; r.wp = r.home; }
+    }
+
+    /// The ambush clock runs while the ship flies clear of the cargo ship's cover with no fight on. When it runs out and
+    /// nothing hostile is near (no raider within a give-up radius, the outpost not engaged), one to three raiders drop in
+    /// behind or beside the ship, on the attack from the first frame, with the alarm.
+    void TickAmbush(float dt, Vector3 sp, Ship ship)
+    {
+        if (_hub) return;
+        float scale = 1f / (1f + danger);
+        if (_ambushT < 0f) _ambushT = Random.Range(AMBUSH_MIN, AMBUSH_MAX) * scale;
+        if (AnyAttacking || (game.outpost != null && game.outpost.engaged)) return;
+        _ambushT -= dt;
+        if (_ambushT > 0f) return;
+        foreach (var r in raiders) if (!r.dead && (r.pos - sp).magnitude < GIVE_UP) { _ambushT = 20f; return; }   // a hold is close: try again shortly
+        _ambushT = Random.Range(AMBUSH_MIN, AMBUSH_MAX) * scale;
+        int n = 1 + Random.Range(0, 2 + Mathf.FloorToInt(danger * 2f));   // 1 or 2 in a quiet zone, 1 to 3 at Kessler
+        var fwd = ship.Forward;
+        var dir = Random.onUnitSphere;
+        if (Vector3.Dot(dir, fwd) > 0.3f) dir = -dir;   // from behind or the side, never from straight ahead
+        var home = sp + dir * Random.Range(AMBUSH_NEAR, AMBUSH_FAR);
+        for (int i = 0; i < n; i++)
+        {
+            var r = Make(home + Random.insideUnitSphere * 300f, home);
+            r.ambush = true;
+            r.state = "attack";
+            r.heading = -dir;
+            r.spd = 400f;
+            r.fireCd = Random.Range(1.5f, 2.5f);
+        }
+        ambushes++;
+        game.Toast(n == 1 ? "A raider is on you · it came out of the belt" : n + " raiders are on you · they came out of the belt", true);
+        Audio.Play("alarm");
+        _warned = true;
+    }
+
+    /// An ambush raider that has given up (the ship got away, docked or was disabled) is not left drifting in the belt: it
+    /// goes once it has stood idle for a while or the ship is well away.
+    void DropAmbusher(int i)
+    {
+        var r = raiders[i];
+        r.dead = true;   // a lock on it lapses
+        if (r.node != null) Object.Destroy(r.node.gameObject);
+        raiders.RemoveAt(i);
     }
 
     /// The nearest live raider within `maxDist` of `origin` whose bearing is within the cone (cosine) of `dir`.
@@ -336,9 +406,10 @@ public class Raiders
         return t;
     }
 
-    public void Fire(Vector3 from, Vector3 dir, float dmg, bool player)
+    public void Fire(Vector3 from, Vector3 dir, float dmg, bool player, float speed = 0f)
     {
-        var b = new Bolt { pos = from, dir = dir.normalized, life = player ? PLAYER_BOLT_LIFE : RAIDER_BOLT_LIFE, dmg = dmg, player = player, node = BoltNode(player) };
+        if (speed <= 0f) speed = player ? PLAYER_BOLT_SPEED : BOLT_SPEED;
+        var b = new Bolt { pos = from, dir = dir.normalized, life = player ? PLAYER_BOLT_LIFE : RAIDER_BOLT_LIFE, dmg = dmg, player = player, speed = speed, node = BoltNode(player) };
         b.node.rotation = Quaternion.FromToRotation(Vector3.up, b.dir);
         bolts.Add(b);
         if (player)
@@ -417,6 +488,76 @@ public class Raiders
         return k;
     }
 
+    /// The outpost's seeker (2026-09-19): launched at the ship, it chases the ship (or a flare that draws it off) and
+    /// hits for HOSTILE_ROCKET_DMG. A toast and the launch sound warn the pilot; the hint bar reads ROCKET INBOUND.
+    public Rocket LaunchHostile(Vector3 from, Vector3 dir)
+    {
+        var d = dir.normalized;
+        var k = new Rocket { pos = from, heading = d, spd = 300f, life = ROCKET_LIFE, hostile = true, node = RocketNode() };
+        k.node.position = from - game.worldOffset;
+        k.node.rotation = Quaternion.FromToRotation(Vector3.up, d);
+        rockets.Add(k);
+        rocketsLaunchedAtShip++;
+        if (game.sparks != null) game.sparks.Burst(from, 12, 140f, new Color(1f, 0.55f, 0.3f), 0.7f);
+        float bd = (from - game.ship.TruePos).magnitude;
+        Audio.Play("rocket_launch", Mathf.Max(-24f, (bd <= 800f ? 0f : -16f * Mathf.Log10(bd / 800f))));
+        game.Toast("Seeker rocket launched at you · B drops a flare", true);
+        return k;
+    }
+
+    /// A flare (the ship's B): a burning decoy that drifts on with the way it was dropped at, for FLARE_LIFE. Every hostile
+    /// rocket within FLARE_LURE of the ship goes for it instead, most of the time. Returns how many were drawn off.
+    public int LaunchFlare(Vector3 from, Vector3 vel)
+    {
+        var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        Object.Destroy(go.GetComponent<Collider>());
+        go.name = "Flare";
+        go.transform.SetParent(_root, false);
+        var m = new Material(Game.Sh("BeltRunner/Spark"));
+        m.SetColor("_Color", new Color(1f, 0.85f, 0.55f, 1f));
+        var mr = go.GetComponent<MeshRenderer>();
+        mr.sharedMaterial = m;
+        mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        go.transform.localScale = Vector3.one * 26f;
+        var f = new Flare { pos = from, vel = vel, life = FLARE_LIFE, node = go.transform };
+        go.transform.position = from - game.worldOffset;
+        flares.Add(f);
+        if (game.sparks != null) game.sparks.Burst(from, 60, 160f, new Color(1f, 0.85f, 0.5f), 1.2f, vel);
+        int lured = 0;
+        var sp = game.ship.TruePos;
+        foreach (var k in rockets)
+        {
+            if (!k.hostile || k.flare != null) continue;
+            if ((k.pos - sp).magnitude > FLARE_LURE) continue;
+            if (Random.value > FLARE_TAKE) continue;
+            k.flare = f;
+            lured++;
+            rocketsDecoyed++;
+        }
+        return lured;
+    }
+
+    void TickFlares(float dt, Vector3 off)
+    {
+        for (int i = flares.Count - 1; i >= 0; i--)
+        {
+            var f = flares[i];
+            f.life -= dt;
+            if (f.life <= 0f)
+            {
+                if (f.node != null) Object.Destroy(f.node.gameObject);
+                flares.RemoveAt(i);
+                continue;
+            }
+            f.vel *= Mathf.Exp(-0.25f * dt);
+            f.pos += f.vel * dt;
+            f.node.position = f.pos - off;
+            float k = Mathf.Clamp01(f.life / 1.5f);   // it gutters out over its last second and a half
+            f.node.localScale = Vector3.one * (18f + 12f * Random.value) * k;
+            if (game.sparks != null && Random.value < dt * 30f) game.sparks.Burst(f.pos, 3, 60f, new Color(1f, 0.8f, 0.45f), 0.8f, f.vel);
+        }
+    }
+
     void TickRockets(float dt, Vector3 off)
     {
         for (int i = rockets.Count - 1; i >= 0; i--)
@@ -424,7 +565,19 @@ public class Raiders
             var k = rockets[i];
             k.life -= dt;
             if (k.target != null && (k.target.dead || !raiders.Contains(k.target))) k.target = null;
-            if (k.target != null)
+            if (k.flare != null && k.flare.life <= 0f) k.flare = null;
+            if (k.hostile)
+            {
+                // the outpost's seeker: onto the flare that drew it off, else onto the ship with a lead; it turns a little
+                // slower than the player's, so a hard turn at the last moment can still throw one
+                var ship = game.ship;
+                var goal = k.flare != null ? k.flare.pos : ship.TruePos;
+                var gv = k.flare != null ? k.flare.vel : ship.vel;
+                var to = goal - k.pos;
+                float eta = Mathf.Min(2f, to.magnitude / Mathf.Max(200f, k.spd));
+                k.heading = RotateTowards(k.heading, to + gv * eta, HOSTILE_ROCKET_TURN * dt);
+            }
+            else if (k.target != null)
             {
                 // the lead: aim where the raider will be when the rocket gets there (capped at two seconds out), then turn onto it
                 var to = k.target.pos - k.pos;
@@ -439,8 +592,47 @@ public class Raiders
             // the exhaust trail: a puff of smoke every few metres of flight, left behind and drifting
             k.smokeT -= dt;
             if (k.smokeT <= 0f && game.explosions != null) { k.smokeT = 0.07f; game.explosions.Smoke(k.pos - k.heading * 9f, k.heading * -30f + Random.insideUnitSphere * 8f); }
-            // contact: the segment flown this frame against every raider's hit sphere
             bool hit = false;
+            if (k.hostile)
+            {
+                // contact: the flare it is chasing (a harmless pop), else the ship (the hit, the blast, the damage)
+                var ab = k.pos - prev;
+                if (k.flare != null)
+                {
+                    float tf = Mathf.Clamp01(Vector3.Dot(k.flare.pos - prev, ab) / Mathf.Max(1e-6f, ab.sqrMagnitude));
+                    if ((prev + ab * tf - k.flare.pos).magnitude < ROCKET_HIT_R * 1.5f)
+                    {
+                        if (game.explosions != null) game.explosions.Pop(k.pos, k.heading * k.spd * 0.2f);
+                        if (game.sparks != null) game.sparks.Burst(k.pos, 40, 200f, new Color(1f, 0.7f, 0.35f), 1.2f);
+                        float fd = (k.pos - game.ship.TruePos).magnitude;
+                        Audio.Play("hit", Mathf.Max(-24f, -2f + (fd <= 300f ? 0f : -20f * Mathf.Log10(fd / 300f))));
+                        hit = true;
+                    }
+                }
+                else
+                {
+                    var sp2 = game.ship.TruePos;
+                    float ts = Mathf.Clamp01(Vector3.Dot(sp2 - prev, ab) / Mathf.Max(1e-6f, ab.sqrMagnitude));
+                    if (game.ship.CanFly && !game.ship.docked && (prev + ab * ts - sp2).magnitude < Data.SHIP_R * 1.2f)
+                    {
+                        rocketHits++;
+                        hitsTaken++;
+                        if (game.sparks != null) game.sparks.Burst(k.pos, 120, 320f, new Color(1f, 0.6f, 0.25f), 1.6f, game.ship.vel);
+                        if (game.explosions != null) game.explosions.Pop(k.pos, game.ship.vel);
+                        Audio.Play("hit", 4f);
+                        game.ship.Hurt(HOSTILE_ROCKET_DMG, k.pos, "Rocket hit");
+                        hit = true;
+                    }
+                }
+                if (hit || k.life <= 0f)
+                {
+                    if (!hit && game.explosions != null) game.explosions.Pop(k.pos, k.heading * k.spd * 0.2f);
+                    k.node.gameObject.SetActive(false);
+                    rockets.RemoveAt(i);
+                }
+                continue;
+            }
+            // contact: the segment flown this frame against every raider's hit sphere
             foreach (var r in raiders)
             {
                 var ab = k.pos - prev;
@@ -499,10 +691,12 @@ public class Raiders
         TickDebris(dt, off);
         TickHulks(dt, off);
         TickRockets(dt, off);
+        TickFlares(dt, off);
         var sp = ship.TruePos;
         bool flying = game.started && !ship.docked && ship.warp == null && ship.cut == null;
         bool nearDepot = carrier != null && !carrier.hold && (sp - carrier.truePos).magnitude < SAFE_R;
         bool canAttack = flying && ship.CanFly && !nearDepot;
+        if (canAttack) TickAmbush(dt, sp, ship);
         threat = 0;
         nearest = 1e9f;
         nearestBoosting = false;
@@ -521,6 +715,12 @@ public class Raiders
                 if (threat == 0 && !_warned) { game.Toast("Pirate raiders inbound", true); Audio.Play("alarm"); _warned = true; }
             }
             if (r.state == "attack" && (!canAttack || d > GIVE_UP)) { r.state = "idle"; r.wp = r.home; }
+            if (r.ambush && !r.dead)
+            {
+                // an ambusher never idles for long: gone once the ship is well away or it has waited half a minute
+                r.idleT = r.state == "idle" ? r.idleT + dt : 0f;
+                if (r.state == "idle" && (d > GIVE_UP * 1.5f || r.idleT > 30f)) { DropAmbusher(i); continue; }
+            }
             Vector3 desired;
             if (r.state == "attack")
             {
@@ -673,7 +873,7 @@ public class Raiders
         {
             var b = bolts[i];
             b.life -= dt;
-            float speed = b.player ? PLAYER_BOLT_SPEED : BOLT_SPEED;
+            float speed = b.speed > 0f ? b.speed : (b.player ? PLAYER_BOLT_SPEED : BOLT_SPEED);
             var prev = b.pos;
             b.pos += b.dir * speed * dt;
             b.node.position = b.pos - off;
@@ -706,6 +906,29 @@ public class Raiders
                         hitKill = killed;
                         Audio.Sure(killed ? "kill_marker" : "hit_marker");
                         b.life = 0f;
+                    }
+                }
+                // a seeker coming at the ship can be shot down (2026-09-19): the segment against each hostile rocket
+                if (b.life > 0f)
+                {
+                    for (int ki = rockets.Count - 1; ki >= 0; ki--)
+                    {
+                        var k = rockets[ki];
+                        if (!k.hostile) continue;
+                        var ab = b.pos - prev;
+                        float t = Mathf.Clamp01(Vector3.Dot(k.pos - prev, ab) / Mathf.Max(1e-6f, ab.sqrMagnitude));
+                        if ((prev + ab * t - k.pos).magnitude > 45f) continue;
+                        rocketsShotDown++;
+                        hitsLanded++;
+                        hitFlash = 1f;
+                        hitKill = true;
+                        Audio.Sure("kill_marker");
+                        if (game.explosions != null) game.explosions.Pop(k.pos, k.heading * k.spd * 0.2f);
+                        if (game.sparks != null) game.sparks.Burst(k.pos, 50, 220f, new Color(1f, 0.7f, 0.35f), 1.2f);
+                        k.node.gameObject.SetActive(false);
+                        rockets.RemoveAt(ki);
+                        b.life = 0f;
+                        break;
                     }
                 }
             }
