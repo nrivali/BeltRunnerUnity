@@ -1,0 +1,598 @@
+{
+  "asset": "cockpit_glass",
+  "version": "1.0.0",
+  "file": "cockpit_glass.glb",
+  "root_node": "cockpit_glass",
+  "companion": "cockpit_interior v2, unchanged",
+  "coordinates": {
+    "manifest": "Unscaled Unity ship frame, +X right, +Y up, +Z forward. Same frame as v2.",
+    "root_position": [
+      0,
+      0,
+      0
+    ],
+    "root_rotation_xyzw": [
+      0,
+      0,
+      0,
+      1
+    ],
+    "authored_scale": [
+      1,
+      1,
+      1
+    ],
+    "runtime_root_scale": 3,
+    "eye_unscaled_unity": [
+      0.0,
+      4.5,
+      5.0
+    ],
+    "unity_to_blender_matrix": [
+      [
+        -1.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        -1.0
+      ],
+      [
+        0.0,
+        1.0,
+        0.0
+      ]
+    ],
+    "glTFast": "Standard X reflection and V flip only; no extra rotation or axis correction.",
+    "camera_near_unscaled": 0.6666666666666666
+  },
+  "material": {
+    "name": "Canopy_glass_clear",
+    "base_color_rgba": [
+      0.96,
+      0.98,
+      1,
+      0.06
+    ],
+    "metallic": 0,
+    "roughness": 0.05,
+    "alpha_mode": "BLEND",
+    "double_sided": false,
+    "emission": [
+      0,
+      0,
+      0
+    ],
+    "transmission_extension": false
+  },
+  "panes": [
+    {
+      "node": "canopy_glass_front",
+      "material": "Canopy_glass_clear",
+      "bounds_unscaled_unity": {
+        "min": [
+          -3.1481738090515137,
+          3.4647793769836426,
+          8.070569038391113
+        ],
+        "max": [
+          3.1481738090515137,
+          6.533503532409668,
+          9.207475662231445
+        ]
+      },
+      "bounds_blender": {
+        "min": [
+          -3.1481738090515137,
+          -9.207475662231445,
+          3.4647793769836426
+        ],
+        "max": [
+          3.1481738090515137,
+          -8.070569038391113,
+          6.533503532409668
+        ]
+      },
+      "corners_unscaled_unity": [
+        [
+          -3.1481738090515137,
+          3.4647793769836426,
+          9.207475662231445
+        ],
+        [
+          3.1481738090515137,
+          3.4647793769836426,
+          9.207475662231445
+        ],
+        [
+          2.7414755821228027,
+          6.533503532409668,
+          8.070569038391113
+        ],
+        [
+          -2.7414755821228027,
+          6.533503532409668,
+          8.070569038391113
+        ]
+      ],
+      "plane_unscaled_unity": {
+        "normal_toward_eye": [
+          -0.0,
+          -0.3474063575267792,
+          -0.937714695930481
+        ],
+        "point": [
+          -3.1481738090515137,
+          3.4647793769836426,
+          9.207475662231445
+        ],
+        "equation": "dot(normal_toward_eye, P - point) = 0"
+      },
+      "uv": {
+        "type": "perspective flat projection from pilot eye, continuous single island",
+        "origin": "lower left in the view facing this pane",
+        "u": "pilot right",
+        "v": "up",
+        "eye_unscaled_unity": [
+          0.0,
+          4.5,
+          5.0
+        ],
+        "view_forward": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "view_right": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "view_up": [
+          0,
+          1,
+          0
+        ],
+        "projected_min": [
+          -0.8928232789039612,
+          -0.24604319036006927
+        ],
+        "projected_max": [
+          0.8928232789039612,
+          0.6622563004493713
+        ],
+        "formula": "q=P-eye; s=dot(q,right)/dot(q,forward); t=dot(q,up)/dot(q,forward); UV=((s-min.x)/(max.x-min.x),(t-min.y)/(max.y-min.y))",
+        "inverse": "d=forward + right*lerp(min.x,max.x,u) + up*lerp(min.y,max.y,v); P=eye + d*dot(plane.normal,plane.point-eye)/dot(plane.normal,d)",
+        "corner_uv": [
+          [
+            0.08097340479501386,
+            -1.8127982412277534e-09
+          ],
+          [
+            0.9190265952049862,
+            -1.8127982412277534e-09
+          ],
+          [
+            1.000000011885108,
+            1.0000000119877965
+          ],
+          [
+            -1.1885108147739458e-08,
+            1.0000000119877965
+          ]
+        ],
+        "raw_gltf_uv": "(u, 1-v); Blender exporter flips V, glTFast Jobs.ConvertUVsFloatToFloatInterleavedJob flips it back",
+        "maximum_interpolation_error_texels_at_1024": 0.12481689453125
+      },
+      "vertices": 1089,
+      "triangles": 2048,
+      "minimum_sampled_clearance_unscaled": 0.0664968490600586,
+      "surface_offset_from_reference_plane_unscaled": 0.10314861534231229
+    },
+    {
+      "node": "canopy_glass_left",
+      "material": "Canopy_glass_clear",
+      "bounds_unscaled_unity": {
+        "min": [
+          -3.039780616760254,
+          3.4830219745635986,
+          4.699010848999023
+        ],
+        "max": [
+          -2.6529672145843506,
+          6.401703357696533,
+          8.905590057373047
+        ]
+      },
+      "bounds_blender": {
+        "min": [
+          2.6529672145843506,
+          -8.905590057373047,
+          3.4830219745635986
+        ],
+        "max": [
+          3.039780616760254,
+          -4.699010848999023,
+          6.401703357696533
+        ]
+      },
+      "corners_unscaled_unity": [
+        [
+          -3.039780378341675,
+          3.4830219745635986,
+          4.699010848999023
+        ],
+        [
+          -3.039780378341675,
+          3.4830219745635986,
+          8.905590057373047
+        ],
+        [
+          -2.6529672145843506,
+          6.401703357696533,
+          7.824272155761719
+        ],
+        [
+          -2.6644506454467773,
+          6.315054893493652,
+          4.699010848999023
+        ]
+      ],
+      "plane_unscaled_unity": {
+        "normal_toward_eye": [
+          0.991331934928894,
+          -0.1313813477754593,
+          -0.0
+        ],
+        "point": [
+          -3.039780378341675,
+          3.4830219745635986,
+          4.699010848999023
+        ],
+        "equation": "dot(normal_toward_eye, P - point) = 0"
+      },
+      "uv": {
+        "type": "perspective flat projection from pilot eye, continuous single island",
+        "origin": "lower left in the view facing this pane",
+        "u": "pilot right",
+        "v": "up",
+        "eye_unscaled_unity": [
+          0.0,
+          4.5,
+          5.0
+        ],
+        "view_forward": [
+          -1.0,
+          0.0,
+          0.0
+        ],
+        "view_right": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "view_up": [
+          0,
+          1,
+          0
+        ],
+        "projected_min": [
+          -0.11296476423740387,
+          -0.3345564007759094
+        ],
+        "projected_max": [
+          1.2848265171051025,
+          0.7168212532997131
+        ],
+        "formula": "q=P-eye; s=dot(q,right)/dot(q,forward); t=dot(q,up)/dot(q,forward); UV=((s-min.x)/(max.x-min.x),(t-min.y)/(max.y-min.y))",
+        "inverse": "d=forward + right*lerp(min.x,max.x,u) + up*lerp(min.y,max.y,v); P=eye + d*dot(plane.normal,plane.point-eye)/dot(plane.normal,d)",
+        "corner_uv": [
+          [
+            0.009978643651163707,
+            -1.3426080605698644e-08
+          ],
+          [
+            1.0000000337109964,
+            -1.3426080605698644e-08
+          ],
+          [
+            0.8424260947057541,
+            1.0000000265213187
+          ],
+          [
+            1.931455092263034e-09,
+            0.9661305991845357
+          ]
+        ],
+        "raw_gltf_uv": "(u, 1-v); Blender exporter flips V, glTFast Jobs.ConvertUVsFloatToFloatInterleavedJob flips it back",
+        "maximum_interpolation_error_texels_at_1024": 0.04388427734375
+      },
+      "vertices": 1089,
+      "triangles": 2048,
+      "minimum_sampled_clearance_unscaled": 0.03600454330444336,
+      "surface_offset_from_reference_plane_unscaled": 0.2775729331113127
+    },
+    {
+      "node": "canopy_glass_right",
+      "material": "Canopy_glass_clear",
+      "bounds_unscaled_unity": {
+        "min": [
+          2.6529672145843506,
+          3.4830219745635986,
+          4.699010848999023
+        ],
+        "max": [
+          3.039780616760254,
+          6.401703357696533,
+          8.905590057373047
+        ]
+      },
+      "bounds_blender": {
+        "min": [
+          -3.039780616760254,
+          -8.905590057373047,
+          3.4830219745635986
+        ],
+        "max": [
+          -2.6529672145843506,
+          -4.699010848999023,
+          6.401703357696533
+        ]
+      },
+      "corners_unscaled_unity": [
+        [
+          3.039780378341675,
+          3.4830219745635986,
+          8.905590057373047
+        ],
+        [
+          3.039780378341675,
+          3.4830219745635986,
+          4.699010848999023
+        ],
+        [
+          2.6644506454467773,
+          6.315054893493652,
+          4.699010848999023
+        ],
+        [
+          2.6529672145843506,
+          6.401703357696533,
+          7.824272155761719
+        ]
+      ],
+      "plane_unscaled_unity": {
+        "normal_toward_eye": [
+          -0.991331934928894,
+          -0.1313813477754593,
+          -0.0
+        ],
+        "point": [
+          3.039780378341675,
+          3.4830219745635986,
+          8.905590057373047
+        ],
+        "equation": "dot(normal_toward_eye, P - point) = 0"
+      },
+      "uv": {
+        "type": "perspective flat projection from pilot eye, continuous single island",
+        "origin": "lower left in the view facing this pane",
+        "u": "pilot right",
+        "v": "up",
+        "eye_unscaled_unity": [
+          0.0,
+          4.5,
+          5.0
+        ],
+        "view_forward": [
+          1.0,
+          0.0,
+          0.0
+        ],
+        "view_right": [
+          0.0,
+          0.0,
+          -1.0
+        ],
+        "view_up": [
+          0,
+          1,
+          0
+        ],
+        "projected_min": [
+          -1.2848265171051025,
+          -0.3345564007759094
+        ],
+        "projected_max": [
+          0.11296476423740387,
+          0.7168212532997131
+        ],
+        "formula": "q=P-eye; s=dot(q,right)/dot(q,forward); t=dot(q,up)/dot(q,forward); UV=((s-min.x)/(max.x-min.x),(t-min.y)/(max.y-min.y))",
+        "inverse": "d=forward + right*lerp(min.x,max.x,u) + up*lerp(min.y,max.y,v); P=eye + d*dot(plane.normal,plane.point-eye)/dot(plane.normal,d)",
+        "corner_uv": [
+          [
+            -2.3050491045206948e-08,
+            -1.3426080605698644e-08
+          ],
+          [
+            0.9900213670093416,
+            -1.3426080605698644e-08
+          ],
+          [
+            1.0000000087290501,
+            0.9661305991845357
+          ],
+          [
+            0.15757391595475118,
+            1.0000000265213187
+          ]
+        ],
+        "raw_gltf_uv": "(u, 1-v); Blender exporter flips V, glTFast Jobs.ConvertUVsFloatToFloatInterleavedJob flips it back",
+        "maximum_interpolation_error_texels_at_1024": 0.04150390625
+      },
+      "vertices": 1089,
+      "triangles": 2048,
+      "minimum_sampled_clearance_unscaled": 0.036004066467285156,
+      "surface_offset_from_reference_plane_unscaled": 0.2775729331113127
+    }
+  ],
+  "side_pane_note": "One continuous pane per side sits inboard of the existing mullion; the mullion stays untouched.",
+  "textures": [
+    {
+      "file": "textures/crack_light.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "impact_center_uv": [
+        0.5,
+        0.5
+      ],
+      "transparent_border_px": 112,
+      "color": "neutral grayscale RGB",
+      "alpha": "straight",
+      "wrap": "Clamp",
+      "intended_tier": "above 70%"
+    },
+    {
+      "file": "textures/crack_web.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "impact_center_uv": [
+        0.5,
+        0.5
+      ],
+      "transparent_border_px": 112,
+      "color": "neutral grayscale RGB",
+      "alpha": "straight",
+      "wrap": "Clamp",
+      "intended_tier": "40-70%"
+    },
+    {
+      "file": "textures/crack_shatter.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "impact_center_uv": [
+        0.5,
+        0.5
+      ],
+      "transparent_border_px": 112,
+      "color": "neutral grayscale RGB",
+      "alpha": "straight",
+      "wrap": "Clamp",
+      "intended_tier": "below 40%"
+    },
+    {
+      "file": "textures/scorch.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "impact_center_uv": [
+        0.5,
+        0.5
+      ],
+      "transparent_border_px": 112,
+      "color": "pure black RGB, alpha only",
+      "alpha": "straight",
+      "wrap": "Clamp",
+      "intended_tier": "damage scorch"
+    }
+  ],
+  "preview_placements": [
+    {
+      "file": "textures/crack_web.png",
+      "pane": "canopy_glass_front",
+      "center_uv": [
+        0.35,
+        0.49
+      ],
+      "size_uv": [
+        0.26,
+        0.5111398851492746
+      ],
+      "opacity_multiplier": 1,
+      "rotation_degrees": 0,
+      "preview_surface_offset_unscaled": 0.004
+    },
+    {
+      "file": "textures/scorch.png",
+      "pane": "canopy_glass_front",
+      "center_uv": [
+        0.7,
+        0.52
+      ],
+      "size_uv": [
+        0.24,
+        0.47182143244548413
+      ],
+      "opacity_multiplier": 0.7,
+      "rotation_degrees": 0,
+      "preview_surface_offset_unscaled": 0.004
+    },
+    {
+      "file": "textures/crack_light.png",
+      "pane": "canopy_glass_left",
+      "center_uv": [
+        0.52,
+        0.49
+      ],
+      "size_uv": [
+        0.32,
+        0.42543533574954406
+      ],
+      "opacity_multiplier": 0.6,
+      "rotation_degrees": 0,
+      "preview_surface_offset_unscaled": 0.004
+    },
+    {
+      "file": "textures/crack_shatter.png",
+      "pane": "canopy_glass_right",
+      "center_uv": [
+        0.52,
+        0.49
+      ],
+      "size_uv": [
+        0.34,
+        0.4520250442338906
+      ],
+      "opacity_multiplier": 0.8,
+      "rotation_degrees": 0,
+      "preview_surface_offset_unscaled": 0.004
+    }
+  ],
+  "source_v2_blend_sha256": "e379ed15a537eb09394d86e3ed4f7ba85a9dedb70aff89f1deea640231f5afc7",
+  "previews": [
+    {
+      "file": "preview-eye-72.png",
+      "vertical_fov_degrees": 72,
+      "yaw_degrees": 0,
+      "pitch_down_degrees": 0
+    },
+    {
+      "file": "preview-eye-52.png",
+      "vertical_fov_degrees": 52,
+      "yaw_degrees": 0,
+      "pitch_down_degrees": 4
+    },
+    {
+      "file": "preview-left.png",
+      "vertical_fov_degrees": 72,
+      "yaw_degrees": -70,
+      "pitch_down_degrees": 0
+    },
+    {
+      "file": "preview-right.png",
+      "vertical_fov_degrees": 72,
+      "yaw_degrees": 70,
+      "pitch_down_degrees": 0
+    }
+  ],
+  "preview_note": "Blender inspection renders of actual panes and PNGs. Neutral blue backdrop and review lights only; not an in-game screenshot. Decals, cameras and lights excluded from GLB."
+}

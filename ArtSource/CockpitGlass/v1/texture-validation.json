@@ -1,0 +1,83 @@
+{
+  "status": "PASS",
+  "mode": "Built-in imagegen artwork; deterministic texture format export",
+  "assets": [
+    {
+      "file": "textures/crack_light.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "channels": "RGBA, straight alpha",
+      "visible_bounds_inclusive": [
+        247,
+        332,
+        689,
+        706
+      ],
+      "outer_10_percent_nontransparent_pixels": 0,
+      "non_grayscale_pixels": 0,
+      "alpha_max": 232,
+      "nonzero_alpha_fraction": 0.007599830627441406,
+      "transparent_pixels_in_center_178px_square": 27388
+    },
+    {
+      "file": "textures/crack_web.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "channels": "RGBA, straight alpha",
+      "visible_bounds_inclusive": [
+        128,
+        157,
+        897,
+        851
+      ],
+      "outer_10_percent_nontransparent_pixels": 0,
+      "non_grayscale_pixels": 0,
+      "alpha_max": 255,
+      "nonzero_alpha_fraction": 0.08856964111328125,
+      "transparent_pixels_in_center_178px_square": 3885
+    },
+    {
+      "file": "textures/crack_shatter.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "channels": "RGBA, straight alpha",
+      "visible_bounds_inclusive": [
+        112,
+        123,
+        900,
+        911
+      ],
+      "outer_10_percent_nontransparent_pixels": 0,
+      "non_grayscale_pixels": 0,
+      "alpha_max": 255,
+      "nonzero_alpha_fraction": 0.2664680480957031,
+      "transparent_pixels_in_center_178px_square": 499
+    },
+    {
+      "file": "textures/scorch.png",
+      "size": [
+        1024,
+        1024
+      ],
+      "channels": "RGBA, straight alpha",
+      "visible_bounds_inclusive": [
+        112,
+        124,
+        902,
+        911
+      ],
+      "outer_10_percent_nontransparent_pixels": 0,
+      "non_grayscale_pixels": 0,
+      "alpha_max": 254,
+      "nonzero_alpha_fraction": 0.2156658172607422,
+      "transparent_pixels_in_center_178px_square": 0,
+      "scorch_rgb_black": true
+    }
+  ]
+}

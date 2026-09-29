@@ -87,14 +87,19 @@ public class CargoShip : MonoBehaviour
             return Vector3.zero;
         }
         var prev = truePos;
-        if (station && game != null && game.outpost != null && game.outpost.built)
+        if (station && game != null)
         {
-            float k = 1f - Mathf.Exp(-0.5f * dt);
-            truePos = Vector3.Lerp(truePos, game.outpost.StationPos(), k);
-            basisQ = Quaternion.Slerp(basisQ, HeadingAlong(game.outpost.pos - truePos), k);
-            Place();
-            vel = (truePos - prev) / Mathf.Max(dt, 1e-4f);
-            return truePos - prev;
+            // on station: eased onto the point the game names (off the raider outpost, or on the battlefield facing the enemy, 2026-09-21)
+            Vector3 at, look;
+            if (game.StationTarget(out at, out look))
+            {
+                float k = 1f - Mathf.Exp(-0.5f * dt);
+                truePos = Vector3.Lerp(truePos, at, k);
+                basisQ = Quaternion.Slerp(basisQ, HeadingAlong(look - truePos), k);
+                Place();
+                vel = (truePos - prev) / Mathf.Max(dt, 1e-4f);
+                return truePos - prev;
+            }
         }
         ang -= (speed / orbit) * dt;
         Place();

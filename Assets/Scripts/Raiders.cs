@@ -11,24 +11,31 @@ using UnityEngine;
 public class Raiders
 {
     public const float SAFE_R = 9000f;      // cargo ship gun cover: raiders die here and never engage inside it
-    public const float ENGAGE = 9000f;      // aggressive: they come for a ship 1,125 m out
-    public const float GIVE_UP = 14000f;
-    public const float BOLT_SPEED = 2600f;  // a raider's bolt
-    public const float RAIDER_DMG = 4f;      // a raider bolt: half the player's base gun
-    public const float RAIDER_REACH = 6000f; // raiders open fire from 750 m; their bolt lives long enough to get there
-    public const float RAIDER_BOLT_LIFE = 2.6f;
-    public const float PLAYER_BOLT_SPEED = 5000f;   // the player's bolt is faster: PLAYER_BOLT_LIFE of flight covers 11,000 u, past the 10,000 u gun reach
-    public const float PLAYER_BOLT_LIFE = 2.2f;
+    public const float ENGAGE = 16000f;     // aggressive: they come for a ship 2,000 m out (9,000 u until 2026-09-21, the 500 m/s rebalance)
+    public const float GIVE_UP = 26000f;
+    public const float BOLT_SPEED = 32000f;  // a raider bolt, as fast as the player one (2026-09-23, doubled; 16,000 from 2026-09-22 (9,000 until 2026-09-22: a turning ship out-ran the lead; 2,600 before the speeds)
+    public static readonly float RAIDER_DMG = Data.UPGRADES["gun"].levels[0].mult;   // the player's own base autocannon damage, 8 (2026-09-23, one for one; 6 from 2026-09-22, 4 before)
+    public const float RAIDER_REACH = 8000f;   // 1,000 m, the player's own reach (2026-09-23; 10,000 for two days, 6,000 before the speeds) // raiders open fire from 750 m; their bolt lives long enough to get there
+    public const float RAIDER_BOLT_LIFE = 0.4f;   // 12,800 u of flight (0.8 s at the old speed)
+    public const float WHOOSH_R = 500f, WHOOSH_R_HEAVY = 900f;   // a bolt passing inside this of the ship sounds its pass (2026-09-23); a turret shell further out
+    public const float RAIDER_R = 80f;   // a raider body against the rocks and the hulls (2026-09-23; 40 until the raider grew twice that day, 160 for an hour at four times)
+    public const float HEAVY_BOLT_LIFE = 0.8f;    // a battleship turret bolt: 22,400 u of flight at 28,000 u/s (doubled 2026-09-23), past the 14,000 u reach (2026-09-23, the staged battle; 6.4 s for the 80,000 u reach earlier that day)
+    public const float PLAYER_BOLT_SPEED = 32000f;   // the player bolt (doubled 2026-09-23): PLAYER_BOLT_LIFE of flight covers 9,600 u, past the 8,000 u gun reach (5,000 until 2026-09-21; the reach 10,000, then 20,000, until 2026-09-23)
+    public const float PLAYER_BOLT_LIFE = 0.3f;   // 0.6 at the old speed
     public const float RADIUS = 28f;    // the hull, for the reticle, ranges and the pick (the model is drawn at twice its original size)
-    public const float HIT_R = 60f;     // the hit box a bolt has to pass through: generous, the raider is fast; it covers the wing tips
+    public const float HIT_R = 120f;    // the hit box a bolt has to pass through, for the raider at twice its old size (2026-09-23; 240 for an hour, 60 before): generous, the raider is fast; it covers the wing tips
+    public const float SHIP_HIT_R = Data.SHIP_R * 1.9f;   // the ship's box for enemy fire, 91 u (1.5, 72 u, for a day) (2026-09-22, the user's: "I don't seem to be getting hit at all"): it was SHIP_R × 0.8, 38 u, a third of what the raiders get for their size
     // a raider flies like a ship: it turns no faster than this, and speeds up and slows down no harder than this
-    public const float TURN_RATE = 30f * Mathf.Deg2Rad;   // the same as the player's ship
-    public const float ACCEL = 220f;
-    public const float DECEL = 320f;
+    public const float TURN_RATE = Ship.TURN;   // the player's own turn, whatever it is set to (2026-09-23, one for one; 30 degrees a second before)
+    public static readonly float ACCEL = Data.UPGRADES["engine"].levels[0].thrust;   // the player's own thrust, 1,050 (2026-09-23, one for one; 1,100 before)
+    public const float DECEL = 1600f;
 
     public class Raider
     {
         public Vector3 pos, vel, home, wp;
+        public List<int> nearRocks;      // the rocks about it, looked up twice a second, for the flying (2026-09-23)
+        public float rocksT = -100f;
+        public Vector3 rocksAt;
         public Transform node;
         public Material exhaust;
         public Transform exhaustNode;
@@ -41,10 +48,11 @@ public class Raiders
         public bool dead;
         public bool frozen;   // the combat test: holds its place (still turns to face the ship and fires)
         public bool ambush;   // a wandering raider (2026-09-19): it came for the ship out in the belt and goes for good once it gives up
+        public int team = 1;  // the battlefield (2026-09-21): 1 a raider (theirs), 0 a wingman (ours); everything is a raider but on The Front
         public float idleT;   // how long an ambush raider has stood idle, for its removal
         // the attack: a run in (weaving), a strafing pass at a radius and direction of its own, a breakaway, then again
         public string move = "run";
-        public float moveT, orbitR = 400f, orbitDir = 1f, weave;
+        public float moveT, orbitR = 1400f, orbitDir = 1f, weave;
         // the jink: a burst sideways when a bolt is coming, with a cooldown so it is not perfect
         public float dodgeT, dodgeCd;
         public Vector3 dodgeDir;
@@ -63,6 +71,13 @@ public class Raiders
         public float life, dmg;
         public bool player;
         public float speed;   // a raider's BOLT_SPEED, the player's PLAYER_BOLT_SPEED, or the outpost turrets' faster one (2026-09-19)
+        public int team = 1;  // whose bolt (2026-09-21): 0 ours (the player's, a wingman's, our battleship's), 1 theirs
+        public bool heavy;    // a battleship turret's (2026-09-22): drawn three times the size, in orange-white, so the fire reads at range
+        public string by;     // who fired it, for the kill feed (2026-09-22): You, Wingman, Raider, Our turret, Enemy turret
+        public Raider shooter;   // the raider that fired it, for the attacker's waypoint (2026-09-23)
+        public Vector3 origin;   // where it was fired from, for the same when a turret fired it
+        public float lastD;      // its distance from the ship last frame, and whether its pass has sounded (2026-09-23)
+        public bool whooshed;
     }
 
     public Game game;
@@ -72,7 +87,7 @@ public class Raiders
     public float nearest = 1e9f;    // the nearest living raider's distance from the ship (for its engine sound)
     public bool nearestBoosting;
     public float nearestBoost = 1e9f;   // the nearest boosting raider's distance (for the afterburner roar)
-    public int kills, shotsFired, hitsTaken;   // for the smoke run
+    public int kills, shotsFired, hitsTaken, passes;   // for the smoke run (passes: bolts heard going past, 2026-09-23)
     public int hitsLanded;
     public int rocketsFired, rocketKills;
     public float hitFlash;    // the hit marker: 1 the frame a player bolt lands, fading over HIT_FLASH seconds
@@ -103,13 +118,14 @@ public class Raiders
         public Raider target;
         public Transform node;
         public bool hostile;   // the outpost's (2026-09-19): it chases the ship, or a flare that has drawn it off
+        public Vector3 origin;  // where it was launched from, for the attacker's waypoint (2026-09-23)
         public Flare flare;
     }
-    public const float ROCKET_SPEED = 2400f, ROCKET_ACCEL = 1800f, ROCKET_KICK = 300f, ROCKET_TURN = 70f * Mathf.Deg2Rad, ROCKET_LIFE = 12f, ROCKET_HIT_R = 70f;
+    public const float ROCKET_SPEED = 8000f, ROCKET_ACCEL = 6000f, ROCKET_KICK = 1000f, ROCKET_TURN = 70f * Mathf.Deg2Rad, ROCKET_LIFE = 12f, ROCKET_HIT_R = 140f;   // the hit sphere on a raider twice its old size (90 until 2026-09-23, 200 for an hour)
     // ---- hostile rockets and flares (2026-09-19, the user's: the outpost fires seekers, the ship gets a countermeasure)
     public const float HOSTILE_ROCKET_DMG = 22f;     // a hit on the ship: most of a base shield, or nearly half a base hull
     public const float HOSTILE_ROCKET_TURN = 55f * Mathf.Deg2Rad;   // a little slower round than the player's, so a hard turn at the last moment can throw one
-    public const float FLARE_LIFE = 6f, FLARE_LURE = 3500f;   // a flare burns 6 s and draws every hostile rocket within 3,500 u (437 m) of the ship
+    public const float FLARE_LIFE = 6f, FLARE_LURE = 8000f;   // a flare burns 6 s and draws every hostile rocket within 8,000 u (1,000 m) of the ship (3,500 until the 2026-09-21 speeds)
     public const float FLARE_TAKE = 0.85f;           // a rocket falls for a flare this often
     public class Flare { public Vector3 pos, vel; public float life; public Transform node; }
     public readonly List<Flare> flares = new List<Flare>();
@@ -131,9 +147,11 @@ public class Raiders
     // ship, already on the attack. The wait between them is AMBUSH_MIN to AMBUSH_MAX seconds of flight, shortened by the
     // zone's danger; only time flying clear of the cargo ship's cover counts
     public const float AMBUSH_MIN = 150f, AMBUSH_MAX = 300f;
-    public const float AMBUSH_NEAR = 5000f, AMBUSH_FAR = 7000f;
+    public const float AMBUSH_NEAR = 12000f, AMBUSH_FAR = 16000f;
     float _ambushT = -1f;
-    bool _hub;
+    bool _hub, _battle;   // the zone: the Hub has no raiders; a battlefield (2026-09-21) has no holds, no ambushes and no gun cover, its fighters come from the hangars
+    Material _trimAlly;
+    Material _boltHeavy, _boltGlowHeavy;   // a battleship turret's bolt (2026-09-22)
     public int ambushes;   // sprung so far, for the log
 
     public Raiders(Game g)
@@ -148,6 +166,10 @@ public class Raiders
         _trim.color = Data.Hex("#ff2e63");
         _trim.EnableKeyword("_EMISSION");
         _trim.SetColor("_EmissionColor", Data.Hex("#ff2e63") * 1.5f);
+        _trimAlly = new Material(Game.Sh("Standard"));   // a wingman's trim (2026-09-21)
+        _trimAlly.color = Ui.CYAN;
+        _trimAlly.EnableKeyword("_EMISSION");
+        _trimAlly.SetColor("_EmissionColor", Ui.CYAN * 1.5f);
         // the raiders' bolts are amber; the player's are a hot red with a glow round each, so they read at range
         _boltRed = new Material(Game.Sh("BeltRunner/Spark"));
         _boltRed.SetColor("_Color", new Color(1f, 0.62f, 0.22f, 0.9f));
@@ -155,6 +177,9 @@ public class Raiders
         _boltCyan.SetColor("_Color", new Color(1f, 0.22f, 0.16f, 1f));
         _boltGlowPlayer = Ship.SoftMaterial(new Color(1f, 0.18f, 0.12f, 0.6f));
         _boltGlowRaider = Ship.SoftMaterial(new Color(1f, 0.6f, 0.2f, 0.4f));
+        _boltHeavy = new Material(Game.Sh("BeltRunner/Spark"));   // a battleship turret's bolt (2026-09-22): orange-white, with a big glow
+        _boltHeavy.SetColor("_Color", new Color(1f, 0.85f, 0.55f, 1f));
+        _boltGlowHeavy = Ship.SoftMaterial(new Color(1f, 0.65f, 0.25f, 0.75f));
         // a rocket: a pale metal body, a hot amber exhaust and a small cyan seeker eye at the nose
         _rocketBody = new Material(Game.Sh("Standard"));
         _rocketBody.color = new Color(0.82f, 0.84f, 0.88f);
@@ -190,7 +215,8 @@ public class Raiders
         Clear();
         danger = zone.danger;
         _hub = zone.hub;
-        if (zone.hub || danger <= 0f) return;
+        _battle = zone.battle;
+        if (zone.hub || zone.battle || danger <= 0f) return;
         // a hold at some of the rich pockets (three, plus six per point of danger), never at all of them
         var pockets = new List<Belt.Field>();
         foreach (var f in belt.fields) if (f.pocket) pockets.Add(f);
@@ -207,11 +233,12 @@ public class Raiders
     }
 
     /// makePirate: a cone hull with swept wings, red trim tips, an eye and an exhaust glow (primitives, as the browser's).
-    public Raider Make(Vector3 pos, Vector3 home)
+    public Raider Make(Vector3 pos, Vector3 home, int team = 1)
     {
-        var go = new GameObject("Raider");
+        var trim = team == 0 ? _trimAlly : _trim;   // a wingman (2026-09-21) wears cyan where a raider wears red
+        var go = new GameObject(team == 0 ? "Wingman" : "Raider");
         go.transform.SetParent(_root, false);
-        go.transform.localScale = Vector3.one * 2f;   // twice the size it was drawn at
+        go.transform.localScale = Vector3.one * 4f;   // four times the size it was drawn at: twice the raider of this morning (2026-09-23, the user asked, after an hour at eight; twice until then)
         var body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
         body.name = "Body";
         Object.Destroy(body.GetComponent<Collider>());
@@ -232,7 +259,7 @@ public class Raiders
             tip.transform.SetParent(go.transform, false);
             tip.transform.localPosition = new Vector3(sx * 15f, 0f, -10f);
             tip.transform.localScale = new Vector3(0.6f, 0.6f, 5f);
-            tip.GetComponent<MeshRenderer>().sharedMaterial = _trim;
+            tip.GetComponent<MeshRenderer>().sharedMaterial = trim;
         }
         var eye = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         eye.name = "Eye";
@@ -240,17 +267,17 @@ public class Raiders
         eye.transform.SetParent(go.transform, false);
         eye.transform.localPosition = new Vector3(0f, 2.5f, 4f);
         eye.transform.localScale = Vector3.one * 2.8f;
-        eye.GetComponent<MeshRenderer>().sharedMaterial = _trim;
+        eye.GetComponent<MeshRenderer>().sharedMaterial = trim;
         var ex = Ship.SoftMaterial(new Color(1f, 0.18f, 0.39f, 0.6f));
         var exNode = Ship.GlowQuad(go.transform, new Vector3(0f, 0f, -16f), 9f, ex, "Exhaust");
-        float hp = Mathf.Round(50f * Mathf.Max(1f, 0.5f + danger));       // 50 at Kessler's danger, more in a harder zone
-        float shield = Mathf.Round(50f * Mathf.Max(1f, 0.5f + danger));
+        float hp = Data.UPGRADES["hull"].levels[0].hp;   // the player's base hull, 50 (2026-09-23, one for one; scaled with the zone's danger before)
+        float shield = Data.SHIELD_MAX;                // and the player's base shield, 50
         raiders.Add(new Raider
         {
             pos = pos, home = home, wp = home, node = go.transform, exhaust = ex, exhaustNode = exNode, hp = hp, maxHp = hp, shield = shield, maxShield = shield, dmg = Mathf.Round(3f + 4f * danger),
-            heading = Random.onUnitSphere, spd = 120f,
-            gunDmg = RAIDER_DMG, gunRate = Data.UPGRADES["gun"].levels[0].rate, gunReach = RAIDER_REACH,   // the player's own base autocannon
-            a = Random.value * 6f, fireCd = Random.Range(1f, 2f), speed = 820f + danger * 90f, noShotLimit = Random.Range(3f, 5f), bounty = Mathf.Round(120f * danger + 80f), frozen = frozen,
+            heading = Random.onUnitSphere, spd = 500f,
+            gunDmg = RAIDER_DMG, gunRate = Data.UPGRADES["gun"].levels[0].rate, gunReach = Data.UPGRADES["gun"].levels[0].reach,   // the player's own base autocannon
+            a = Random.value * 6f, fireCd = Random.Range(1f, 2f), speed = Data.UPGRADES["engine"].levels[0].max, noShotLimit = Random.Range(3f, 5f), bounty = team == 0 ? 0f : Mathf.Round(120f * danger + 80f), frozen = frozen, team = team,
         });
         return raiders[raiders.Count - 1];
     }
@@ -271,7 +298,7 @@ public class Raiders
     /// behind or beside the ship, on the attack from the first frame, with the alarm.
     void TickAmbush(float dt, Vector3 sp, Ship ship)
     {
-        if (_hub) return;
+        if (_hub || _battle) return;
         float scale = 1f / (1f + danger);
         if (_ambushT < 0f) _ambushT = Random.Range(AMBUSH_MIN, AMBUSH_MAX) * scale;
         if (AnyAttacking || (game.outpost != null && game.outpost.engaged)) return;
@@ -316,6 +343,7 @@ public class Raiders
         float bd = float.PositiveInfinity;
         foreach (var r in raiders)
         {
+            if (r.team == 0) continue;   // a wingman is never the player's mark (2026-09-21)
             var to = r.pos - origin;
             float d = to.magnitude;
             if (d < 1f || d > maxDist || d >= bd) continue;
@@ -329,7 +357,7 @@ public class Raiders
     }
 
     /// A raider hit by the player: bounty and salvage on a kill.
-    public void Damage(Raider r, float dmg, Vector3 at)
+    public void Damage(Raider r, float dmg, Vector3 at, string by = "You")
     {
         if (r.dead) return;
         r.sinceHit = 0f;
@@ -337,13 +365,15 @@ public class Raiders
         r.shield -= toShield;
         r.hp -= dmg - toShield;
         if (game.sparks != null) game.sparks.Burst(at, 12, 180f, Data.Hex("#ff8a3a"), 1f);
-        if (r.hp <= 0f) Kill(r, true);
+        if (r.hp <= 0f) Kill(r, by == "You", false, by);   // only the player's own kill pays (2026-09-22: a wingman's, or a raider's on a wingman, used to)
     }
 
-    void Kill(Raider r, bool byPlayer, bool blast = false)
+    void Kill(Raider r, bool byPlayer, bool blast = false, string by = null)
     {
         r.dead = true;
         raiders.Remove(r);
+        if (game.battle != null) game.battle.OnKill(r, by ?? (byPlayer ? "You" : null));   // the field's meter (2026-09-23)
+        if (game.hud != null) game.hud.Feed((by ?? (byPlayer ? "You" : "The cargo ship's guns")) + " destroyed " + (r.team == 0 ? "a wingman" : "a raider") + (byPlayer && r.bounty > 0f ? " · +" + Data.Fmt(r.bounty) + " cr" : ""), r.team == 0);   // the kill feed (2026-09-22)
         if (r.node != null)
         {
             if (blast || Random.value < BLAST_CHANCE) Explode(r.node, r.pos, r.vel);
@@ -406,12 +436,22 @@ public class Raiders
         return t;
     }
 
-    public void Fire(Vector3 from, Vector3 dir, float dmg, bool player, float speed = 0f)
+    public void Fire(Vector3 from, Vector3 dir, float dmg, bool player, float speed = 0f, int team = -1, bool heavy = false)
     {
         if (speed <= 0f) speed = player ? PLAYER_BOLT_SPEED : BOLT_SPEED;
-        var b = new Bolt { pos = from, dir = dir.normalized, life = player ? PLAYER_BOLT_LIFE : RAIDER_BOLT_LIFE, dmg = dmg, player = player, speed = speed, node = BoltNode(player) };
+        if (team < 0) team = player ? 0 : 1;
+        string by = player ? "You" : heavy ? (team == 0 ? "Our turret" : "Enemy turret") : (team == 0 ? "Wingman" : "Raider");
+        var b = new Bolt { pos = from, dir = dir.normalized, life = player ? PLAYER_BOLT_LIFE : RAIDER_BOLT_LIFE, dmg = dmg, player = player, speed = speed, team = team, by = by, origin = from, node = BoltNode(player || team == 0) };
         b.node.rotation = Quaternion.FromToRotation(Vector3.up, b.dir);
         bolts.Add(b);
+        if (heavy)
+        {
+            // a battleship turret's bolt (2026-09-22, the user's: "make battleship turret fire more visible"): a thicker, longer core in orange-white with a bigger glow; BoltNode resets the node when it is reused
+            b.heavy = true;
+            b.life = HEAVY_BOLT_LIFE;
+            var hc = b.node.GetChild(0); hc.localScale = new Vector3(16f, 90f, 16f); hc.GetComponent<MeshRenderer>().sharedMaterial = _boltHeavy;   // 9 × 34 until 2026-09-23: "bigger and longer"
+            var hg = b.node.GetChild(1); hg.localScale = Vector3.one * 84f; hg.GetComponent<MeshRenderer>().sharedMaterial = _boltGlowHeavy;
+        }
         if (player)
         {
             shotsFired++;
@@ -421,7 +461,7 @@ public class Raiders
                 if (r.frozen || r.dodgeCd > 0f) continue;
                 var to = r.pos - from;
                 float along = Vector3.Dot(to, b.dir);
-                if (along < 0f || along > 2500f) continue;
+                if (along < 0f || along > 8000f) continue;
                 float miss = (to - b.dir * along).magnitude;
                 if (miss > Raiders.RADIUS + 110f) continue;
                 if (Random.value > 0.7f) { r.dodgeCd = 0.8f; continue; }   // caught flat-footed this time
@@ -493,7 +533,7 @@ public class Raiders
     public Rocket LaunchHostile(Vector3 from, Vector3 dir)
     {
         var d = dir.normalized;
-        var k = new Rocket { pos = from, heading = d, spd = 300f, life = ROCKET_LIFE, hostile = true, node = RocketNode() };
+        var k = new Rocket { pos = from, heading = d, spd = 1000f, life = ROCKET_LIFE, hostile = true, origin = from, node = RocketNode() };
         k.node.position = from - game.worldOffset;
         k.node.rotation = Quaternion.FromToRotation(Vector3.up, d);
         rockets.Add(k);
@@ -589,6 +629,19 @@ public class Raiders
             k.pos += k.heading * k.spd * dt;
             k.node.position = k.pos - off;
             k.node.rotation = Quaternion.FromToRotation(Vector3.up, k.heading);
+            // nothing is shot through (2026-09-23): a rocket that crossed a rock or a hull this frame goes off there
+            Vector3 blockAt;
+            if (Solids.Blocked(prev, k.pos, out blockAt))
+            {
+                k.pos = blockAt;
+                if (game.explosions != null) game.explosions.Pop(k.pos, Vector3.zero);
+                if (game.sparks != null) game.sparks.Burst(k.pos, 40, 200f, new Color(1f, 0.7f, 0.35f), 1.2f);
+                float bd0 = (k.pos - game.ship.TruePos).magnitude;
+                Audio.Play("hit", Mathf.Max(-24f, -2f + (bd0 <= 300f ? 0f : -20f * Mathf.Log10(bd0 / 300f))));
+                k.node.gameObject.SetActive(false);
+                rockets.RemoveAt(i);
+                continue;
+            }
             // the exhaust trail: a puff of smoke every few metres of flight, left behind and drifting
             k.smokeT -= dt;
             if (k.smokeT <= 0f && game.explosions != null) { k.smokeT = 0.07f; game.explosions.Smoke(k.pos - k.heading * 9f, k.heading * -30f + Random.insideUnitSphere * 8f); }
@@ -613,14 +666,14 @@ public class Raiders
                 {
                     var sp2 = game.ship.TruePos;
                     float ts = Mathf.Clamp01(Vector3.Dot(sp2 - prev, ab) / Mathf.Max(1e-6f, ab.sqrMagnitude));
-                    if (game.ship.CanFly && !game.ship.docked && (prev + ab * ts - sp2).magnitude < Data.SHIP_R * 1.2f)
+                    if (game.ship.CanFly && !game.ship.docked && (prev + ab * ts - sp2).magnitude < SHIP_HIT_R)
                     {
                         rocketHits++;
                         hitsTaken++;
                         if (game.sparks != null) game.sparks.Burst(k.pos, 120, 320f, new Color(1f, 0.6f, 0.25f), 1.6f, game.ship.vel);
                         if (game.explosions != null) game.explosions.Pop(k.pos, game.ship.vel);
                         Audio.Play("hit", 4f);
-                        game.ship.Hurt(HOSTILE_ROCKET_DMG, k.pos, "Rocket hit");
+                        game.ship.Hurt(HOSTILE_ROCKET_DMG, k.pos, "Rocket hit", null, k.origin, "Rocket battery");
                         hit = true;
                     }
                 }
@@ -647,7 +700,7 @@ public class Raiders
                     r.sinceHit = 0f;
                     r.shield = 0f;
                     r.hp = 0f;
-                    Kill(r, true, true);   // destroyed outright, on the spot
+                    Kill(r, true, true, "Your rocket");   // destroyed outright, on the spot
                     hit = true;
                     break;
                 }
@@ -694,7 +747,7 @@ public class Raiders
         TickFlares(dt, off);
         var sp = ship.TruePos;
         bool flying = game.started && !ship.docked && ship.warp == null && ship.cut == null;
-        bool nearDepot = carrier != null && !carrier.hold && (sp - carrier.truePos).magnitude < SAFE_R;
+        bool nearDepot = !_battle && carrier != null && !carrier.hold && (sp - carrier.truePos).magnitude < SAFE_R;   // no gun cover on the battlefield: our turrets are real there
         bool canAttack = flying && ship.CanFly && !nearDepot;
         if (canAttack) TickAmbush(dt, sp, ship);
         threat = 0;
@@ -705,10 +758,11 @@ public class Raiders
         {
             var r = raiders[i];
             float d = (r.pos - sp).magnitude;
+            float dShip = d;   // the raider to you, for what is heard: on the battlefield d becomes the raider to its mark below (2026-09-23)
             if (d < nearest) { nearest = d; nearestBoosting = r.boosting; }
             if (r.boosting && d < nearestBoost) nearestBoost = d;
             r.sinceHit += dt;
-            if (r.sinceHit >= 10f && r.shield < r.maxShield) r.shield = Mathf.Min(r.maxShield, r.shield + 10f * dt);
+            if (r.sinceHit >= Data.SHIELD_WAIT && r.shield < r.maxShield) r.shield = Mathf.Min(r.maxShield, r.shield + r.maxShield / 3f * dt);   // the same wait as the ship, 5 s (2026-09-23; its own 10 s before)
             if (r.state == "idle" && canAttack && d < ENGAGE)
             {
                 r.state = "attack";
@@ -721,11 +775,24 @@ public class Raiders
                 r.idleT = r.state == "idle" ? r.idleT + dt : 0f;
                 if (r.state == "idle" && (d > GIVE_UP * 1.5f || r.idleT > 30f)) { DropAmbusher(i); continue; }
             }
+            // the mark (2026-09-21): the ship, unless this is the battlefield, where the field names it (the player, a fighter
+            // of the other side or an exposed subsystem of the other battleship); a wingman outside a battle only idles
+            Vector3 tp = sp, tv = ship.vel;
+            bool battle = game.battle != null && game.battle.Active;
+            if (battle)
+            {
+                bool any;
+                tp = game.battle.PickTarget(r, out tv, out any);
+                r.state = any ? "attack" : "idle";
+                if (!any) r.wp = r.home;
+                d = (r.pos - tp).magnitude;
+            }
+            else if (r.team == 0) r.state = "idle";
             Vector3 desired;
             if (r.state == "attack")
             {
-                threat++;
-                var toShip = d > 1f ? (sp - r.pos) / d : Vector3.forward;
+                if (r.team == 1) threat++;
+                var toShip = d > 1f ? (tp - r.pos) / d : Vector3.forward;
                 var side = Vector3.Cross(toShip, Vector3.up);
                 if (side.sqrMagnitude < 1e-4f) side = Vector3.Cross(toShip, Vector3.right);
                 side.Normalize();
@@ -734,15 +801,15 @@ public class Raiders
                 if (r.move == "run")
                 {
                     // the run in: toward the ship, weaving side to side (less as it closes, so the guns line up), until close
-                    float wv = Mathf.Clamp01(d / 1500f);
-                    desired = sp + side * Mathf.Sin(r.weave) * 260f * wv + Vector3.up * Mathf.Sin(r.weave * 0.6f) * 90f * wv;
-                    if (d < 600f)
+                    float wv = Mathf.Clamp01(d / 5000f);
+                    desired = tp + side * Mathf.Sin(r.weave) * 260f * wv + Vector3.up * Mathf.Sin(r.weave * 0.6f) * 90f * wv;
+                    if (d < 2000f)
                     {
                         // the pass (2026-09-15, the user's call: no circling, no following): straight on past the ship, offset
                         // to one side, guns going while the nose is on it, then out to get room for the next run
                         r.move = "strafe";
                         r.orbitDir = Random.value < 0.5f ? -1f : 1f;
-                        r.longTo = sp + toShip * 1800f + side * r.orbitDir * 260f + Vector3.up * Random.Range(-120f, 120f);
+                        r.longTo = tp + toShip * 6000f + side * r.orbitDir * 800f + Vector3.up * Random.Range(-400f, 400f);
                         r.moveT = 1.8f;
                     }
                 }
@@ -750,7 +817,7 @@ public class Raiders
                 {
                     // the pass: through and past, no turning back toward the ship
                     desired = r.longTo;
-                    bool past = Vector3.Dot(sp - r.pos, r.heading) < 0f;   // the ship is behind the nose now
+                    bool past = Vector3.Dot(tp - r.pos, r.heading) < 0f;   // the ship is behind the nose now
                     if (r.moveT <= 0f || (past && d > 350f))
                     {
                         if (Random.value < 0.85f)
@@ -759,8 +826,8 @@ public class Raiders
                             // run back in, guns going as soon as the nose is on you
                             r.move = "long";
                             var away = -toShip + side * Random.Range(-0.8f, 0.8f) + Vector3.up * Random.Range(-0.3f, 0.3f);
-                            float reach = Random.Range(2500f, 5000f);
-                            r.longTo = sp + away.normalized * reach;
+                            float reach = Random.Range(5000f, 9000f);
+                            r.longTo = tp + away.normalized * reach;
                             r.moveT = reach / r.speed * 1.6f;
                         }
                         else
@@ -773,23 +840,23 @@ public class Raiders
                 else if (r.move == "long")
                 {
                     // the long run, weaving a little; over when the point is reached or the time is up
-                    desired = r.longTo + side * Mathf.Sin(r.weave) * 150f;
-                    if ((r.longTo - r.pos).magnitude < 400f || r.moveT <= 0f) { r.move = "run"; r.moveT = 0f; }
+                    desired = r.longTo + side * Mathf.Sin(r.weave) * 500f;
+                    if ((r.longTo - r.pos).magnitude < 1200f || r.moveT <= 0f) { r.move = "run"; r.moveT = 0f; }
                 }
                 else
                 {
                     // the breakaway: out to 1,600 u off to one side, then a fresh run
-                    desired = sp - toShip * 1000f + side * r.orbitDir * 500f + Vector3.up * Mathf.Sin(r.weave * 0.5f) * 200f;
-                    if (r.moveT <= 0f || d > 1300f) { r.move = "run"; r.moveT = 0f; }
+                    desired = tp - toShip * 3000f + side * r.orbitDir * 1500f + Vector3.up * Mathf.Sin(r.weave * 0.5f) * 600f;
+                    if (r.moveT <= 0f || d > 4000f) { r.move = "run"; r.moveT = 0f; }
                 }
                 // the jink: a hard turn aside, as hard as the ship can turn
                 r.dodgeCd -= dt;
-                if (r.dodgeT > 0f) { r.dodgeT -= dt; desired = r.pos + r.dodgeDir * 900f; }
+                if (r.dodgeT > 0f) { r.dodgeT -= dt; desired = r.pos + r.dodgeDir * 3000f; }
                 r.fireCd -= dt;
                 // the guns are fixed forward: a raider only fires when its nose is on the ship (within 20 degrees)
-                bool facing = Vector3.Dot(r.node.forward, (sp - r.pos).normalized) > Mathf.Cos(25f * Mathf.Deg2Rad);
+                bool facing = Vector3.Dot(r.node.forward, (tp - r.pos).normalized) > Mathf.Cos(40f * Mathf.Deg2Rad);   // 25 degrees until 2026-09-22: at 2,000 u/s the passes were too brief to shoot
                 // close in and unable to bring the guns to bear for 3 to 5 s: stop tangling and go out for room
-                if (facing || d > 1500f || r.move == "long") r.noShotT = 0f;
+                if (facing || d > 5000f || r.move == "long") r.noShotT = 0f;
                 else
                 {
                     r.noShotT += dt;
@@ -797,24 +864,25 @@ public class Raiders
                     {
                         r.move = "long";
                         var away = -toShip + side * Random.Range(-0.8f, 0.8f) + Vector3.up * Random.Range(-0.3f, 0.3f);
-                        float reach = Random.Range(2500f, 5000f);
-                        r.longTo = sp + away.normalized * reach;
+                        float reach = Random.Range(5000f, 9000f);
+                        r.longTo = tp + away.normalized * reach;
                         r.moveT = reach / r.speed * 1.6f;
                         r.noShotT = 0f;
                         r.noShotLimit = Random.Range(3f, 5f);
                     }
                 }
-                if (r.fireCd <= 0f && d < r.gunReach && facing && !holdFire)   // the player's own gun: its range, its rate, its damage
+                if (r.fireCd <= 0f && d < r.gunReach && facing && !holdFire && !Solids.Blocked(r.pos, tp, out _))   // the player's own gun: its range, its rate, its damage; never through a rock or a hull (2026-09-23)
                 {
                     r.fireCd = 1f / r.gunRate;
                     // a rough gunner: the lead is over- or under-estimated shot by shot, and the spread is wide (about 5 degrees)
-                    float spread = 0.09f;
-                    float leadErr = Random.Range(0.55f, 1.15f);
-                    var dir = (sp + ship.vel * (d / BOLT_SPEED) * leadErr - r.pos).normalized + new Vector3(Random.Range(-spread, spread), Random.Range(-spread, spread), Random.Range(-spread, spread));
-                    Fire(r.pos, dir.normalized, r.gunDmg, false);
+                    float spread = 0.02f;   // about 1.1 degrees (0.09, about 5, until 2026-09-22, then 0.04 for a day: at the new ranges nothing landed)
+                    float leadErr = Random.Range(0.9f, 1.1f);   // a good gunner (0.55 to 1.15 until 2026-09-22)
+                    var dir = (tp + tv * (d / BOLT_SPEED) * leadErr - r.pos).normalized + new Vector3(Random.Range(-spread, spread), Random.Range(-spread, spread), Random.Range(-spread, spread));
+                    Fire(r.pos, dir.normalized, r.gunDmg, false, 0f, r.team);   // its own side's bolt: a wingman's was tagged as a raider's and hit the player (fixed 2026-09-22)
+                    bolts[bolts.Count - 1].shooter = r;
                     // the same blaster as the player's, quieter with distance: 6 dB a doubling beyond 300 u, silent past 30 dB down
-                    float att = d <= 300f ? 0f : -20f * Mathf.Log10(d / 300f);
-                    if (att > -30f) Audio.Shot("blaster", att);
+                    float att = Audio.Falloff(dShip, 300f);   // by its distance from you, not from its mark (2026-09-23: a wingman's shot at a raider far from you played at full); 8 dB a doubling past 300 u, gone past 2,850
+                    if (att > Audio.SILENT) Audio.Shot("blaster", att);
                 }
             }
             else
@@ -827,43 +895,59 @@ public class Raiders
             if (dist > 1f) want /= dist;
             if (r.frozen)
             {
-                SetBoost(r, false, d);
+                SetBoost(r, false, dShip);
                 r.vel = Vector3.zero;
                 r.spd = 0f;
-                if (r.state == "attack" && d > 1f) r.heading = RotateTowards(r.heading, (sp - r.pos) / d, TURN_RATE * dt);
+                if (r.state == "attack" && d > 1f) r.heading = RotateTowards(r.heading, (tp - r.pos) / d, TURN_RATE * dt);
                 r.node.rotation = Ship.LevelHeading(r.heading);
             }
             else
             {
                 // the flight model: the nose turns toward where it wants to go no faster than a ship could, the throttle
                 // works against thrust and braking limits, and the raider only ever moves along its nose
+                // nothing is flown through (2026-09-23, the user's): the rocks about it, looked up twice a second, and the
+                // steer off whatever lies ahead along the nose, harder the nearer; the throttle back when it is right there
+                if (Time.time - r.rocksT > 0.5f || (r.pos - r.rocksAt).sqrMagnitude > 1500f * 1500f) { r.rocksT = Time.time; r.rocksAt = r.pos; r.nearRocks = game.belt != null ? game.belt.RocksNear(r.pos, 4500f) : null; }
+                var avoid = Solids.Avoid(r.pos, r.heading, RAIDER_R, Mathf.Clamp(r.spd * 1.5f, 600f, 4000f), r.nearRocks);
+                float avoidK = avoid.magnitude;
+                if (avoidK > 0.01f) want = (want + avoid * 2f).normalized;
                 r.heading = RotateTowards(r.heading, want, TURN_RATE * dt);
-                float wantSpd = r.state == "attack" ? r.speed : 300f;
+                float wantSpd = r.state == "attack" ? r.speed : 1000f;
                 if (r.state == "attack" && r.move == "strafe") wantSpd = Mathf.Min(wantSpd, r.orbitR * TURN_RATE * 0.9f);   // slow enough to hold the circle
                 if (r.state != "attack") wantSpd = Mathf.Min(wantSpd, Mathf.Max(60f, dist / 3f));   // ease up on the point (a long run is flown at full thrust)
                 float off2 = Vector3.Dot(r.heading, want);
-                if (off2 < 0.3f) wantSpd = Mathf.Min(wantSpd, 260f);   // pointing the wrong way: throttle back through the turn
+                if (off2 < 0.3f) wantSpd = Mathf.Min(wantSpd, 900f);   // pointing the wrong way: throttle back through the turn
+                if (avoidK > 0.6f) wantSpd = Mathf.Min(wantSpd, 700f);   // something close ahead: room to turn off it
                 // the boost: on a run in from far out or a long run out, nose on the mark, the throttle goes wide open
-                bool boost = r.state == "attack" && off2 > 0.8f && (r.move == "long" || (r.move == "run" && d > 900f));
+                bool boost = r.state == "attack" && off2 > 0.8f && avoidK < 0.3f && (r.move == "long" || (r.move == "run" && d > 3000f));
                 if (boost) wantSpd *= BOOST_MULT;
-                SetBoost(r, boost, d);
+                SetBoost(r, boost, dShip);
                 r.spd = r.spd < wantSpd ? Mathf.Min(wantSpd, r.spd + ACCEL * (boost ? 1.6f : 1f) * dt) : Mathf.Max(wantSpd, r.spd - DECEL * dt);
                 if (boost && game.explosions != null)
                 {
                     // the jet trail: pale puffs streaming off the exhaust
                     r.jetT -= dt;
-                    while (r.jetT <= 0f) { r.jetT += 0.035f; game.explosions.Jet(r.pos - r.heading * Random.Range(16f, 26f) + Random.insideUnitSphere * 3f, r.vel - r.heading * 120f); }
+                    while (r.jetT <= 0f) { r.jetT += 0.035f; game.explosions.Jet(r.pos - r.heading * Random.Range(32f, 52f) + Random.insideUnitSphere * 6f, r.vel - r.heading * 120f); }   // off the stern of the twice-size raider
                 }
                 r.vel = r.heading * r.spd;
                 r.pos += r.vel * dt;
+                // ... and out of any rock or hull the move put it in, sliding along it (2026-09-23)
+                Vector3 cn;
+                if (Solids.Push(ref r.pos, RAIDER_R, ref r.vel, r.nearRocks, out cn))
+                {
+                    r.spd = r.vel.magnitude;
+                    if (r.spd > 1f) r.heading = r.vel / r.spd;
+                }
                 r.node.rotation = Ship.LevelHeading(r.heading);
             }
             r.node.position = r.pos - off;
-            r.exhaust.SetColor("_Color", new Color(1f, 0.18f, 0.39f, r.state == "attack" ? 0.6f + Random.value * 0.3f : 0.35f));
-            if (carrier != null && !carrier.hold && (r.pos - carrier.truePos).magnitude < SAFE_R)
+            // a wingman's exhaust is blue, a raider's pink, so the sides read at a glance (2026-09-23, the user's)
+            float exA = r.state == "attack" ? 0.6f + Random.value * 0.3f : 0.35f;
+            if (!r.boosting) r.exhaust.SetColor("_Color", r.team == 0 ? new Color(0.36f, 0.61f, 1f, exA) : new Color(1f, 0.18f, 0.39f, exA));
+            if (!_battle && carrier != null && !carrier.hold && (r.pos - carrier.truePos).magnitude < SAFE_R)
             {
                 r.hp -= 30f * dt;
-                if (r.hp <= 0f) Kill(r, false);
+                if (r.hp <= 0f) Kill(r, false, false, "The cargo ship's guns");
             }
         }
         if (threat == 0) _warned = false;
@@ -877,16 +961,33 @@ public class Raiders
             var prev = b.pos;
             b.pos += b.dir * speed * dt;
             b.node.position = b.pos - off;
+            // a bolt going past (2026-09-23, the user's: "the blaster shots need to make a noise as they go past you"): a
+            // hostile bolt, or a turret's shell of either side, that comes inside WHOOSH_R of the ship and then starts to
+            // draw away sounds its pass once, louder the closer it came, panned to the side it passes on
+            if (!b.player && (b.team == 1 || b.heavy) && !b.whooshed)
+            {
+                float bd = SegDist(prev, b.pos, sp);   // the closest of its flight this frame: at 530 u a frame the end point misses the pass (2026-09-23)
+                float wr = b.heavy ? WHOOSH_R_HEAVY : WHOOSH_R;
+                if (b.lastD > 0f && bd > b.lastD && b.lastD < wr && flying)
+                {
+                    b.whooshed = true;
+                    passes++;
+                    var side = game.cam != null ? game.cam.transform.right : Vector3.right;
+                    Audio.Whoosh(1f - b.lastD / wr, Vector3.Dot((prev - sp).normalized, side), b.heavy);
+                }
+                b.lastD = bd;
+            }
             if (b.player)
             {
                 foreach (var r in raiders)
                 {
+                    if (r.team == 0) continue;   // a wingman is not hit by the player's own bolts (2026-09-21)
                     // the segment flown this frame against the raider's disc
                     var ab = b.pos - prev;
                     float t = Mathf.Clamp01(Vector3.Dot(r.pos - prev, ab) / Mathf.Max(1e-6f, ab.sqrMagnitude));
                     if ((prev + ab * t - r.pos).magnitude < HIT_R)
                     {
-                        Damage(r, b.dmg, r.pos);
+                        Damage(r, b.dmg, r.pos, "You");
                         hitsLanded++;
                         hitFlash = 1f;
                         hitKill = r.dead;
@@ -900,6 +1001,19 @@ public class Raiders
                 {
                     bool killed;
                     if (game.outpost.HitSegment(prev, b.pos, b.dmg, out killed))
+                    {
+                        hitsLanded++;
+                        hitFlash = 1f;
+                        hitKill = killed;
+                        Audio.Sure(killed ? "kill_marker" : "hit_marker");
+                        b.life = 0f;
+                    }
+                }
+                // the enemy battleship (2026-09-21): its exposed subsystems and its shield take the bolt too
+                if (b.life > 0f && game.battle != null)
+                {
+                    bool killed;
+                    if (game.battle.HitSegment(0, prev, b.pos, b.dmg, out killed, "You"))
                     {
                         hitsLanded++;
                         hitFlash = 1f;
@@ -932,10 +1046,35 @@ public class Raiders
                     }
                 }
             }
-            else if (flying && ship.CanFly && (b.pos - sp).magnitude < Data.SHIP_R * 0.8f)
+            else
             {
-                hitsTaken++;
-                ship.Hurt(b.dmg, b.pos, "Raider hit");
+                // a raider's bolt hits the ship; on the battlefield (2026-09-21) a bolt of either side hits the other side's
+                // fighters and the other side's battleship too
+                if (b.team == 1 && flying && ship.CanFly && SegDist(prev, b.pos, sp) < SHIP_HIT_R)   // the segment flown this frame, not the end point: at 9,000 u/s and up a bolt crosses the hull between frames (2026-09-21)
+                {
+                    hitsTaken++;
+                    ship.Hurt(b.dmg, b.pos, "Raider hit", b.shooter, b.shooter != null ? b.shooter.pos : b.origin, b.by);
+                    b.life = 0f;
+                }
+                if (b.life > 0f && game.battle != null && game.battle.Active)
+                {
+                    foreach (var r in raiders)
+                    {
+                        if (r.dead || r.team == b.team) continue;
+                        var ab = b.pos - prev;
+                        float t = Mathf.Clamp01(Vector3.Dot(r.pos - prev, ab) / Mathf.Max(1e-6f, ab.sqrMagnitude));
+                        if ((prev + ab * t - r.pos).magnitude < HIT_R) { Damage(r, b.dmg, r.pos, b.by); b.life = 0f; break; }
+                    }
+                    bool killed;
+                    if (b.life > 0f && game.battle.HitSegment(b.team, prev, b.pos, b.dmg, out killed, b.by)) b.life = 0f;
+                }
+            }
+            // nothing is shot through (2026-09-23, the user's): a bolt still flying that crossed a rock or a hull this frame
+            // dies there, with a spark of it
+            Vector3 blockAt;
+            if (b.life > 0f && Solids.Blocked(prev, b.pos, out blockAt))
+            {
+                if (game.sparks != null) game.sparks.Burst(blockAt, b.heavy ? 30 : 10, b.heavy ? 200f : 120f, b.heavy ? Data.Hex("#ffd090") : Data.Hex("#ff8a60"), b.heavy ? 1.6f : 0.8f);
                 b.life = 0f;
             }
             if (b.life <= 0f)
@@ -946,7 +1085,15 @@ public class Raiders
         }
     }
 
-    public const float BOOST_MULT = 1.25f;
+    /// The distance from p to the segment ab.
+    static float SegDist(Vector3 a, Vector3 b, Vector3 p)
+    {
+        var ab = b - a;
+        float t = Mathf.Clamp01(Vector3.Dot(p - a, ab) / Mathf.Max(1e-6f, ab.sqrMagnitude));
+        return (a + ab * t - p).magnitude;
+    }
+
+    public static readonly float BOOST_MULT = Data.UPGRADES["thrusters"].levels[0].mult;   // the player's own afterburner, ×2 (2026-09-23, one for one; 1.25 before)
 
     /// The boost on or off: the exhaust flares white-blue at twice the size while it is on (its normal pink glow
     /// otherwise), and a whoosh and roar plays with distance the moment it kicks in.
@@ -954,12 +1101,12 @@ public class Raiders
     {
         if (on == r.boosting) return;
         r.boosting = on;
-        if (r.exhaust != null) r.exhaust.SetColor("_Color", on ? new Color(0.75f, 0.88f, 1f, 0.95f) : new Color(1f, 0.18f, 0.39f, 0.6f));
+        if (r.exhaust != null) r.exhaust.SetColor("_Color", on ? new Color(0.75f, 0.88f, 1f, 0.95f) : r.team == 0 ? new Color(0.36f, 0.61f, 1f, 0.6f) : new Color(1f, 0.18f, 0.39f, 0.6f));   // a wingman's blue at rest (2026-09-23)
         if (r.exhaustNode != null) r.exhaustNode.localScale = Vector3.one * (on ? 18f : 9f);
         if (on)
         {
-            float att = d <= 300f ? 0f : -20f * Mathf.Log10(d / 300f);
-            if (att > -30f) Audio.Play("raider_boost", att);
+            float att = Audio.Falloff(d, 300f);   // the gunfire falloff (2026-09-23): gone past 2,850 u
+            if (att > Audio.SILENT) Audio.Play("raider_boost", att);
         }
     }
 
@@ -1214,6 +1361,6 @@ public class Raiders
     {
         int attacking = 0;
         foreach (var r in raiders) if (r.state == "attack") attacking++;
-        return raiders.Count + " raiders, " + attacking + " attacking, " + bolts.Count + " bolts, kills " + kills + ", shots " + shotsFired + ", landed " + hitsLanded + ", hits taken " + hitsTaken + ", rockets " + rocketsFired + " (" + rocketKills + " kills)";
+        return raiders.Count + " raiders, " + attacking + " attacking, " + bolts.Count + " bolts, kills " + kills + ", shots " + shotsFired + ", landed " + hitsLanded + ", hits taken " + hitsTaken + ", passes " + passes + ", rockets " + rocketsFired + " (" + rocketKills + " kills), blocked " + Solids.blocks + ", pushed " + Solids.pushes;
     }
 }

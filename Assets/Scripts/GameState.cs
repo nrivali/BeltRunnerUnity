@@ -26,6 +26,7 @@ public static class State
     public static int flares = -1;          // flares aboard (2026-09-19, the countermeasure to the outpost's seekers); -1 likewise
     public static int raid = 0;             // the raid contract (2026-09-19): 0 open, 1 accepted, 2 the outpost is down (paid if it was accepted)
     public static int raids = 0;            // outposts put down under contract, all told: the reward grows with it
+    public static int battlesWon = 0, battlesLost = 0;   // the battlefield (2026-09-21): fields held and lost, all told; the reward grows with the wins
     public static float raidAt = 0f;        // play time at which a rebuilt outpost and a fresh contract post
     public static bool raidStation = false; // the cargo ship holds station off the outpost (it is put back there on load)
     public static Dictionary<string, int> up = new Dictionary<string, int>();
@@ -76,7 +77,8 @@ public static class State
     /// The level entry of a refit, e.g. Stat("engine").max
     public static Data.Level Stat(string key)
     {
-        return Data.UPGRADES[key].levels[up[key]];
+        var levels = Data.UPGRADES[key].levels;
+        return levels[Mathf.Clamp(up[key], 0, levels.Length - 1)];   // clamped: a save from before the engine refits went (2026-09-22) may carry a level that no longer exists
     }
 
     /// Damage to the ship: the shield soaks it first, the hull takes the rest; the shield's recharge timer restarts.
@@ -90,7 +92,7 @@ public static class State
         if (had && shield <= 0f) Audio.Play("shield_down");   // the shield stripped: the pilot hears it go
     }
 
-    /// The shield recharges once ten seconds have passed without a hit.
+    /// The shield recharges once SHIELD_WAIT (5 s since 2026-09-23, 10 before) has passed without a hit.
     public static void TickShield(float dt)
     {
         sinceHit += dt;
@@ -495,6 +497,7 @@ public static class State
         public int flares = -1;
         public int lens;
         public int raid, raids;
+        public int battlesWon, battlesLost;
         public float raidAt;
         public bool raidStation;
         public Settings settings;
@@ -520,7 +523,7 @@ public static class State
             cargo = ToBag(cargo), store = ToBag(store), market = ToBag(market),
             up = new Ups { laser = up["laser"], cargo = up["cargo"], engine = up["engine"], tank = up["tank"], scanner = up["scanner"], range = up["range"], hull = up["hull"], thrusters = up["thrusters"], overcharge = up["overcharge"], gun = up["gun"], rocket = up["rocket"], shield = up["shield"] },
             depot = new Dep { laser = depot["laser"], collectors = depot["collectors"] }, droneUnits = droneUnits,
-            zone = zoneId, tut = tut, rockets = rockets, flares = flares, lens = lens, raid = raid, raids = raids, raidAt = raidAt, raidStation = raidStation, settings = new Settings { sound = soundOn, volume = volume, music = musicOn, music_volume = musicVolume, hud = hudScale, controls = controlsShown, display = display, brightness = brightness, cockpit = cockpitView },
+            zone = zoneId, tut = tut, rockets = rockets, flares = flares, lens = lens, raid = raid, raids = raids, battlesWon = battlesWon, battlesLost = battlesLost, raidAt = raidAt, raidStation = raidStation, settings = new Settings { sound = soundOn, volume = volume, music = musicOn, music_volume = musicVolume, hud = hudScale, controls = controlsShown, display = display, brightness = brightness, cockpit = cockpitView },
         };
         try
         {
@@ -554,7 +557,7 @@ public static class State
         rockets = s.rockets;
         flares = s.flares;
         lens = s.lens;
-        raid = s.raid; raids = s.raids; raidAt = s.raidAt; raidStation = s.raidStation;
+        raid = s.raid; raids = s.raids; battlesWon = s.battlesWon; battlesLost = s.battlesLost; raidAt = s.raidAt; raidStation = s.raidStation;
         FromBag(s.cargo, cargo);
         FromBag(s.store, store);
         FromBag(s.market, market);
@@ -598,7 +601,7 @@ public static class State
         rockets = -1;
         flares = -1;
         lens = 0;
-        raid = 0; raids = 0; raidAt = 0f; raidStation = false;
+        raid = 0; raids = 0; battlesWon = 0; battlesLost = 0; raidAt = 0f; raidStation = false;
         tut = 0;
         mined = 0f;
         earned = 0f;

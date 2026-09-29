@@ -8,8 +8,11 @@ using UnityEngine;
 /// space; true world coordinates are its position plus the floating origin.
 public class Ship : MonoBehaviour
 {
-    public const float TURN = 50f * Mathf.Deg2Rad;   // yaw and pitch: 50 degrees a second at full deflection (30 until 2026-09-15)
-    public const float DRIFT_TURN = 70f / 50f;   // the drift: the nose turns at 70 degrees a second (the usual 50)
+    public const float TURN = 25f * Mathf.Deg2Rad;   // yaw and pitch: 25 degrees a second at full deflection (2026-09-23, halved again at the user's word; 50 from 2026-09-15, 30 before)
+    public const float DRIFT_TURN = 70f / 50f;   // the drift: the nose turns 1.4 times as fast, 35 degrees a second (the usual 25)
+    public const float STEER_R = 0.34f;   // the mouse reaches full deflection this share of the screen height from the centre (2026-09-23, the user asked for a bigger curve, the ship turned too quickly on a little movement; 0.28 on 2026-09-22, the half width, 0.89 of the height, before)
+    public const float STEER_EASE = 0.12f;   // the stick's ease, seconds: the turn rate reaches 63% of a new mouse position in this long (2026-09-22)
+    float _yawS, _pitchS, _rollS;            // the eased stick
     public const float REPAIR_RATE = 6f;
     public const float TORCH_HULL_AT = 400f;   // the Unity spot light, which lights the hulls (the cargo ship, the raiders, the scrap), is set to match the rock beam at this range
     public const float TORCH_CD = 7000f, TORCH_REACH = 7000f, TORCH_HALF = Mathf.PI / 8f;   // the browser's flashlight at half its 14,000 cd (2026-09-17, the user's: the full strength blew a pale rock 400 u ahead out to white; a quarter left dark stone almost unlit), falling off as 1/d (decay 1), reach 7,000 u, half-angle pi/8; the rocks take it through their shader (Tick)
@@ -26,6 +29,7 @@ public class Ship : MonoBehaviour
     public float radarCd;
     public bool radarPulsed;   // for the tutorial: R has been pressed since the step began
     public bool mouseSteer = true;   // off in the smoke run, where no one is holding the mouse
+    public bool autoBurn;   // the tests' Shift: the burner lit without the key (2026-09-23)
     public bool autoFire;            // the smoke run holds the trigger
     public int scanCount = -1;
     public int scanNearest = -1;
@@ -163,9 +167,10 @@ public class Ship : MonoBehaviour
     // still yours; the hull is culled from the camera (its parts are put on HULL_LAYER) and a simple canopy frame and dash
     // on COCKPIT_LAYER, children of the ship at the cockpit point, are drawn only then. State.cockpitView remembers it
     public const int HULL_LAYER = 9, COCKPIT_LAYER = 10;
-    public const float COCKPIT_FOV = 60f;      // 72 (the handoff's reference lens) until 2026-09-21, the user's: "zoom in further so it is easier to read the controls"; the screens read a fifth larger
-    public const float COCKPIT_TILT = 4f;      // the eye pitched down a touch, so the deck sits higher in the frame at the tighter lens
-    public const float COCKPIT_RUMBLE = 0.06f; // the burner rumble and the hit shake in the cockpit, as a share of the chase camera's: the walls are a few units off, not hundreds (the user's: "shakes very violently")
+    public const float COCKPIT_FOV = 52f;      // 72 (the handoff's reference lens) until 2026-09-21, 60 for a day; 2026-09-22, the user's: "zoom in so there is no space between the screens and the bottom of the screen": the dash screens' lower edge sits a hair above the frame's (50 clipped the fuel row)
+    public const float COCKPIT_TILT = 4f;      // 4 down (2026-09-23, the user asked to see the buttons under the screens; level since 2026-09-22, 4 for a day before that); the crosshair, drawn where the nose points, rides above the centre with it
+    public const float COCKPIT_RUMBLE = 0f;    // no burner rumble in the cockpit (2026-09-23, the user asked for a clear display on the burner: even 6% of the chase camera moved the screens, a few units off, by twenty pixels a frame)
+    public const float COCKPIT_HIT = 0.35f;    // the hit shake in the cockpit (2026-09-22): a real kick, unlike the rumble
     public static readonly Vector3 COCKPIT = new Vector3(0f, 4.5f, 5f) * Data.SHIP_SCALE;   // the pilot's eye in the ship's frame
     public bool Cockpit { get { return State.cockpitView; } }
     Transform _cockpitFrame;
@@ -350,7 +355,7 @@ public class Ship : MonoBehaviour
         foreach (var pair in new[] { new[] { "laser", "laser_barrel" }, new[] { "cargo", "cargo_pod" }, new[] { "engine", "engine_nacelle" }, new[] { "scanner", "scanner_dish" } })
         {
             int levels = Data.UPGRADES[pair[0]].levels.Length;
-            tiers[pair[1]] = 1 + Mathf.RoundToInt(2f * State.up[pair[0]] / (levels - 1));
+            tiers[pair[1]] = levels > 1 ? 1 + Mathf.RoundToInt(2f * State.up[pair[0]] / (levels - 1)) : 1;   // a one-level refit (the engines since 2026-09-22) is tier 1: the old form divided by zero and hid the nacelles
         }
         foreach (var kv in _variants)
         {
@@ -867,7 +872,7 @@ public class Ship : MonoBehaviour
         const float dz = 0.06f;
         if (m < dz) return 0f;
         float t = Mathf.Min(1f, (m - dz) / (1f - dz));
-        return Mathf.Sign(v) * t * (0.4f + 0.6f * t);
+        return Mathf.Sign(v) * t * (0.3f + 0.7f * t);   // bowed hard: gentle near the centre, the full rate at the edge (2026-09-23; 0.65 + 0.35 t on 2026-09-22, 0.4 + 0.6 t before)
     }
 
     /// A level heading (no roll) with the nose along `d`.
@@ -1000,6 +1005,7 @@ public class Ship : MonoBehaviour
             float bestPx = float.PositiveInfinity;
             foreach (var r in game.raiders.raiders)
             {
+                if (r.team == 0) continue;   // a wingman is not a target (2026-09-21, the battlefield)
                 float cd = (camTrue - r.pos).magnitude;
                 if (cd > 120000f) continue;
                 var sp = cam.WorldToScreenPoint(r.pos - game.worldOffset);
@@ -1120,7 +1126,7 @@ public class Ship : MonoBehaviour
     void CheckBreach()
     {
         float hp = State.Stat("hull").hp;
-        if (State.hull <= 0f && recovery == null) StartRecovery("breach");
+        if (State.hull <= 0f && recovery == null) { if (game.battle != null) game.battle.OnPlayerDown(); StartRecovery("breach"); }   // on the field your loss costs the meter (2026-09-23)
         else if (State.hull > 0f && State.hull < hp * 0.25f && !_lowHullWarned)
         {
             _lowHullWarned = true;
@@ -1336,8 +1342,8 @@ public class Ship : MonoBehaviour
         float yaw = 0f, pitchUp = 0f, roll = 0f;
         bool flying = CanFly;   // nothing answers while disabled or being recovered: the ship drifts
         var mp = Input.mousePosition;
-        float msx = Mathf.Clamp((mp.x - Screen.width * 0.5f) / (Screen.width * 0.5f), -1f, 1f);
-        float msy = Mathf.Clamp((mp.y - Screen.height * 0.5f) / (Screen.height * 0.5f), -1f, 1f);
+        float msx = Mathf.Clamp((mp.x - Screen.width * 0.5f) / (Screen.height * STEER_R), -1f, 1f);   // full deflection STEER_R of the screen height from the centre (the half width until 2026-09-22)
+        float msy = Mathf.Clamp((mp.y - Screen.height * 0.5f) / (Screen.height * STEER_R), -1f, 1f);
         rdown = mouseSteer && (Input.GetMouseButton(1) || Input.GetKey(KeyCode.C)) && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible;   // free look: hold C (or the right button)
         if (rdown)
         {
@@ -1382,13 +1388,20 @@ public class Ship : MonoBehaviour
             // the user's flight scheme (2026-09-15): A and D roll, S pulls up and W pushes down, Q and E yaw, on top of the mouse aim
             if (Input.GetKey(KeyCode.A)) roll += 1f;
             if (Input.GetKey(KeyCode.D)) roll -= 1f;
-            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.UpArrow)) pitchUp += 1f;
-            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.DownArrow)) pitchUp -= 1f;
+            if (Input.GetKey(KeyCode.UpArrow)) pitchUp += 1f;     // the arrows pitch; W and S went back to the throttle (2026-09-22, the user's)
+            if (Input.GetKey(KeyCode.DownArrow)) pitchUp -= 1f;
             if (Input.GetKey(KeyCode.Q)) yaw -= 1f;
             if (Input.GetKey(KeyCode.E)) yaw += 1f;
         }
         yaw = Mathf.Clamp(yaw, -1f, 1f);
         pitchUp = Mathf.Clamp(pitchUp, -1f, 1f);
+        // the stick eased (2026-09-22, the user's: "the aiming movement needs to be smoothed out, it is too jerky"): the turn
+        // rate follows the mouse through STEER_EASE rather than stepping to it each frame; the keys and the lock go through the same ease
+        float ke = 1f - Mathf.Exp(-dt / STEER_EASE);
+        _yawS = Mathf.Lerp(_yawS, yaw, ke);
+        _pitchS = Mathf.Lerp(_pitchS, pitchUp, ke);
+        _rollS = Mathf.Lerp(_rollS, Mathf.Clamp(roll, -1f, 1f), ke);
+        yaw = _yawS; pitchUp = _pitchS; roll = _rollS;
         drifting = flying && Input.GetKey(KeyCode.Space);
         float turn = TURN * (drifting ? DRIFT_TURN : 1f);   // the drift: the nose swings much faster
         transform.Rotate(Vector3.up, yaw * turn * dt * Mathf.Rad2Deg, Space.Self);
@@ -1401,8 +1414,8 @@ public class Ship : MonoBehaviour
         // throttle: Shift raises, Ctrl lowers (the wheel too, a tenth a notch), X cuts; holding Ctrl at zero fires the retros
         if (flying)
         {
-            if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) throttle = Mathf.Min(1f, throttle + 0.7f * dt);
-            if (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) throttle = Mathf.Max(0f, throttle - 0.9f * dt);
+            if (Input.GetKey(KeyCode.W)) throttle = Mathf.Min(1f, throttle + 0.7f * dt);   // W (2026-09-22, the user's: "put thrust up and down back on w and s"); Shift is the afterburner again
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) throttle = Mathf.Max(0f, throttle - 0.9f * dt);   // S, Ctrl still
             if (Input.GetKey(KeyCode.X)) throttle = 0f;
             float wheel = Input.mouseScrollDelta.y;
             if (wheel != 0f && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible) throttle = Mathf.Clamp01(throttle + Mathf.Sign(wheel) * 0.1f);
@@ -1411,7 +1424,7 @@ public class Ship : MonoBehaviour
         // along its momentum while the nose swings at 50° a second, against the usual 30; it is for turning round, not for stopping
         drifting = flying && Input.GetKey(KeyCode.Space);
         float abMult = State.Stat("thrusters").mult;
-        afterburning = flying && throttle > 0f && !drifting && (Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt)) && abMult > 1f && State.fuel > 0f;   // Alt: Shift is the throttle now
+        afterburning = flying && throttle > 0f && !drifting && (autoBurn || Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift)) && abMult > 1f && State.fuel > 0f;   // Shift (2026-09-22, the user's: "change afterburner to shift"); Alt from 2026-09-15, when Shift was the throttle
         float mult = afterburning ? abMult : 1f;
         thrusting = false;
         braking = false;
@@ -1425,7 +1438,7 @@ public class Ship : MonoBehaviour
                 State.fuel = Mathf.Max(0f, State.fuel - Data.FUEL_BURN * throttle * Data.BurnMult(mult) * dt);
                 thrusting = true;
             }
-            else if (flying && (Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) && !drifting)
+            else if (flying && (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) && !drifting)   // S at zero fires the retros too (2026-09-22)
             {
                 float sp = vel.magnitude;
                 if (sp > 1f)
@@ -1446,7 +1459,7 @@ public class Ship : MonoBehaviour
             vel -= tp / d * g * dt;
         }
         // drag, then the speed cap (thrust never pushes past it; anything above only falls away on drag)
-        float dragK = throttle > 0f ? 0.32f : 0.064f;   // at zero throttle, and in the drift, the ship all but coasts (drag 0.064, twenty times below the browser's 1.28: near-Newtonian; the S retros are the stopping)
+        float dragK = throttle > 0f ? 0.32f : drifting ? 0.128f : 3f;   // no coasting at zero throttle (2026-09-23, the user asked): the ship brakes to a stop in a second or two; the drift (Space) alone coasts, at the 0.128 of an hour before (half the 0.064 it had; 0.064, twenty times below the browser's 1.28: near-Newtonian; the S retros are the stopping)
         vel *= Mathf.Exp(-dragK * dt);
         float sp2 = vel.magnitude;
         // the throttle sets the speed: the cap is the engine's top speed times the throttle (the burner multiplies it), so half
@@ -1536,10 +1549,14 @@ public class Ship : MonoBehaviour
     /// turret heads, and a hard knock costs plating like a rock.
     void OutpostContact()
     {
-        var o = game.outpost;
-        if (o == null || !o.built) return;
         Vector3 n; float push;
-        if (!o.Collide(TruePos, Data.SHIP_R, out n, out push)) return;
+        var o = game.outpost;
+        if (o != null && o.built && o.Collide(TruePos, Data.SHIP_R, out n, out push)) Bounce(n, push);
+        if (game.battle != null && game.battle.Collide(TruePos, Data.SHIP_R, out n, out push)) Bounce(n, push);   // the enemy battleship (2026-09-21)
+    }
+
+    void Bounce(Vector3 n, float push)
+    {
         transform.position += n * push;
         float vn = Vector3.Dot(vel, n);
         if (vn < 0f)
@@ -1601,14 +1618,19 @@ public class Ship : MonoBehaviour
     }
 
     /// Damage that is not a collision (a raider's bolt): no speed threshold; the flash, the shake, sparks and the sound.
-    public void Hurt(float dmg, Vector3 atTrue, string label)
+    public void Hurt(float dmg, Vector3 atTrue, string label, Raiders.Raider by = null, Vector3 from = default(Vector3), string who = null)
     {
         if (disabled || docked || recovery != null) return;
+        float hullBefore = State.hull;
         State.Damage(dmg);
+        // the glass (2026-09-23): a hit that costs hull marks the pane the shot came through, by where it came from
+        if (State.hull < hullBefore) glass.Hit(hullBefore - State.hull, from == default(Vector3) ? Vector3.zero : transform.InverseTransformPoint(from - game.worldOffset) / Data.SHIP_SCALE, State.hull / State.Stat("hull").hp);
+        if (game.hud != null) game.hud.HitBy(by, from == default(Vector3) ? atTrue : from, who);   // the attacker's waypoint on the HUD (2026-09-23; the damage ring the day before)
         shake = Mathf.Min(1f, 0.25f + dmg / 50f);
-        Audio.Play("hit");
+        Audio.Play("hit", 6f);   // louder, with a thud under it (2026-09-22, the user's: "make the sound of getting hit more intense")
+        Audio.Play("boom", -12f);
         if (game.sparks != null) game.sparks.Burst(atTrue, 40 + Mathf.RoundToInt(dmg) * 2, 220f, Data.Hex("#ff7a4a"), 1.2f);
-        if (!string.IsNullOrEmpty(label)) game.Toast(label + " · −" + Mathf.RoundToInt(dmg), true);
+        // no toast per hit any more (2026-09-22, the user's: the notifications blocked the view): the vignette, the damage ring and the kill feed carry it
         CheckBreach();
     }
 
@@ -1616,13 +1638,15 @@ public class Ship : MonoBehaviour
     {
         if (hitCd > 0f) return;
         hitCd = 0.5f;
-        float dmg = Mathf.Max(0f, speed - 140f) * 0.09f;
-        shake = Mathf.Min(1f, 0.25f + speed / 400f);
+        float dmg = Mathf.Max(0f, speed - 420f) * 0.03f;   // the safe speed and the rate scaled with the 500 m/s rebalance (2026-09-21): 140 and 0.09 before
+        shake = Mathf.Min(1f, 0.25f + speed / 1600f);
         Audio.Play("hit");
         if (game.sparks != null) game.sparks.Burst(atTrue, 60 + Mathf.RoundToInt(dmg) * 2, 260f, Data.Hex("#ffb060"), 1.2f);
         if (dmg > 0.5f)
         {
+            float hullBefore = State.hull;
             State.Damage(dmg);
+            if (State.hull < hullBefore) glass.Hit(hullBefore - State.hull, transform.InverseTransformPoint(atTrue - game.worldOffset) / Data.SHIP_SCALE, State.hull / State.Stat("hull").hp);   // the glass marks the side struck (2026-09-23)
             game.Toast("Collision · -" + Mathf.RoundToInt(dmg), true);
         }
     }
@@ -2432,7 +2456,7 @@ public class Ship : MonoBehaviour
     {
         float s = Data.SHIP_SCALE;
         // the cockpit view's culling: in flight, and over the last of the departure's blend into the cockpit
-        SetCockpitCulling(Cockpit && ((cut == null && !docked && warp == null) || (cut != null && cut.mode == "depart" && cut.t > cut.dur - 0.9f)));
+        SetCockpitCulling(Cockpit && ((cut == null && !docked && warp == null) || (cut != null && cut.mode == "depart" && cut.t > cut.dur - 0.08f)));   // and only the last frames of the departure's blend, once the camera is inside: for the last 0.9 s the hull vanished while the camera was still outside and the cabin stood in its place (2026-09-22, the user's)
         if (warp != null)
         {
             // the exterior shot: behind and beside the carrier as it jumps, ahead of it as it arrives
@@ -2477,10 +2501,11 @@ public class Ship : MonoBehaviour
         burnK = Mathf.Lerp(burnK, afterburning ? 1f : 0f, 1f - Mathf.Exp(-(afterburning ? 3f : 2f) * dt));
         if (afterburning && !wasBurning && burnK > 0.5f) _burnKick = 1f;
         _burnKick *= Mathf.Exp(-5f * dt);
-        if (afterburning) fovWant = fov0 + 14f + 3f * State.Stat("thrusters").mult + 7f * _burnKick;
-        else if (drifting) fovWant = fov0 - 9f;
+        // the burner leaves the lens alone (2026-09-22, the user asked for no zoom on the burner; a 5-degree widening came and went on 2026-09-23)
+        if (drifting) fovWant = fov0 - 9f;
         _fov = Mathf.Lerp(_fov, fovWant, 1f - Mathf.Exp(-(fovWant > _fov ? 3f : 4f) * dt));
         cam.fieldOfView = _fov;
+        glass.Tick(State.hull, State.Stat("hull").hp);   // the marks' flashes settle; the hull whole again wipes the glass
         if (Cockpit) TickCockpit();   // the dash screens and the button lights
         // the turn: the chase camera hangs back on the outside of the turn, the look point leads into it, and the frame
         // banks a little with the yaw (roll input tips it too); everything eased so it settles rather than snaps
@@ -2495,7 +2520,7 @@ public class Ship : MonoBehaviour
         if (shake > 0f)
         {
             shake = Mathf.Max(0f, shake - dt * 1.8f);
-            float sh = shake * shake * 6f * jitter;
+            float sh = shake * shake * 6f * (Cockpit ? COCKPIT_HIT : 1f);
             camPos += new Vector3(Random.Range(-sh, sh), Random.Range(-sh, sh), Random.Range(-sh, sh));
         }
         // the burner's rumble: a low jitter, harder with the bigger refits
@@ -2540,6 +2565,7 @@ public class Ship : MonoBehaviour
     // (the placeholder quads switched off), its four buttons carry labels on their mounts and light their indicator
     // meshes with the weapon, the lock and the radar. Until the model lands the primitive frame stands in.
     public string cockpitState = "pending";
+    public readonly Glass glass = new Glass();   // the cockpit glass and its damage (2026-09-23, Astra's cockpit_glass v1)
     Transform _eye;
     Transform _cockpitFallback;
     Text _dashHull, _dashShield, _dashFuel, _dashCargo, _dashSpeed, _dashThrottle, _dashAssist;
@@ -2566,6 +2592,33 @@ public class Ship : MonoBehaviour
         BuildCockpitFallback(root.transform);
         root.SetActive(false);
         LoadCockpit();
+        LoadGlass();
+    }
+
+    /// Astra's glass add-on (2026-09-23): the three panes in v2's apertures, loaded beside the interior at the same
+    /// origin and scale, on the cockpit layer, then bound to `glass`, which gives them the game's material and lays the marks.
+    async void LoadGlass()
+    {
+        try
+        {
+            string path = System.IO.Path.Combine(Application.streamingAssetsPath, "cockpit_glass.glb");
+            if (!System.IO.File.Exists(path)) { glass.state = "no glb"; return; }
+            var bytes = System.IO.File.ReadAllBytes(path);
+            var gltf = new GLTFast.GltfImport();
+            bool ok = await gltf.Load(bytes);
+            if (!ok || this == null || _cockpitFrame == null) { glass.state = "load failed"; return; }
+            var holder = new GameObject("Glass");
+            holder.transform.SetParent(_cockpitFrame, false);
+            holder.transform.localScale = Vector3.one * Data.SHIP_SCALE;   // as the interior: the root's ×3, no flip, no turn
+            ok = await gltf.InstantiateSceneAsync(holder.transform, 0);
+            if (!ok || this == null || _cockpitFrame == null) { glass.state = "scene failed"; return; }
+            foreach (var t in holder.GetComponentsInChildren<Transform>(true)) t.gameObject.layer = COCKPIT_LAYER;
+            glass.Bind(holder.transform);
+        }
+        catch (System.Exception e)
+        {
+            glass.state = "error " + e.Message;
+        }
     }
 
     async void LoadCockpit()
@@ -2772,7 +2825,7 @@ public class Ship : MonoBehaviour
                 d.color = col;
             };
             if (carrier != null) dot(carrier.truePos, Ui.CYAN, 14f);
-            if (game.raiders != null) foreach (var r in game.raiders.raiders) if (!r.dead) dot(r.pos, Ui.RED, 10f);
+            if (game.raiders != null) foreach (var r in game.raiders.raiders) if (!r.dead) dot(r.pos, r.team == 0 ? Hud.ALLY : Ui.RED, 10f);   // a wingman blue (2026-09-21)
             if (game.raiders != null) foreach (var k in game.raiders.rockets) if (k.hostile) dot(k.pos, Ui.RED, 6f);
             foreach (var m in belt.Marked(State.time, TruePos, 12)) dot(belt.RockPos(m.id), belt.ore[m.id] >= 0 ? Data.ORES[belt.ore[m.id]].color : Ui.MUTED, 8f);
             for (int i = n; i < _radarDots.Length; i++) if (_radarDots[i].gameObject.activeSelf) _radarDots[i].gameObject.SetActive(false);

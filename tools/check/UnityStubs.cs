@@ -49,6 +49,7 @@ namespace UnityEngine
         public static Vector3 zero => new Vector3(0, 0, 0);
         public static Vector3 one => new Vector3(1, 1, 1);
         public static Vector3 up => new Vector3(0, 1, 0);
+        public static Vector3 down => new Vector3(0, -1, 0);
         public static Vector3 right => new Vector3(1, 0, 0);
         public static Vector3 forward => new Vector3(0, 0, 1);
         public float magnitude => (float)Math.Sqrt(x * x + y * y + z * z);
@@ -294,7 +295,7 @@ namespace UnityEngine
     public class MonoBehaviour : Behaviour { }
 
     public class Transform : Component, System.Collections.IEnumerable
-    { public bool IsChildOf(Transform t) => false;
+    { public bool IsChildOf(Transform t) => false; public Vector3 InverseTransformDirection(Vector3 d) => d;
         public System.Collections.IEnumerator GetEnumerator() => new List<Transform>().GetEnumerator();
         public Vector3 position { get; set; }
         public Vector3 localPosition { get; set; }
@@ -343,6 +344,7 @@ namespace UnityEngine
         public DepthTextureMode depthTextureMode { get; set; }
         public Vector3 ViewportToWorldPoint(Vector3 p) => p;
         public float fieldOfView { get; set; }
+        public float aspect { get; set; }
         public bool allowHDR { get; set; }
         public Vector3 WorldToScreenPoint(Vector3 p) => p;
         public Ray ScreenPointToRay(Vector3 p) => new Ray();
@@ -769,6 +771,7 @@ namespace UnityEngine
         public bool playOnAwake { get; set; }
         public float volume { get; set; }
         public float pitch { get; set; }
+        public float panStereo { get; set; }
         public float spatialBlend { get; set; }
         public bool isPlaying => false;
         public void Play() { }

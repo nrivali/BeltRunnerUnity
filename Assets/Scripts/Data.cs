@@ -19,7 +19,7 @@ public static class Data
     public const float PULSE_CD = 5f;
     public const float PULSE_TIME = 2.6f;
     public const float SHIELD_MAX = 50f;      // the ship's shield at the base refit (State.ShieldMax is the fitted one): soaks damage first, recharges after SHIELD_WAIT quiet seconds
-    public const float SHIELD_WAIT = 10f;
+    public const float SHIELD_WAIT = 5f;
     public const string VERSION = "0.9.127-unity";
     /// The cargo ship: its orbit round the planet (inside the ring belt), fuel supply and repair-parts store, and 50-slot storage.
     public const float DEPOT_ORBIT = 925000f;
@@ -93,21 +93,21 @@ public static class Data
     {
         { "laser", new Upgrade { name = "Mining laser", levels = new[] { L(rate: 3), L(rate: 5), L(rate: 8), L(rate: 12), L(rate: 18) }, costs = new float[] { 350, 1400, 5000, 16000 } } },
         { "cargo", new Upgrade { name = "Cargo hold", levels = new[] { L(slots: 4), L(slots: 6), L(slots: 8), L(slots: 11), L(slots: 14), L(slots: 18) }, costs = new float[] { 200, 700, 2400, 7500, 20000 } } },
-        { "engine", new Upgrade { name = "Engines", levels = new[] { L(thrust: 328, max: 500), L(thrust: 438, max: 640), L(thrust: 562, max: 800), L(thrust: 718, max: 980), L(thrust: 922, max: 1220) }, costs = new float[] { 300, 1100, 3500, 10000 } } },
+        { "engine", new Upgrade { name = "Engines", levels = new[] { L(thrust: 1050, max: 1600) }, costs = new float[] { } } },   // one level (2026-09-22, the user's: "no upgrades for thrust now"; 2026-09-23: "lower max thrust speed to 200"): 1,600 u/s reads 200 m/s, thrust for a 1.5 s spool-up; 2,000 for a day, 4,000 the day before; the refits went, and the row is off the Ship upgrades tab
         { "tank", new Upgrade { name = "Fuel tank", levels = new[] { L(cap: 100), L(cap: 160), L(cap: 250), L(cap: 400), L(cap: 600) }, costs = new float[] { 150, 600, 2000, 6000 } } },
         { "scanner", new Upgrade { name = "Scanner", levels = new[] { L(range: 28000), L(range: 46000), L(range: 74000), L(range: 135000) }, costs = new float[] { 400, 1800, 6000 } } },
         { "range", new Upgrade { name = "Laser range", levels = new[] { L(reach: 2500), L(reach: 3500), L(reach: 5000), L(reach: 7000) }, costs = new float[] { 2500, 9000, 25000 } } },
         { "hull", new Upgrade { name = "Hull plating", levels = new[] { L(hp: 50), L(hp: 80), L(hp: 125), L(hp: 200), L(hp: 300) }, costs = new float[] { 250, 900, 3000, 9000 } } },
         // the shield: hp = the points it soaks before the hull; it always recharges empty to full in three seconds
         { "shield", new Upgrade { name = "Shield", levels = new[] { L(hp: 50), L(hp: 80), L(hp: 120), L(hp: 170), L(hp: 240) }, costs = new float[] { 500, 1800, 5500, 14000 } } },
-        { "thrusters", new Upgrade { name = "Afterburner", levels = new[] { L(mult: 2), L(mult: 3), L(mult: 4), L(mult: 5) }, costs = new float[] { 3000, 9000, 24000 } } },
+        { "thrusters", new Upgrade { name = "Afterburner", levels = new[] { L(mult: 2) }, costs = new float[] { } } },   // one level, ×2 (2026-09-22, the user's: "make afterburner increase speed by only x2"); the ×3 to ×5 refits went, and the row is off the tab
         { "overcharge", new Upgrade { name = "Laser overcharge", levels = new[] { L(mult: 1f), L(mult: 1.5f), L(mult: 2f), L(mult: 2.5f), L(mult: 3f) }, costs = new float[] { 600, 2200, 7000, 18000 } } },
         // the autocannon (combat), fitted from the start: rate = shots a second, reach = range in world units, mult = damage a shot
-        { "gun", new Upgrade { name = "Autocannon", levels = new[] { L(rate: 6, reach: 10000, mult: 8), L(rate: 7, reach: 10000, mult: 12), L(rate: 8, reach: 10000, mult: 18), L(rate: 10, reach: 10000, mult: 26) }, costs = new float[] { 900, 3200, 9000 } } },
+        { "gun", new Upgrade { name = "Autocannon", levels = new[] { L(rate: 6, reach: 8000, mult: 8), L(rate: 7, reach: 8000, mult: 12), L(rate: 8, reach: 8000, mult: 18), L(rate: 10, reach: 8000, mult: 26) }, costs = new float[] { 900, 3200, 9000 } } },
         // seeker rockets (combat), fitted from the start: slots = the magazine (restocked on the pad), rate = the reload in seconds, reach = how far one goes after a raider
         { "rocket", new Upgrade { name = "Seeker rockets", levels = new[] { L(slots: 4, rate: 6, reach: 12000), L(slots: 6, rate: 5, reach: 14000), L(slots: 8, rate: 4, reach: 16000), L(slots: 10, rate: 3, reach: 18000) }, costs = new float[] { 1200, 4000, 11000 } } },
     };
-    public static readonly string[] UPGRADE_KEYS = { "laser", "cargo", "engine", "tank", "scanner", "range", "hull", "shield", "thrusters", "overcharge", "gun", "rocket" };
+    public static readonly string[] UPGRADE_KEYS = { "laser", "cargo", "tank", "scanner", "range", "hull", "shield", "overcharge", "gun", "rocket" };   // "engine" and "thrusters" left the tab on 2026-09-22: one level each, nothing to buy
 
     /// Cargo ship upgrades, bought at the services panel; they work whether or not you are docked. Level 0 = not
     /// installed. The dish on the mast breaks rocks near the carrier and leaves their ore adrift; collector drones fly
@@ -199,6 +199,7 @@ public static class Data
     {
         public string id, name, tag, planetName, colony;
         public bool hub, central;
+        public bool battle;    // a battlefield (2026-09-21, the combat branch): two battleships, ours the cargo ship, and the fight between them (Battlefield.cs)
         public float density, amountMult, planetR;
         public float danger;   // raider holds by the rich pockets: their number, health, aim and pay scale with it
         public Dictionary<string, float>[] belts;
@@ -231,7 +232,23 @@ public static class Data
         planetName = "Meridian", planetR = 1280f, tint = Hex("#3C86B5"), central = false, planetPos = new Vector3(150000f, -430000f, -360000f),
         sunDir = new Vector3(-0.85f, 0.45f, 0.10f), bg = Hex("#080a14"),
     };
-    public static readonly Zone[] ZONES = { ZONE_HUB, ZONE_KESSLER };
+    /// The Front (2026-09-21, the combat branch): a battlefield. A thin belt round Ferron for cover, our battleship (the cargo
+    /// ship, fitted for it) and theirs 10,000 m apart, and the fight between them (Battlefield.cs).
+    public static readonly Zone ZONE_FRONT = new Zone
+    {
+        id = "front", name = "The Front", hub = false, battle = true, map = new Vector2(72, 22), accent = Hex("#F26B5E"), danger = 0.5f,
+        tag = "A contested reach of the belt. Two battleships, ours and theirs, 10,000 m apart; their turrets, shield generators, hangar and core have to go in that order, and the side that breaks the other's core holds the field.",
+        density = 1.2f, amountMult = 1f,
+        belts = new[]
+        {
+            new Dictionary<string, float> { { "iron", 0.55f }, { "copper", 0.25f }, { "cobalt", 0.2f } },
+            new Dictionary<string, float> { { "copper", 0.3f }, { "gold", 0.4f }, { "platinum", 0.1f }, { "cobalt", 0.1f }, { "beryl", 0.1f } },
+            new Dictionary<string, float> { { "gold", 0.15f }, { "platinum", 0.4f }, { "crystal", 0.25f }, { "beryl", 0.2f } },
+        },
+        planetName = "Ferron", planetR = 900f, tint = Hex("#7E5F4B"), central = true, planetPos = Vector3.zero,
+        sunDir = new Vector3(-0.35f, 0.5f, 0.79f), bg = Hex("#0a0812"),
+    };
+    public static readonly Zone[] ZONES = { ZONE_HUB, ZONE_KESSLER, ZONE_FRONT };
 
     /// Light-years between two zones, from their chart positions.
     public static float ZoneLy(Zone a, Zone b)

@@ -15,7 +15,7 @@ public class Outpost
     public const int TURRETS = 3;
     public const float TURRET_HP = 150f, CORE_HP = 500f;
     public const float TURRET_REACH = 10000f;                    // 1,250 m: the turrets open fire from here (the raiders from 750 m); 7,000 u until 2026-09-19 (the user's: harder raids)
-    public const float TURRET_BOLT_SPEED = 4200f;                // a turret bolt: half as fast again as a raider's 2,600, so the lead is harder to dodge; its 2.6 s life covers 10,900 u
+    public const float TURRET_BOLT_SPEED = 28000f;               // a turret bolt (doubled 2026-09-23): half as fast again as a raider's 9,000 (4,200 until the 2026-09-21 speeds); its 1.3 s life covers 18,000 u
     // the rocket battery (2026-09-19, the user's): seekers at the ship while the core stands and the ship is engaged in reach
     public const float ROCKET_REACH = 11000f, ROCKET_EVERY = 8f;
     public const int ROCKETS_ALOFT = 2;
@@ -320,7 +320,7 @@ public class Outpost
             t.aim = Vector3.Slerp(t.aim, want, 1f - Mathf.Exp(-dt * TURRET_SLEW)).normalized;
             t.head.localRotation = Quaternion.LookRotation(t.aim, Vector3.up);
             t.fireCd -= dt;
-            if (!engaged || td >= TURRET_REACH || Vector3.Dot(t.aim, to / Mathf.Max(1f, td)) < 0.995f || game.raiders.holdFire) continue;
+            if (!engaged || td >= TURRET_REACH || Vector3.Dot(t.aim, to / Mathf.Max(1f, td)) < 0.995f || game.raiders.holdFire || Solids.Blocked(hp, sp, out _)) continue;   // never through a rock (2026-09-23)
             turretsFiring++;
             if (t.fireCd > 0f) continue;
             t.fireCd = 1f / TURRET_RATE;
@@ -330,8 +330,8 @@ public class Outpost
             var dir = (sp + ship.vel * (td / TURRET_BOLT_SPEED) * leadErr - muzzle).normalized + new Vector3(Random.Range(-TURRET_SPREAD, TURRET_SPREAD), Random.Range(-TURRET_SPREAD, TURRET_SPREAD), Random.Range(-TURRET_SPREAD, TURRET_SPREAD));
             game.raiders.Fire(muzzle, dir.normalized, TURRET_DMG, false, TURRET_BOLT_SPEED);
             if (game.sparks != null) game.sparks.Burst(muzzle, 5, 70f, Data.Hex("#ffb060"), 0.9f);
-            float att = td <= 300f ? 0f : -20f * Mathf.Log10(td / 300f);   // the same blaster, quieter with distance
-            if (att > -30f) Audio.Shot("blaster", att);
+            float att = Audio.Falloff(td, 300f);   // the same blaster, quieter with distance: 8 dB a doubling past 300 u, gone past 2,850 (2026-09-23)
+            if (att > Audio.SILENT) Audio.Shot("blaster", att);
         }
         // the rocket battery (2026-09-19): while the core stands and the ship is engaged within ROCKET_REACH, a seeker from
         // the top of the core every ROCKET_EVERY seconds, ROCKETS_ALOFT in the air at a time; the first comes a few seconds
@@ -361,7 +361,7 @@ public class Outpost
                 var r = game.raiders.Make(at, pos);
                 r.state = "attack";
                 r.heading = new Vector3(1f, 0f, 0f);   // out of the mouth
-                r.spd = 220f;
+                r.spd = 800f;
                 r.fireCd = 1.5f;
                 _defenders.Add(r);
                 launched++;

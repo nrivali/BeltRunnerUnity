@@ -691,7 +691,8 @@ public static class Ui
         public Color color = AMBER;
         public bool small, round;
 
-        public static Marker Make(RectTransform parent, Color color, bool small = false, bool round = false)
+        /// `textOnly` (2026-09-22, the combat branch): no icon, the label alone sits on the point (the raider and wingman names).
+        public static Marker Make(RectTransform parent, Color color, bool small = false, bool round = false, bool textOnly = false)
         {
             var m = new Marker { color = color, small = small, round = round };
             m.rt = Rect("Marker", parent, BL, TC, Vector2.zero, new Vector2(300f, 44f));
@@ -701,6 +702,7 @@ public static class Ui
             m.icon.color = color;
             m.icon.small = small;
             m.icon.round = round;
+            if (textOnly) m.icon.enabled = false;
             m.label = Label(m.rt, "", "display", small ? 9 : 10, color, TextAnchor.UpperCenter);
             m.label.horizontalOverflow = HorizontalWrapMode.Overflow;
             At(m.label.rectTransform, TC, TC, new Vector2(0f, -18f), new Vector2(300f, 16f));
@@ -718,6 +720,25 @@ public static class Ui
         }
 
         public void Hide() { if (rt.gameObject.activeSelf) rt.gameObject.SetActive(false); }
+
+        // a health bar under the label (2026-09-23, the user's: "a health bar under the battleship turret when you are
+        // damaging them"): made the first time it is asked for, a dark track and a fill in the marker's colour
+        RectTransform _barRt, _barFill;
+        Image _barFillImg;
+        public void ShowBar(float v, Color c)
+        {
+            if (_barRt == null)
+            {
+                _barRt = Rect("Bar", rt, TC, TC, new Vector2(0f, -35f), new Vector2(64f, 5f));
+                Fill(_barRt, new Color(0f, 0f, 0f, 0.6f));
+                _barFill = Rect("Fill", _barRt, BL, BL, new Vector2(1f, 1f), new Vector2(62f, 3f));
+                _barFillImg = Fill(_barFill, c);
+            }
+            _barRt.gameObject.SetActive(true);
+            _barFill.sizeDelta = new Vector2(62f * Mathf.Clamp01(v), 3f);
+            if (_barFillImg.color != c) _barFillImg.color = c;
+        }
+        public void HideBar() { if (_barRt != null && _barRt.gameObject.activeSelf) _barRt.gameObject.SetActive(false); }
     }
 
     public class MarkerIcon : MaskableGraphic
@@ -741,6 +762,25 @@ public static class Ui
                 }
             }
             else Diamond(vh, p, half, 2f, c);
+        }
+    }
+
+    // ---- the damage ring (2026-09-22, the combat branch): one arc of a ring round the crosshair per direction sector; the
+    // HUD lights the sector a hit came from and lets it fade. `a0`..`a1` in degrees, `radius` and `thick` in canvas px
+    public class HitArc : MaskableGraphic
+    {
+        public float a0, a1, radius = 170f, thick = 12f;
+
+        protected override void OnPopulateMesh(VertexHelper vh)
+        {
+            vh.Clear();
+            var c = color;
+            const int n = 10;
+            for (int k = 0; k < n; k++)
+            {
+                float t0 = Mathf.Lerp(a0, a1, k / (float)n) * Mathf.Deg2Rad, t1 = Mathf.Lerp(a0, a1, (k + 1) / (float)n) * Mathf.Deg2Rad;
+                Line(vh, new Vector2(Mathf.Cos(t0), Mathf.Sin(t0)) * radius, new Vector2(Mathf.Cos(t1), Mathf.Sin(t1)) * radius, thick, c);
+            }
         }
     }
 
@@ -816,72 +856,6 @@ public static class Ui
                     Rectangle(vh, r, new Color(0.024f, 0.039f, 0.094f, 0.6f * it.alpha));
                     Frame(vh, r, 1f, A(CYAN, 0.25f * it.alpha));
                 }
-            }
-        }
-    }
-
-    // ---- the afterburner's speed streaks: thin pale lines racing out from the centre of the screen toward the edges,
-    // each on its own spoke at its own pace, tapered and faint near the centre, brighter as it nears the edge. The HUD
-    // sets the intensity (0 hides it) and the streaks step outward each frame.
-    public class SpeedStreaks : MaskableGraphic
-    {
-        const int N = 64;
-        readonly float[] _ang = new float[N], _r = new float[N], _len = new float[N], _spd = new float[N], _w = new float[N];
-        float _k;
-        bool _seeded;
-
-        void Seed(int i)
-        {
-            _ang[i] = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
-            _r[i] = UnityEngine.Random.Range(0.05f, 0.6f);        // start radius, as a fraction of the half-diagonal
-            _len[i] = UnityEngine.Random.Range(0.08f, 0.22f);
-            _spd[i] = UnityEngine.Random.Range(0.9f, 1.8f);       // fractions of the half-diagonal a second
-            _w[i] = UnityEngine.Random.Range(1f, 2.2f);
-        }
-
-        Vector2 _origin;   // the vanishing point, as a fraction of the half-size off centre: it leads into a turn
-        float _bank;       // degrees: the spokes tip with the bank
-
-        /// `k` is the intensity 0..1; `dt` steps the streaks outward, faster with `speed` (0..1); `origin` moves the
-        /// vanishing point (fractions of the half-size) and `bank` tips the whole field (degrees).
-        public void Set(float k, float dt, float speed, Vector2 origin, float bank)
-        {
-            _origin = origin;
-            _bank = bank;
-            if (!_seeded) { for (int i = 0; i < N; i++) { Seed(i); _r[i] = UnityEngine.Random.Range(0.05f, 1f); } _seeded = true; }
-            _k = k;
-            if (k <= 0.005f) { SetVerticesDirty(); return; }
-            for (int i = 0; i < N; i++)
-            {
-                _r[i] += _spd[i] * (0.6f + 0.8f * speed) * dt;
-                if (_r[i] > 1.05f) { Seed(i); _r[i] = UnityEngine.Random.Range(0.02f, 0.12f); }
-            }
-            SetVerticesDirty();
-        }
-
-        protected override void OnPopulateMesh(VertexHelper vh)
-        {
-            vh.Clear();
-            if (_k <= 0.005f) return;
-            var rect = GetPixelAdjustedRect();
-            var c = rect.center + new Vector2(_origin.x * rect.width * 0.5f, _origin.y * rect.height * 0.5f);
-            float half = new Vector2(rect.width, rect.height).magnitude * 0.5f;
-            float bankRad = _bank * Mathf.Deg2Rad;
-            for (int i = 0; i < N; i++)
-            {
-                float r0 = _r[i], r1 = Mathf.Min(1.05f, r0 + _len[i]);
-                if (r0 < 0.1f) continue;   // the centre stays clear
-                var d = new Vector2(Mathf.Cos(_ang[i] + bankRad), Mathf.Sin(_ang[i] + bankRad));
-                var a = c + d * r0 * half;
-                var b = c + d * r1 * half;
-                // faint near the centre, brightest two thirds out, gone at the edge
-                float mid = (r0 + r1) * 0.5f;
-                float bright = Mathf.Clamp01((mid - 0.1f) / 0.45f) * Mathf.Clamp01((1.05f - mid) / 0.3f);
-                var col = new Color(0.8f, 0.9f, 1f, 0.3f * _k * bright);   // faint: the post pass's blur carries the effect
-                // tapered: a sliver at the near end, the full width at the far end
-                var n = new Vector2(-d.y, d.x);
-                float w = _w[i] * (0.6f + 0.6f * mid);
-                Quad(vh, a - n * 0.2f, a + n * 0.2f, b + n * w * 0.5f, b - n * w * 0.5f, col);
             }
         }
     }

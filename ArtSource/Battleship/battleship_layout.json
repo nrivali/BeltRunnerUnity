@@ -1,0 +1,45 @@
+{
+  "version": "1.0.0",
+  "written": "2026-09-22",
+  "source": "Assets/Scripts/Battlefield.cs on the combat-rework branch",
+  "units": "world units, 1 u = 0.125 m on the readout; build at world scale like cargo_carrier",
+  "frame": { "origin": "hull centre", "forward": [1, 0, 0], "up": [0, 1, 0], "port": [0, 0, 1] },
+  "import": "the cargo_carrier conventions: glTFast mirrors X, the game turns the model a half turn about Y; author it as the carrier was, add no flip or turn",
+  "hull": {
+    "half_extents": [3700, 540, 900],
+    "collision_spheres": [
+      { "centre": [-2400, 0, 0], "r": 1000 },
+      { "centre": [0, 0, 0], "r": 1000 },
+      { "centre": [2400, 0, 0], "r": 1000 }
+    ],
+    "rock_clearance_r": 4200,
+    "deck_plate": { "centre": [1200, 640, 0], "size": [3400, 200, 1200] },
+    "engines": { "centre": [-3900, 0, 0], "size": [500, 900, 1500], "glows": [[-4180, 0, -450], [-4180, 0, 0], [-4180, 0, 450]], "glow_size": 220 },
+    "bow_trim": { "centre": [3702, 0, 0], "size": [8, 500, 1400] },
+    "light": { "position": [0, 1400, 0], "color": "#ff8aa0", "range": 5000, "intensity": 0.6 }
+  },
+  "subsystems": [
+    { "name": "turret_1", "kind": "turret", "order": 1, "hp": 500, "pad": [2300, 600, 520], "head": [2300, 790, 520], "head_r": 150, "hit_r": 210, "barrel": [44, 130, 44], "rest_aim": [0, 0.35, 1] },
+    { "name": "turret_2", "kind": "turret", "order": 1, "hp": 500, "pad": [2300, 600, -520], "head": [2300, 790, -520], "head_r": 150, "hit_r": 210, "barrel": [44, 130, 44], "rest_aim": [0, 0.35, -1] },
+    { "name": "turret_3", "kind": "turret", "order": 1, "hp": 500, "pad": [-1900, 600, 520], "head": [-1900, 790, 520], "head_r": 150, "hit_r": 210, "barrel": [44, 130, 44], "rest_aim": [0, 0.35, 1] },
+    { "name": "turret_4", "kind": "turret", "order": 1, "hp": 500, "pad": [-1900, 600, -520], "head": [-1900, 790, -520], "head_r": 150, "hit_r": 210, "barrel": [44, 130, 44], "rest_aim": [0, 0.35, -1] },
+    { "name": "generator_1", "kind": "shield_generator", "order": 2, "hp": 260, "centre": [200, 620, 380], "r": 220, "hit_r": 280, "bubble_r": 350, "lamp": [200, 796, 380] },
+    { "name": "generator_2", "kind": "shield_generator", "order": 2, "hp": 260, "centre": [200, 620, -380], "r": 220, "hit_r": 280, "bubble_r": 350, "lamp": [200, 796, -380] },
+    { "name": "hangar_control", "kind": "hangar", "order": 3, "hp": 380, "centre": [-1200, 600, 0], "size": [520, 300, 520], "hit_r": 340, "bubble_r": 410, "lamp": [-1200, 756, 0] },
+    { "name": "core", "kind": "core", "order": 3, "hp": 700, "centre": [3000, 760, 0], "size": [560, 460, 700], "hit_r": 400, "bubble_r": 470, "lamp": [3282, 820, 0], "lamp_size": [8, 160, 600] }
+  ],
+  "bay": { "spawn": [0, -150, 1150], "exit_dir": [0, 0, 1], "mouth_lamp": { "centre": [0, -150, 905], "size": [1400, 380, 12] } },
+  "turret_fire": { "dmg": 10, "rate_per_s": 2.5, "reach": 12000, "bolt_speed": 24000, "spread_rad": 0.005, "muzzle_offset_from_head": 410 },
+  "hangar": { "launch_every_s": 14, "first_launch_s": 6, "aloft": 3 },
+  "palette": {
+    "hull": "#3B3040", "dark": "#171420", "plate": "#5C546B",
+    "trim_enemy": "#ff2e63", "trim_ally": "#5ED3F0", "lamp": "#ffb070",
+    "shield_enemy": "#ff4773 at 20% alpha, rim", "shield_ally": "#5ED3F0 at 18% alpha, rim"
+  },
+  "naming": {
+    "empties": ["turret_1", "turret_2", "turret_3", "turret_4", "generator_1", "generator_2", "hangar_control", "core", "bay", "collide_1", "collide_2", "collide_3"],
+    "meshes": ["hull", "turret_N_pad", "turret_N_head", "turret_N_lamp", "generator_N_body", "generator_N_lamp", "hangar_body", "hangar_lamp", "core_body", "core_lamp", "bay_lamp", "engine_glow_0", "engine_glow_1", "engine_glow_2"],
+    "head_convention": "pivot at the head centre, barrel along the node's +Z, +Y up; the code sets its rotation every frame"
+  },
+  "delivery": { "glb": "Assets/StreamingAssets/enemy_battleship.glb", "manifest": "beside it", "test": "BeltRunner.exe -battle" }
+}

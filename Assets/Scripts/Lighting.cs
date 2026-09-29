@@ -116,6 +116,7 @@ public class Post : MonoBehaviour
     public float intensity = 0.8f;
     public float burn;                              // the afterburner: 0..1, the radial blur and the fringing
     public Vector2 burnCenter = new Vector2(0.5f, 0.5f);   // its centre in uv, leading into a turn
+    public Vector2 burnMask;   // (near, far) eye depth over which the burn comes in, so the cockpit's cabin stays sharp; far 0 = everywhere (2026-09-23)
     // the god rays: the sun's place in the frame from its direction (Lighting sets it), the source masked round it,
     // blurred toward it twice; faded out as the sun leaves the frame, and off while it is behind the camera
     public Vector3 sunDir = Vector3.up;
@@ -196,6 +197,7 @@ public class Post : MonoBehaviour
         _mat.SetFloat("_Intensity", intensity);
         _mat.SetFloat("_Burn", burn);
         _mat.SetVector("_BurnCenter", new Vector4(burnCenter.x, burnCenter.y, 0f, 0f));
+        _mat.SetVector("_BurnMask", new Vector4(burnMask.x, burnMask.y, 0f, 0f));
         int w = src.width / 4, h = src.height / 4;
         var a = RenderTexture.GetTemporary(w, h, 0, src.format);
         var b = RenderTexture.GetTemporary(w, h, 0, src.format);

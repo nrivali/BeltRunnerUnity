@@ -12,6 +12,7 @@ Shader "BeltRunner/Post"
         _Intensity ("Glow intensity", Float) = 0.55
         _Burn ("Afterburner", Float) = 0
         _BurnCenter ("Afterburner centre", Vector) = (0.5, 0.5, 0, 0)
+        _BurnMask ("Afterburner depth mask (near, far; far 0 = everywhere)", Vector) = (0, 0, 0, 0)
         _Rays ("God rays", 2D) = "black" {}
         _SunUV ("Sun in the frame (uv)", Vector) = (0.5, 0.5, 0, 0)
         _RayThreshold ("Ray source threshold", Float) = 1.2
@@ -36,6 +37,8 @@ Shader "BeltRunner/Post"
         sampler2D _Volume;
         float _Exposure, _Threshold, _Intensity, _Burn;
         float4 _BurnCenter;
+        float4 _BurnMask;
+        UNITY_DECLARE_DEPTH_TEXTURE(_CameraDepthTexture);
         float4 _SunUV;
         float _RayThreshold, _RayLen, _RayDecay, _RayGain;
         float4 _Grade, _ShadowTint, _HighTint;
@@ -117,15 +120,27 @@ Shader "BeltRunner/Post"
             float4 frag(v2f i) : SV_Target
             {
                 float3 c;
-                if (_Burn > 0.003)
+                float burn = _Burn;
+                if (burn > 0.003 && _BurnMask.y > 0.0)
+                {
+                    // the cockpit (2026-09-23): the cabin, nearer than the mask's near, is left sharp, and the burn is
+                    // full from its far, so the blur and the fringing stay outside the canopy
+                    float2 uvd = i.uv;
+                    #if UNITY_UV_STARTS_AT_TOP
+                    if (_MainTex_TexelSize.y < 0.0) uvd.y = 1.0 - uvd.y;
+                    #endif
+                    float z = LinearEyeDepth(SAMPLE_DEPTH_TEXTURE(_CameraDepthTexture, uvd));
+                    burn *= smoothstep(_BurnMask.x, _BurnMask.y, z);
+                }
+                if (burn > 0.003)
                 {
                     // the afterburner: a radial blur toward the centre (which leads into a turn), the red and blue
                     // fringing apart along the same rays, and the edges pulled darker, all growing with the distance out
                     float2 cen = _BurnCenter.xy;
                     float2 d = i.uv - cen;
                     float dist = length(d * float2(1.0, _MainTex_TexelSize.x / _MainTex_TexelSize.y));
-                    float s = _Burn * (0.006 + 0.01 * dist);
-                    float fr = _Burn * 0.0045 * dist;
+                    float s = burn * (0.006 + 0.01 * dist);
+                    float fr = burn * 0.0045 * dist;
                     float3 acc = 0.0;
                     for (int k = 0; k < 10; k++)
                     {
@@ -138,7 +153,7 @@ Shader "BeltRunner/Post"
                         acc += float3(r, g, b);
                     }
                     c = acc / 10.0;
-                    c *= 1.0 - _Burn * 0.42 * dist * dist;
+                    c *= 1.0 - burn * 0.42 * dist * dist;
                 }
                 else c = tex2D(_MainTex, i.uv).rgb;
                 c += tex2D(_Bloom, i.uv).rgb * _Intensity;

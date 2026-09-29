@@ -34,7 +34,7 @@ public class Menu
         new object[] { new[] { "W", "S" }, "Throttle up and down. The engines hold whatever setting you leave them at. X cuts to zero; S at zero fires the retro thrusters." },
         new object[] { new[] { "A", "D", "↑", "↓" }, "Roll left and right · pitch up and down on keys." },
         new object[] { new[] { "G" }, "Laser overcharge on or off. With the upgrade fitted, the beam cuts ×1.5 to ×3 harder while it is armed, and the reactor feeds it from your fuel tank the whole time it is cutting. It switches itself off when the tank runs dry." },
-        new object[] { new[] { "Shift" }, "Afterburner: hold it with the throttle open and thrust and top speed multiply, ×2 as fitted from the start and up to ×5 with the upgrades. It burns fuel far faster, so use it in bursts." },
+        new object[] { new[] { "Shift" }, "Afterburner: hold it with the throttle open and thrust and top speed double (×2, the only setting since 2026-09-22). It burns fuel far faster, so use it in bursts." },
         new object[] { new[] { "R" }, "Radar pulse · marks every ore rock in scanner range" },
         new object[] { new[] { "P" }, "Cockpit view on · off: the camera at the pilot's eye, rigid to the hull, a wider lens, the canopy frame and the dash round the view; C or the right button still turns your head. Remembered in the save" },
         new object[] { new[] { "LMB" }, "Hold to fire the mining laser (L too). The dish under the nose cuts whatever the crosshair is on until it breaks. It never picks targets by itself: keep the nose on the rock." },

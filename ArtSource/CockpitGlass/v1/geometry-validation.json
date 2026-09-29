@@ -1,0 +1,52 @@
+{
+  "status": "PASS",
+  "checks": [
+    "Root at ship origin, identity transform; three named single-sided meshes only",
+    "Every triangle faces the pilot",
+    "All panes beyond the 2/3 unscaled near distance",
+    "Zero triangle intersections against unchanged v2 interior",
+    "Dense vertex and triangle centroid clearance checks",
+    "Continuous UV island per pane, no folds, U right and V up",
+    "Perspective UV interpolation error below 0.25 texel at 1024",
+    "Original v2 blend SHA256 unchanged"
+  ],
+  "panes": [
+    {
+      "node": "canopy_glass_front",
+      "triangle_intersections_with_v2": 0,
+      "minimum_sampled_clearance_unscaled": 0.0664968490600586,
+      "clearance_sample_count": 3137,
+      "closest_plane_distance_to_eye_unscaled": 3.5857424155738045,
+      "uv_area": 0.9190265989603574,
+      "uv_triangles_consistent_orientation": true,
+      "maximum_uv_interpolation_error_texels_at_1024": 0.12481689453125,
+      "vertices": 1089,
+      "triangles": 2048
+    },
+    {
+      "node": "canopy_glass_left",
+      "triangle_intersections_with_v2": 0,
+      "minimum_sampled_clearance_unscaled": 0.03600454330444336,
+      "clearance_sample_count": 3137,
+      "closest_plane_distance_to_eye_unscaled": 2.879805230011698,
+      "uv_area": 0.9021265174737628,
+      "uv_triangles_consistent_orientation": true,
+      "maximum_uv_interpolation_error_texels_at_1024": 0.04388427734375,
+      "vertices": 1089,
+      "triangles": 2048
+    },
+    {
+      "node": "canopy_glass_right",
+      "triangle_intersections_with_v2": 0,
+      "minimum_sampled_clearance_unscaled": 0.036004066467285156,
+      "clearance_sample_count": 3137,
+      "closest_plane_distance_to_eye_unscaled": 2.879806255371932,
+      "uv_area": 0.902126523640324,
+      "uv_triangles_consistent_orientation": true,
+      "maximum_uv_interpolation_error_texels_at_1024": 0.04150390625,
+      "vertices": 1089,
+      "triangles": 2048
+    }
+  ],
+  "unity_runtime_tested": false
+}

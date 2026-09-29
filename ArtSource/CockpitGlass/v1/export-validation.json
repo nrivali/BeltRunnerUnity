@@ -1,0 +1,46 @@
+{
+  "status": "PASS",
+  "root": "cockpit_glass",
+  "panes": [
+    {
+      "node": "canopy_glass_front",
+      "vertices": 1089,
+      "triangles": 2048,
+      "maximum_vertex_uv_error": 1.9507862503154172e-7,
+      "maximum_bounds_error": 0,
+      "minimum_eye_facing_normal_dot": 3.5857688739535263,
+      "topological_disk": true,
+      "uv_area": 0.9190265968777116
+    },
+    {
+      "node": "canopy_glass_left",
+      "vertices": 1089,
+      "triangles": 2048,
+      "maximum_vertex_uv_error": 1.556860748097577e-7,
+      "maximum_bounds_error": 0,
+      "minimum_eye_facing_normal_dot": 2.879787242205989,
+      "topological_disk": true,
+      "uv_area": 0.9021265045473696
+    },
+    {
+      "node": "canopy_glass_right",
+      "vertices": 1089,
+      "triangles": 2048,
+      "maximum_vertex_uv_error": 1.2685003597523448e-7,
+      "maximum_bounds_error": 0,
+      "minimum_eye_facing_normal_dot": 2.879787242205989,
+      "topological_disk": true,
+      "uv_area": 0.9021265107625819
+    }
+  ],
+  "checks": [
+    "Exactly root and three pane nodes, all identity transforms",
+    "Unity axes and bounds match manifest after glTFast X reflection",
+    "Unity U right / V up after glTFast V flip",
+    "Single-sided pilot-facing normals and UV disk topology",
+    "One alpha-BLEND material, alpha 0.06, metallic 0, roughness 0.05",
+    "No cameras, lights, text, textures, gameplay, compression or extensions",
+    "Embedded binary buffer only"
+  ],
+  "glb_sha256": "ad7fe13aedecc9e71bc2bc6e4138ea9031727ebce19905e4830f2900433c5d8d"
+}

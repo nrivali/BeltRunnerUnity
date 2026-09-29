@@ -106,6 +106,8 @@ public class Audio : MonoBehaviour
         if (_clips.TryGetValue(name, out c)) return c;
         c = Resources.Load<AudioClip>("Sfx/" + name);
         if (c == null && name == "shield_down") c = ShieldDownClip();   // the recorded clip is the one that plays; the synthesized one is the fallback
+        if (c == null && name == "whoosh") c = WhooshClip();   // synthesized: no recorded clip
+        if (c == null && name == "glass_crack") c = CrackClip();   // synthesized: the cockpit glass breaking (2026-09-23)
         _clips[name] = c;
         return c;
     }
@@ -372,6 +374,129 @@ public class Audio : MonoBehaviour
     public static void EnemyAlert() { if (ENEMY_ALERT_VOLUME <= 0f) return; Play("alarm", 20f * Mathf.Log10(ENEMY_ALERT_VOLUME)); }
     /// A gun shot: its own source, one-shot voices, so every shot plays through and lands on the shot however fast the gun fires.
     public static void Shot(string name, float extraDb = 0f) { if (I != null) I.GunShot(name, extraDb); }
+
+    /// Gunfire heard with distance (2026-09-23, the user's: "I am hearing a blaster sound that isn't near me"): full inside
+    /// `full` of the muzzle, then 8 dB down a doubling (6 before), and nothing past SILENT, 26 dB down (30 before): a
+    /// raider's gun (full to 300 u) is gone past 2,850 u, a battleship turret's (full to 2,000 u) past 19,000 u; it was
+    /// 9,600 and 64,000 u, so a dogfight or a turret duel across the field was heard from your seat.
+    public const float SILENT = -26f;
+    public static float Falloff(float d, float full) { return d <= full ? 0f : -26.6f * Mathf.Log10(d / full); }
+
+    /// A battleship turret's shot (2026-09-23, the user's: "give a blaster sound to the battleship turrets"): the same
+    /// blaster clip on its own source, pitched down to HEAVY_PITCH so it reads as a big gun, HEAVY_DB up on the autocannon;
+    /// the caller attenuates it by distance. Its own source because a pitch set on the gun's would bend every shot on it.
+    public static void Heavy(string name, float extraDb = 0f) { if (I != null) I.HeavyShot(name, extraDb); }
+    public const float HEAVY_PITCH = 0.55f, HEAVY_DB = 4f;
+
+    /// A bolt going past (2026-09-23, the user's: "the blaster shots need to make a noise as they go past you"): the
+    /// synthesized whoosh on one of three sources, `close` 0..1 (1 right past the ear, WHOOSH_FALL dB down at 0), panned to
+    /// the side it passes (`pan` -1..1), a little random in pitch; a turret's shell (`heavy`) deeper and louder. One
+    /// every 60 ms at most, so a stream of bolts is a rush and not a wall.
+    public static void Whoosh(float close, float pan, bool heavy) { if (I != null) I.WhooshPass(close, pan, heavy); }
+    public const float WHOOSH_DB = -8f, WHOOSH_FALL = 14f, WHOOSH_HEAVY_DB = 4f, WHOOSH_HEAVY_PITCH = 0.6f;
+
+    readonly AudioSource[] _whoosh = new AudioSource[3];
+    float _whooshT = -1f;
+    void WhooshPass(float close, float pan, bool heavy)
+    {
+        if (_whooshT >= 0f && Time.time - _whooshT < 0.06f) return;
+        var c = Clip("whoosh");
+        if (c == null) return;
+        for (int i = 0; i < _whoosh.Length; i++)
+        {
+            var s = _whoosh[i];
+            if (s == null) { s = Src("Whoosh " + i); _whoosh[i] = s; }
+            if (s.isPlaying) continue;
+            _whooshT = Time.time;
+            s.pitch = (heavy ? WHOOSH_HEAVY_PITCH : 1f) * Random.Range(0.92f, 1.08f);
+            s.panStereo = Mathf.Clamp(pan, -1f, 1f) * 0.8f;
+            s.volume = Lin(WHOOSH_DB + (heavy ? WHOOSH_HEAVY_DB : 0f) - WHOOSH_FALL * (1f - Mathf.Clamp01(close)));
+            s.clip = c;
+            s.Play();
+            Count("whoosh");
+            return;
+        }
+    }
+
+    /// The cockpit glass breaking (2026-09-23), synthesized: four sharp ticks of noise over a quarter second, each dying
+    /// in 12 ms, the later ones quieter, a ring at 2.8 kHz under them; peak 0.8.
+    static AudioClip CrackClip()
+    {
+        const int rate = 22050;
+        const float dur = 0.26f;
+        int n = Mathf.RoundToInt(rate * dur);
+        var d = new float[n];
+        var rng = new System.Random(23);
+        float[] at = { 0f, 0.05f, 0.09f, 0.16f };
+        float[] amp = { 1f, 0.7f, 0.55f, 0.4f };
+        float phase = 0f, peak = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            float t = (float)i / rate;
+            float env = 0f;
+            for (int k = 0; k < at.Length; k++) { float dt = t - at[k]; if (dt >= 0f) env += amp[k] * Mathf.Exp(-dt / 0.012f); }
+            float white = (float)rng.NextDouble() * 2f - 1f;
+            phase += 2800f / rate * Mathf.PI * 2f;
+            d[i] = (white * 0.8f + Mathf.Sin(phase) * 0.3f) * env;
+            peak = Mathf.Max(peak, Mathf.Abs(d[i]));
+        }
+        if (peak > 1e-4f) { float g = 0.8f / peak; for (int i = 0; i < n; i++) d[i] *= g; }
+        var c = AudioClip.Create("glass_crack", n, 1, rate, false);
+        c.SetData(d, 0);
+        return c;
+    }
+
+    /// The pass of a bolt, synthesized: noise through a resonant band swept from 1,600 Hz down to 300 Hz over 0.3 s (the
+    /// fall of a thing going by), a sine under it, swelling in over the first third and away over the rest, peak 0.9.
+    static AudioClip WhooshClip()
+    {
+        const int rate = 22050;
+        const float dur = 0.3f;
+        int n = Mathf.RoundToInt(rate * dur);
+        var d = new float[n];
+        var rng = new System.Random(11);
+        float phase = 0f, lp = 0f, bp = 0f, peak = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            float t = (float)i / n;
+            float f = Mathf.Lerp(1600f, 300f, t);
+            phase += f / rate * Mathf.PI * 2f;
+            float white = (float)rng.NextDouble() * 2f - 1f;
+            // a state-variable filter's band pass, resonant, tracking f
+            float fc = 2f * Mathf.Sin(Mathf.PI * f / rate);
+            lp += fc * bp;
+            float hp = white - lp - 0.25f * bp;
+            bp += fc * hp;
+            float env = t < 0.3f ? Mathf.Sin(t / 0.3f * Mathf.PI * 0.5f) : Mathf.Cos((t - 0.3f) / 0.7f * Mathf.PI * 0.5f);
+            d[i] = (bp * 1.6f + Mathf.Sin(phase) * 0.25f) * env;
+            peak = Mathf.Max(peak, Mathf.Abs(d[i]));
+        }
+        if (peak > 1e-4f) { float g = 0.9f / peak; for (int i = 0; i < n; i++) d[i] *= g; }
+        var c = AudioClip.Create("whoosh", n, 1, rate, false);
+        c.SetData(d, 0);
+        return c;
+    }
+
+    AudioSource _heavy;
+    AudioClip _heavyRaw, _heavyClip;
+    void HeavyShot(string name, float extraDb)
+    {
+        var raw = Clip(name);
+        if (raw == null) return;
+        if (_heavy == null) { _heavy = Src("Heavy"); _heavy.pitch = HEAVY_PITCH; }
+        if (raw != _heavyRaw)
+        {
+            _heavyRaw = raw;
+            _heavyClip = null;
+            raw.LoadAudioData();
+        }
+        if (_heavyClip == null && raw.loadState == AudioDataLoadState.Loaded) _heavyClip = TrimHead(raw, name == "blaster" ? 0.4f : 0f);
+        float db;
+        if (!GAIN_DB.TryGetValue(name, out db)) db = -5f;
+        _heavy.volume = 1f;
+        _heavy.PlayOneShot(_heavyClip != null ? _heavyClip : raw, Lin(db + HEAVY_DB + extraDb));
+        Count(name);
+    }
 
     /// A sound that must land: its own source (the pool of eight fills up in a fight, with two raiders zapping six times
     /// a second), one-shot voices so it never cuts itself, the clip's silent head trimmed once the data is in.

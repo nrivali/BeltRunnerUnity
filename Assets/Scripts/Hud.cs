@@ -25,15 +25,32 @@ public class Hud : MonoBehaviour
     Vector2 _canvasSize = new Vector2(1280f, 720f);
     Camera _cam;
 
+    // the battleship parts you are damaging (2026-09-23, the user's: "a health bar under the battleship turret when you
+    // are damaging them"): a marker on each enemy part hit by you within PART_T seconds, its name and its health under it
+    readonly List<Ui.Marker> _partMarkers = new List<Ui.Marker>();
+    const float PART_T = 3f;
+    // the battle meter (2026-09-23, the user's staged battle): a tug of war at the top of the screen, filled from the middle
+    // toward our end in cyan or theirs in red, the phase and its clock above it, the objective under it
+    RectTransform _meterBox, _meterFill;
+    Image _meterFillImg;
+    Text _meterLbl, _meterObj;
+    // the radar scope on the chase HUD (2026-09-23, the user's: "very hard to track the enemy raiders"): the cockpit's scope
+    // brought out to the chase view, bottom right above the weapon pane, forward up, the scanner's range to its edge
+    RectTransform _scope;
+    readonly Image[] _scopeDots = new Image[18];
     // the flight HUD
     Ui.Vignette _vignette, _dmg, _shieldOut;
-    Ui.SpeedStreaks _speed;
-    float _speedK;
+    float _speedK;   // the afterburner's ramp for the post pass, 0..1 (its radial streaks are gone: the space dust, `Dust`, shows the speed, 2026-09-23)
+    const float BURN_MASK_NEAR = 30f, BURN_MASK_FAR = 60f;   // in the cockpit the burn's blur leaves everything nearer than 30 u, the cabin, sharp (2026-09-23)
     float _shieldOutA;   // the shield-down warning: 0..1, eased
     Ui.Blips _blips;
     Ui.Reticle _reticle;
     RectTransform _reticleRt;
-    Ui.Marker _marker, _fieldMarker, _outpostMarker;
+    Ui.Marker _marker, _fieldMarker, _outpostMarker, _battleMarker;
+    public static readonly Color ALLY = Data.Hex("#5C9BFF");   // our side (2026-09-21, the user's: "ally fighters marked with blue")
+    readonly List<Ui.Marker> _wingMarkers = new List<Ui.Marker>();
+    readonly List<Ui.Marker> _rocketMarkers = new List<Ui.Marker>();   // seekers keep the icon and the range; raiders and wingmen are names alone (2026-09-22)
+    Text _bracketRange;   // the range under the bracket when it sits on an enemy (2026-09-22)
     Ui.Crosshair _crosshair;
     RectTransform _crosshairRt;
     readonly List<Ui.Marker> _droneMarkers = new List<Ui.Marker>();
@@ -55,6 +72,30 @@ public class Hud : MonoBehaviour
     RectTransform _tHpRow;
     Image _barTop, _barBot, _fade;
     float _lastHull = -1f, _dmgT;
+    // the hit direction (2026-09-22, the user's: "an indicator to know which direction you are getting hit from"): a red tick on
+    // a ring round the crosshair, pointing where the hit came from in the view's plane, fading over a second
+    // the attacker's waypoint (2026-09-23, the user's, in place of the damage ring): whatever hits the ship gets its marker
+    // pinned to the screen edge for ATTACKER_T seconds, a raider its own marker, a turret or a battery a red marker at its place
+    readonly Dictionary<Raiders.Raider, float> _attackers = new Dictionary<Raiders.Raider, float>();
+    readonly List<Raiders.Raider> _attackersGone = new List<Raiders.Raider>();
+    Ui.Marker _attackerMarker;
+    Vector3 _attackerPos;
+    float _attackerT;
+    string _attackerName = "";
+    const float ATTACKER_T = 4f;
+    public int hitTicks;   // hits shown so far, for the test log
+    // the kill feed (2026-09-22, the user's): the last six kills and losses, newest first, each fading out after FEED_LIFE.
+    // On the left under the toasts since 2026-09-23 (the user's: "put the kill feed on the left side and make it stand
+    // out more"): each line a boxed strip like a toast, a coloured left edge (amber for your own kills, red for a loss,
+    // the text colour for anyone else's kill), bold text in that colour, the newest line full and the rest a touch back
+    class FeedItem { public string text; public Color color; public float life; }
+    readonly List<FeedItem> _feed = new List<FeedItem>();
+    readonly Text[] _feedLbl = new Text[6];
+    readonly RectTransform[] _feedRow = new RectTransform[6];
+    readonly Ui.Box[] _feedBox = new Ui.Box[6];
+    const float FEED_LIFE = 7f;
+    const float FEED_Y = -168f, FEED_STEP = 30f, FEED_H = 26f;   // the first line's top (below the toast box), the pitch, a line's height
+    static readonly bool HOVER_LABEL = false;   // the label beside the cursor (what the mouse is over and its range) is off (2026-09-22, the user's: "no longer show info on cursor when hovering over things"); the pick itself still drives Z
     bool _controlsShown = true;
 
     class ToastItem { public RectTransform rt; public Ui.Box box; public Text text; public float age; }
@@ -136,12 +177,12 @@ public class Hud : MonoBehaviour
         _dmg.tint = Ui.RED;
         _dmg.inner = 0.45f;
         _dmg.strength = 0f;
+        _attackerMarker = Ui.Marker.Make(_root, Ui.RED, true);   // a turret's or a battery's waypoint while it is hitting the ship (2026-09-23)
         // the shield-down warning: a faint red-orange edge that breathes while the shield is at zero
         _shieldOut = FullGraphic<Ui.Vignette>("ShieldOut");
         _shieldOut.tint = Data.Hex("#ff5a3c");
         _shieldOut.inner = 0.5f;
         _shieldOut.strength = 0f;
-        _speed = FullGraphic<Ui.SpeedStreaks>("SpeedStreaks");
         // the pointer dot: shown wherever the mouse is while the OS pointer is hidden in flight
         _pointerDot = Ui.Rect("PointerDot", _root, Ui.BL, Ui.MID, Vector2.zero, new Vector2(12f, 12f));
         _pointerDot.gameObject.AddComponent<Ui.Dot>().raycastTarget = false;
@@ -149,11 +190,18 @@ public class Hud : MonoBehaviour
         _blips = FullGraphic<Ui.Blips>("Blips");
         _reticleRt = Ui.Rect("Reticle", _root, Ui.BL, Ui.MID, Vector2.zero, new Vector2(64f, 64f));
         _reticle = _reticleRt.gameObject.AddComponent<Ui.Reticle>();
+        // the range under the bracket when it sits on an enemy (2026-09-22, the user's): a child of the bracket, hung off its bottom edge
+        _bracketRange = Ui.Label(_reticleRt, "", "mono_semi", 12, Ui.RED, TextAnchor.UpperCenter);
+        _bracketRange.horizontalOverflow = HorizontalWrapMode.Overflow;
+        Ui.At(_bracketRange.rectTransform, Ui.BC, Ui.TC, new Vector2(0f, -6f), new Vector2(160f, 18f));
+        Ui.Glow(_bracketRange, new Color(0f, 0f, 0f, 0.8f), 1f);
+        _bracketRange.gameObject.SetActive(false);
         _reticle.raycastTarget = false;
         _reticleRt.gameObject.SetActive(false);
         _marker = Ui.Marker.Make(_root, Ui.AMBER);
         _fieldMarker = Ui.Marker.Make(_root, Ui.MUTED, false, true);
         _outpostMarker = Ui.Marker.Make(_root, Ui.RED, false, true);
+        _battleMarker = Ui.Marker.Make(_root, Ui.RED, false, true);   // the enemy battleship (2026-09-21)
         // the gunnery: the crosshair on the nose ray at gun range, and the lead pip for a locked raider
         _crosshairRt = Ui.Rect("Crosshair", _root, Ui.BL, Ui.MID, Vector2.zero, new Vector2(48f, 48f));
         _crosshair = _crosshairRt.gameObject.AddComponent<Ui.Crosshair>();
@@ -166,7 +214,31 @@ public class Hud : MonoBehaviour
         BuildControls();
         BuildPrompt();
         BuildNotice();
-        _toastBox = Ui.Rect("Toasts", _root, Ui.TC, Ui.TC, new Vector2(0f, -22f), new Vector2(900f, 300f));
+        _toastBox = Ui.Rect("Toasts", _root, Ui.TL, Ui.TL, new Vector2(18f, -18f), new Vector2(460f, 130f));   // top left, out of the view (2026-09-22, the user's: "notifications block too much of the screen"); top centre, 900 wide, before
+        _meterBox = Ui.Rect("Meter", _root, Ui.TC, Ui.TC, new Vector2(0f, -14f), new Vector2(380f, 48f));
+        var meterTrack = Ui.Rect("Track", _meterBox, Ui.TC, Ui.TC, new Vector2(0f, -16f), new Vector2(380f, 10f));
+        Ui.Fill(meterTrack, new Color(0f, 0f, 0f, 0.6f));
+        _meterFill = Ui.Rect("Fill", meterTrack, Ui.MID, Ui.MID, Vector2.zero, new Vector2(0f, 8f));
+        _meterFillImg = Ui.Fill(_meterFill, Ui.CYAN);
+        Ui.Fill(Ui.Rect("Mark", meterTrack, Ui.MID, Ui.MID, Vector2.zero, new Vector2(2f, 14f)), Ui.TEXT);
+        _meterLbl = Ui.Label(_meterBox, "", "display", 11, Ui.TEXT, TextAnchor.UpperCenter);
+        Ui.At(_meterLbl.rectTransform, Ui.TC, Ui.TC, new Vector2(0f, 0f), new Vector2(380f, 14f));
+        Ui.Glow(_meterLbl, new Color(0f, 0f, 0f, 0.8f), 1f);
+        _meterObj = Ui.Label(_meterBox, "", "body", 11, Ui.MUTED, TextAnchor.UpperCenter);
+        Ui.At(_meterObj.rectTransform, Ui.TC, Ui.TC, new Vector2(0f, -30f), new Vector2(380f, 14f));
+        Ui.Glow(_meterObj, new Color(0f, 0f, 0f, 0.8f), 1f);
+        _meterBox.gameObject.SetActive(false);
+        _scope = Ui.Rect("Scope", _root, Ui.BR, Ui.BR, new Vector2(-18f, 18f + BAND_H + 14f), new Vector2(120f, 120f));
+        Ui.Fill(_scope, new Color(0.03f, 0.06f, 0.1f, 0.85f));
+        Ui.Fill(Ui.Rect("H", _scope, Ui.MID, Ui.MID, Vector2.zero, new Vector2(120f, 1f)), Ui.HUD_FAINT);
+        Ui.Fill(Ui.Rect("V", _scope, Ui.MID, Ui.MID, Vector2.zero, new Vector2(1f, 120f)), Ui.HUD_FAINT);
+        Ui.Fill(Ui.Rect("Ship", _scope, Ui.MID, Ui.MID, Vector2.zero, new Vector2(6f, 6f)), Ui.TEXT);
+        for (int i = 0; i < _scopeDots.Length; i++)
+        {
+            _scopeDots[i] = Ui.Fill(Ui.Rect("Dot", _scope, Ui.MID, Ui.MID, Vector2.zero, new Vector2(5f, 5f)), Ui.AMBER);
+            _scopeDots[i].gameObject.SetActive(false);
+        }
+        _scope.gameObject.SetActive(false);
         BuildCine();
         var vt = Ui.Fixed(_root, "v" + Data.VERSION, "mono", 11, Ui.A(Ui.DIM, 0.75f), Ui.BL, new Vector2(14f, 8f));
         _version = vt.rectTransform;
@@ -325,10 +397,10 @@ public class Hud : MonoBehaviour
         new object[] { new[] { "A", "D" }, "Roll left · right" },
         new object[] { new[] { "S", "W" }, "Pitch · pull up · push down (↑ ↓ too)" },
         new object[] { new[] { "Q", "E" }, "Yaw left · right" },
-        new object[] { new[] { "Shift", "Ctrl" }, "Throttle up · down (the wheel too)" },
+        new object[] { new[] { "W", "S" }, "Throttle up · down (Ctrl and the wheel too · S at zero fires the retros)" },
         new object[] { new[] { "X" }, "Cut throttle · Ctrl at zero fires retros" },
         new object[] { new[] { "Space" }, "Hold · drift: engine cuts, you coast on, the nose swings twice as fast" },
-        new object[] { new[] { "Alt" }, "Afterburner while throttled up (×2 speed from the start, ×5 with the upgrades · burns fuel fast)" },
+        new object[] { new[] { "Shift" }, "Afterburner while throttled up (×2 speed · burns fuel fast)" },
         new object[] { new[] { "C", "RMB" }, "Hold · free look" },
         new object[] { new[] { "G" }, "Laser overcharge on · off (needs the upgrade · up to ×3 damage · the beam draws fuel while it cuts)" },
         new object[] { new[] { "LMB" }, "Hold to fire the selected weapon (L too). The laser cuts only what the crosshair is on: aim the nose at a rock" },
@@ -395,6 +467,17 @@ public class Hud : MonoBehaviour
         _hoverTxt = Ui.Label(_hoverLbl, "", "mono", 11, Ui.TEXT, TextAnchor.MiddleCenter);
         Ui.At(_hoverTxt.rectTransform, Ui.MID, Ui.MID, Vector2.zero, new Vector2(100f, 20f));
         _hoverLbl.gameObject.SetActive(false);
+        // the kill feed's six lines, on the left under the toasts, newest at the top (2026-09-23; top right before)
+        for (int i = 0; i < _feedLbl.Length; i++)
+        {
+            _feedRow[i] = Ui.Rect("Feed", _root, Ui.TL, Ui.TL, new Vector2(18f, FEED_Y - i * FEED_STEP), new Vector2(300f, FEED_H));
+            _feedBox[i] = Ui.MakeBox(_feedRow[i], new Color(0.024f, 0.039f, 0.094f, 0.85f), Ui.LINE2, 1f);
+            _feedBox[i].edgeW = 3f;
+            _feedLbl[i] = Ui.Label(_feedRow[i], "", "body_semi", 14, Ui.TEXT, TextAnchor.MiddleLeft);
+            _feedLbl[i].horizontalOverflow = HorizontalWrapMode.Overflow;
+            Ui.At(_feedLbl[i].rectTransform, Ui.TL, Ui.TL, new Vector2(12f, 0f), new Vector2(600f, FEED_H));
+            _feedRow[i].gameObject.SetActive(false);
+        }
     }
 
     void BuildNotice()
@@ -441,7 +524,7 @@ public class Hud : MonoBehaviour
         it.rt.sizeDelta = new Vector2(w, 30f);
         Ui.At(it.text.rectTransform, Ui.MID, Ui.MID, new Vector2(1.5f, 0f), new Vector2(w - 3f, 30f));
         _toasts.Add(it);
-        while (_toasts.Count > 6) { Destroy(_toasts[0].rt.gameObject); _toasts.RemoveAt(0); }
+        while (_toasts.Count > 3) { Destroy(_toasts[0].rt.gameObject); _toasts.RemoveAt(0); }   // three at most (six until 2026-09-22)
         LayoutToasts();
     }
 
@@ -1706,7 +1789,7 @@ public class Hud : MonoBehaviour
     /// pointing on the sides of the screen") unless `pin` is set, when it is pinned to the screen edge with an arrow
     /// pointing the way, mirrored when it is behind the camera: enemies keep the arrow (the same day, the user's: "still
     /// show way points of enemies on the side of the screen"). The nav map (N) is where everything else off screen is.
-    const float DASH_LINE = 0.38f;   // the cockpit's deck top, as a share of the screen height from the bottom (v2 at the 60-degree lens tilted 4 degrees down, 2026-09-21: about 65% down from the top at 16:9, plus a label's height): no blip or marker over it
+    const float DASH_LINE = 0.37f;   // the cockpit's deck top, as a share of the screen height from the bottom (v2 at the 50-degree lens, level, 2026-09-22: about 74% down from the top at 16:9, plus a label's height): no blip or marker over it
     /// Whether the cockpit's free look is on a window: past about 75 degrees of yaw or up at the roof the cabin walls
     /// are all there is to see, so the blips and the plain markers stand down (the enemy arrows stay)
     bool CanopyView { get { return !ship.Cockpit || ship.docked || (Mathf.Abs(ship.lookYaw) < 1.3f && ship.lookPitch < 0.9f); } }
@@ -1733,6 +1816,30 @@ public class Hud : MonoBehaviour
     public void DamageFlash() { _dmgT = 0.6f; }
     public void WreckFlash() { _dmgT = 1.4f; }
 
+    /// A hit on the ship (Ship.Hurt): the red edge flashes, and the attacker's waypoint is pinned to the screen edge for
+    /// ATTACKER_T seconds: a raider's own marker gets the arrow, anything else (a turret, a rocket battery) a red marker
+    /// at its place, named for it.
+    public void HitBy(Raiders.Raider by, Vector3 fromTrue, string who)
+    {
+        hitTicks++;
+        _dmgT = Mathf.Max(_dmgT, 0.45f);   // every hit flashes the red edge (the user's: "an effect when getting hit"); a hull hit's own flash is longer
+        if (by != null && !by.dead) { _attackers[by] = ATTACKER_T; return; }
+        _attackerPos = fromTrue;
+        _attackerT = ATTACKER_T;
+        _attackerName = string.IsNullOrEmpty(who) ? "ATTACKER" : who.ToUpperInvariant();
+    }
+
+    static string Clock(float t) { int s = Mathf.Max(0, Mathf.CeilToInt(t)); return (s / 60) + ":" + (s % 60).ToString("00"); }
+    static string NextPart(Battlefield.Base b) { foreach (var s in b.subs) if (b.Exposed(s)) return "the " + s.name; return "the core"; }
+
+    /// A line for the kill feed (on the left): your own kill in amber, anyone else's in the usual text, a loss in red.
+    /// Newest first, six at most, each fading out after FEED_LIFE.
+    public void Feed(string text, bool loss)
+    {
+        _feed.Insert(0, new FeedItem { text = text, color = loss ? Ui.RED : text.StartsWith("You ") ? Ui.AMBER2 : Ui.TEXT, life = FEED_LIFE });
+        while (_feed.Count > _feedLbl.Length) _feed.RemoveAt(_feed.Count - 1);
+    }
+
     // ---- every frame
     public void UpdateHud(float dt, Ship ship, Belt belt, CargoShip carrier, Data.Zone zone, bool isStarted)
     {
@@ -1753,7 +1860,7 @@ public class Hud : MonoBehaviour
         _gFuel.Show(ff, Mathf.FloorToInt(State.fuel) + " / " + Mathf.RoundToInt(tank), ff < 0.2f ? Ui.RED : Ui.CYAN);
         float sf = State.shield / State.ShieldMax;
         bool charging = State.sinceHit >= Data.SHIELD_WAIT && State.shield < State.ShieldMax;
-        // the wait: a countdown to the recharge while the shield is down and the last hit is under ten seconds old
+        // the wait: a countdown to the recharge while the shield is down and the last hit is under SHIELD_WAIT old
         string tail = charging ? " ↑" : State.shield < State.ShieldMax ? " · " + (Data.SHIELD_WAIT - State.sinceHit).ToString("0.0") + " s" : "";
         _gShield.Show(sf, Mathf.CeilToInt(State.shield) + " / " + Mathf.RoundToInt(State.ShieldMax) + tail, sf < 0.25f ? Ui.AMBER : Data.Hex("#8fe8ff"));
         float tv = ship.braking ? 1f : ship.throttle;
@@ -1857,7 +1964,7 @@ public class Hud : MonoBehaviour
         }
         // the hover label beside the cursor: what the mouse is over and how far it is
         var hv = ship.hover;
-        if (hv != null && !docked && !inCut && started)
+        if (HOVER_LABEL && hv != null && !docked && !inCut && started)
         {
             _hoverLbl.gameObject.SetActive(true);
             string ht = hv.name + " · " + Data.Fm(hv.dist) + " m";
@@ -1905,6 +2012,7 @@ public class Hud : MonoBehaviour
         else if (started && State.CargoTotal() > 0.5f && !hold) segs.Add(Kbd("E") + " Deposit all ore into the cargo ship");
         if (started && docked && !hold && !zone.hub) segs.Add(Kbd("H") + " Warp to the Hub");
         if (started && !docked && game != null && game.outpost != null && game.outpost.built && State.raid == 1 && !game.outpost.destroyed) segs.Add(Ui.Col("RAID", Ui.RED) + " " + game.outpost.Status);
+        if (started && !docked && game != null && game.battle != null && game.battle.active) segs.Add(Ui.Col(game.battle.state == "battle" ? "BATTLE" : game.battle.state == "won" ? "FIELD WON" : "FIELD LOST", game.battle.state == "won" ? Ui.GREEN : Ui.RED) + " " + game.battle.Status);   // the battlefield (2026-09-21)
         if (started && !docked && ship.cut == null && ship.CanFly)
         {
             if (hv != null && !ship.HoverIsLock(hv)) segs.Add(Kbd("Z") + " " + (locked ? "Switch lock to " : "Lock on ") + hv.name);
@@ -1916,7 +2024,7 @@ public class Hud : MonoBehaviour
             _promptText.text = ptext;
             _prompt.sizeDelta = new Vector2(Mathf.Ceil(_promptText.preferredWidth) + 28f, 36f);
         }
-        float baseY = 18f + BAND_H + 14f + (ship.Cockpit && !docked && !inCut ? 135f : 0f);   // in the cockpit the hint sits just above the deck, in the canopy (v2's lower deck; 215 put it on the target)
+        float baseY = 18f + BAND_H + 14f + (ship.Cockpit && !docked && !inCut ? 138f : 0f);   // in the cockpit the hint sits just above the deck, in the canopy (55 for the 50-degree lens, 2026-09-22; 135 at 60 degrees; 215 put it on the target)
         _prompt.anchoredPosition = new Vector2(0f, baseY);
         _notice.anchoredPosition = new Vector2(0f, baseY + (segs.Count > 0 ? _prompt.sizeDelta.y + 10f : 0f));
         _notice.gameObject.SetActive(started && full && !docked && !inCut);
@@ -1981,9 +2089,11 @@ public class Hud : MonoBehaviour
             Vector3 bracketAt = Vector3.zero;
             float bracketR = 0f;
             bool bracketLock = false;
+            Raiders.Raider bracketRaider = null;   // the enemy under the bracket, locked or in the sights: its range hangs under the box (2026-09-22)
             if (locked && ship.lockKind == "rock" && ship.lockRock >= 0 && ship.lockRock < belt.count && belt.alive[ship.lockRock]) { bracketAt = belt.RockPos(ship.lockRock); bracketR = belt.radius[ship.lockRock]; bracketLock = true; }
-            else if (locked && ship.lockKind == "raider" && ship.lockRaider != null && !ship.lockRaider.dead) { bracketAt = ship.lockRaider.pos; bracketR = Raiders.RADIUS * 2f; bracketLock = true; }
+            else if (locked && ship.lockKind == "raider" && ship.lockRaider != null && !ship.lockRaider.dead && (ship.lockRaider.pos - ship.TruePos).magnitude <= ship.GunReach) { bracketAt = ship.lockRaider.pos; bracketR = Raiders.RADIUS * 2f; bracketLock = true; bracketRaider = ship.lockRaider; }   // the box and its range only inside the gun's reach (2026-09-23, the user's: "enemy range lock on only appear at 1000m"); the lock itself holds further
             else if (locked && ship.lockKind == "station" && carrier != null) { bracketAt = carrier.truePos; bracketR = CargoShip.HALF.x; bracketLock = true; }
+            else if (ship.raiderTarget != null && !ship.raiderTarget.dead) { bracketAt = ship.raiderTarget.pos; bracketR = Raiders.RADIUS * 2f; bracketRaider = ship.raiderTarget; }   // the raider the guns are on (2026-09-22, the user's: "a lock on box around the target you are looking")
             else if (hasTarget) { bracketAt = belt.RockPos(ship.target); bracketR = belt.radius[ship.target]; }
             if (bracketR > 0f && showFlight && ship.cut == null && !docked)
             {
@@ -1998,36 +2108,129 @@ public class Hud : MonoBehaviour
                 float side = Mathf.Clamp(pr * 2f * 1.25f + 16f, bracketLock ? 56f : 44f, 480f);
                 _reticleRt.sizeDelta = new Vector2(side, side);
                 _reticle.Set(ship.laserOn || ship.gunFiring, bracketLock);
+                bool showRange = bracketRaider != null;
+                if (_bracketRange.gameObject.activeSelf != showRange) _bracketRange.gameObject.SetActive(showRange);
+                if (showRange)
+                {
+                    string rs = Data.Fm(Mathf.Max(0f, (bracketRaider.pos - ship.LaserOrigin()).magnitude - Raiders.RADIUS)) + " m";
+                    if (_bracketRange.text != rs) _bracketRange.text = rs;
+                }
             }
             else _reticleRt.gameObject.SetActive(false);
         }
         // raiders on the attack carry a red marker
         var rl = showFlight && !docked && !hold && game.raiders != null ? game.raiders.raiders : null;
         var kl = rl != null ? game.raiders.rockets : null;   // and a seeker coming at the ship (2026-09-19) carries one too
-        int nr = 0;
-        if (rl != null) foreach (var r in rl) if (r.state == "attack") nr++;
-        if (kl != null) foreach (var k in kl) if (k.hostile) nr++;
-        while (_raiderMarkers.Count < nr) _raiderMarkers.Add(Ui.Marker.Make(_root, Ui.RED, true));
-        int ri = 0;
+        // on the battlefield (2026-09-23, the user's: "very hard to track the enemy raiders") every raider is marked at any
+        // range, a red diamond with its range, and the nearest three keep an edge arrow off screen; in the belt the name
+        // alone inside the gun's reach, as before
+        bool field = game != null && game.battle != null && game.battle.Active;
+        int nr = 0, nw = 0, nk = 0;
+        if (rl != null) foreach (var r in rl) { if (r.team == 0) { if (!r.dead) nw++; } else if (field ? !r.dead : r.state == "attack") nr++; }
+        float pinR = float.PositiveInfinity;
+        if (field && rl != null)
+        {
+            var ds = new List<float>();
+            foreach (var r in rl) if (r.team == 1 && !r.dead) ds.Add((r.pos - ship.TruePos).magnitude);
+            ds.Sort();
+            if (ds.Count > 0) pinR = ds[Mathf.Min(2, ds.Count - 1)];
+        }
+        if (kl != null) foreach (var k in kl) if (k.hostile) nk++;
+        while (_raiderMarkers.Count < nr) _raiderMarkers.Add(Ui.Marker.Make(_root, Ui.RED, true, false, true));
+        while (_wingMarkers.Count < nw) _wingMarkers.Add(Ui.Marker.Make(_root, ALLY, true, false, true));
+        while (_rocketMarkers.Count < nk) _rocketMarkers.Add(Ui.Marker.Make(_root, Ui.RED, true));
+        int ri = 0, wi = 0, ki = 0;
         if (rl != null) foreach (var r in rl)
         {
-            if (r.state != "attack") continue;
-            PlaceMarker(_raiderMarkers[ri++], r.pos - game.worldOffset, "RAIDER · " + Data.Fm((r.pos - ship.TruePos).magnitude), true);   // an enemy keeps its edge arrow
+            // a wingman (2026-09-21, the combat branch) is a blue name, a raider a red one: the name alone, no icon and no
+            // range (2026-09-22, the user's: "no longer display the raider waypoint, just the name"; the range goes under the
+            // bracket instead), and neither is pinned to the edge; a seeker keeps its icon, its range and its edge arrow
+            if (r.team == 0) { if (!r.dead) PlaceMarker(_wingMarkers[wi++], r.pos - game.worldOffset, "WINGMAN"); continue; }
+            if (field ? r.dead : r.state != "attack") continue;
+            float hitT;
+            bool attacker = _attackers.TryGetValue(r, out hitT) && hitT > 0f;   // one that has hit the ship in the last few seconds keeps its edge arrow (2026-09-23)
+            float rd = (r.pos - ship.TruePos).magnitude;
+            if (!field && !attacker && rd > ship.GunReach) continue;   // the tag only inside the gun's reach, 1,000 m (2026-09-23, the user's: "get rid of the raider tags unless you are within 1000m"); an attacker's waypoint stays at any range
+            var rm = _raiderMarkers[ri++];
+            if (!rm.icon.enabled) rm.icon.enabled = true;   // the diamond alone, everywhere: no name, no range (2026-09-23, the user asked)
+            PlaceMarker(rm, r.pos - game.worldOffset, "", attacker || (field && rd <= pinR));
+        }
+        for (; wi < _wingMarkers.Count; wi++) _wingMarkers[wi].Hide();
+        for (; ri < _raiderMarkers.Count; ri++) _raiderMarkers[ri].Hide();
+        // the scope (2026-09-23): in the chase view only (the cockpit has its own on the flight screen)
+        bool scopeOn = showFlight && !docked && !hold && !ship.Cockpit;
+        if (_scope.gameObject.activeSelf != scopeOn) _scope.gameObject.SetActive(scopeOn);
+        if (scopeOn)
+        {
+            float R = Mathf.Max(1f, State.Stat("scanner").range);
+            var inv = Quaternion.Inverse(ship.transform.rotation);
+            int n = 0;
+            System.Action<Vector3, Color, float> dot = (p, col, size) =>
+            {
+                if (n >= _scopeDots.Length) return;
+                var l = inv * (p - ship.TruePos);
+                var xy = new Vector2(l.x, l.z) / R * 55f;
+                if (xy.magnitude > 57f) return;
+                var d = _scopeDots[n++];
+                d.gameObject.SetActive(true);
+                d.rectTransform.anchoredPosition = xy;
+                d.rectTransform.sizeDelta = new Vector2(size, size);
+                d.color = col;
+            };
+            if (carrier != null) dot(carrier.truePos, Ui.CYAN, 7f);
+            if (rl != null) foreach (var r in rl) if (!r.dead) dot(r.pos, r.team == 0 ? ALLY : Ui.RED, 5f);
+            if (kl != null) foreach (var k in kl) if (k.hostile) dot(k.pos, Ui.RED, 3f);
+            foreach (var m in belt.Marked(State.time, ship.TruePos, 12)) dot(belt.RockPos(m.id), belt.ore[m.id] >= 0 ? Data.ORES[belt.ore[m.id]].color : Ui.MUTED, 4f);
+            for (int i = n; i < _scopeDots.Length; i++) if (_scopeDots[i].gameObject.activeSelf) _scopeDots[i].gameObject.SetActive(false);
         }
         if (kl != null) foreach (var k in kl)
         {
             if (!k.hostile) continue;
-            PlaceMarker(_raiderMarkers[ri++], k.pos - game.worldOffset, (k.flare != null ? "ROCKET · on the flare · " : "ROCKET · ") + Data.Fm((k.pos - ship.TruePos).magnitude), true);
+            PlaceMarker(_rocketMarkers[ki++], k.pos - game.worldOffset, (k.flare != null ? "ROCKET · on the flare · " : "ROCKET · ") + Data.Fm((k.pos - ship.TruePos).magnitude), true);
         }
-        for (; ri < _raiderMarkers.Count; ri++) _raiderMarkers[ri].Hide();
+        for (; ki < _rocketMarkers.Count; ki++) _rocketMarkers[ki].Hide();
         // the raider outpost (2026-09-19): marked once the contract is taken, or whenever it is near
         var op = game != null ? game.outpost : null;
         float od = op != null && op.built ? (op.pos - ship.TruePos).magnitude : 0f;
         if (op != null && op.built && showFlight && !docked && !hold && (State.raid == 1 || od < 24000f)) PlaceMarker(_outpostMarker, op.pos - game.worldOffset, "RAIDER OUTPOST · " + Data.Fm(od) + (op.destroyed ? " · destroyed" : ""), !op.destroyed);   // a standing outpost keeps its edge arrow
         else _outpostMarker.Hide();
+        // the enemy battleship (2026-09-21): a red marker, pinned to the edge while it stands
+        var bf = game != null ? game.battle : null;
+        if (bf != null && bf.active && bf.enemy != null && showFlight && !docked && !hold) PlaceMarker(_battleMarker, bf.enemy.pos - game.worldOffset, "ENEMY BATTLESHIP · " + Data.Fm((bf.enemy.pos - ship.TruePos).magnitude) + (bf.enemy.destroyed ? " · destroyed" : ""), !bf.enemy.destroyed);
+        else _battleMarker.Hide();
+        // the battle meter and the phase (2026-09-23)
+        bool meterOn = bf != null && bf.Active && showFlight && !docked && !hold;
+        if (_meterBox.gameObject.activeSelf != meterOn) _meterBox.gameObject.SetActive(meterOn);
+        if (meterOn)
+        {
+            float mv = bf.morale;
+            _meterFill.pivot = mv >= 0f ? new Vector2(1f, 0.5f) : new Vector2(0f, 0.5f);
+            _meterFill.sizeDelta = new Vector2(190f * Mathf.Clamp01(Mathf.Abs(mv) / Battlefield.FILL), 8f);
+            var mc = mv >= 0f ? Ui.CYAN : Ui.RED;
+            if (_meterFillImg.color != mc) _meterFillImg.color = mc;
+            string ph, obj;
+            if (Battlefield.attacking < 0) { ph = "NEUTRAL · " + Mathf.RoundToInt(Mathf.Abs(mv)) + " / " + Mathf.RoundToInt(Battlefield.FILL) + (mv > 0.5f ? " OURS" : mv < -0.5f ? " THEIRS" : ""); obj = "Kill fighters to push the fight onto their ship"; }
+            else if (Battlefield.attacking == 0) { ph = "ATTACK · " + Clock(bf.attackT) + " · PUSH " + bf.pushes[0] + " OF " + Battlefield.PUSH_CAP; obj = "Destroy " + NextPart(bf.enemy) + " · their kills push you back"; }
+            else { ph = "DEFEND · " + Clock(bf.attackT) + " · THEIR PUSH " + bf.pushes[1] + " OF " + Battlefield.PUSH_CAP; obj = "Kill the attackers on our ship to push them back"; }
+            if (_meterLbl.text != ph) _meterLbl.text = ph;
+            if (_meterObj.text != obj) _meterObj.text = obj;
+        }
+        int pi = 0;
+        if (bf != null && bf.active && bf.enemy != null && showFlight && !docked && !hold)
+        {
+            foreach (var s in bf.enemy.subs)
+            {
+                if (s.dead || Time.time - s.hitT > PART_T) continue;
+                if (pi >= _partMarkers.Count) _partMarkers.Add(Ui.Marker.Make(_root, Ui.RED, true));
+                var pm = _partMarkers[pi++];
+                PlaceMarker(pm, bf.enemy.ToTrue(s.HeadLocal) - game.worldOffset, "ENEMY " + s.name.ToUpperInvariant());
+                if (pm.rt.gameObject.activeSelf) pm.ShowBar(s.maxHp > 0f ? s.hp / s.maxHp : 0f, Ui.RED); else pm.HideBar();
+            }
+        }
+        for (int k = pi; k < _partMarkers.Count; k++) { _partMarkers[k].HideBar(); _partMarkers[k].Hide(); }
         // the cargo ship marker, the nearest charted field's (hidden while inside one), and one on every collector drone
         bool markersOn = carrier != null && showFlight && !docked && !hold;
-        if (markersOn) PlaceMarker(_marker, carrier.transform.position, toCarrier >= 4500f ? "CARGO SHIP" : CargoShip.BayName(carrier.NearestSide(ship.TruePos)).ToUpperInvariant());
+        if (markersOn) PlaceMarker(_marker, carrier.transform.position, toCarrier >= 4500f ? "CARGO SHIP" : CargoShip.BayName(carrier.NearestSide(ship.TruePos)).ToUpperInvariant(), true);   // always shown, pinned to the edge when out of view (2026-09-23, the user's: "always show the waypoint of your battleship")
         else _marker.Hide();
         var inside = markersOn ? belt.FieldAt(ship.TruePos) : null;
         float edge = 0f;
@@ -2069,6 +2272,38 @@ public class Hud : MonoBehaviour
         // the damage flash on a knock
         if (_lastHull >= 0f && State.hull < _lastHull - 0.5f && !docked) DamageFlash();
         _lastHull = State.hull;
+        // the attackers' waypoints time out; a turret's or a battery's is placed here (a raider's is its own marker, pinned)
+        if (_attackers.Count > 0)
+        {
+            _attackersGone.Clear();
+            foreach (var kv in _attackers) if (kv.Value - dt <= 0f || kv.Key.dead) _attackersGone.Add(kv.Key);
+            foreach (var k in _attackersGone) _attackers.Remove(k);
+            _attackersGone.Clear();
+            foreach (var kv in _attackers) _attackersGone.Add(kv.Key);
+            foreach (var k in _attackersGone) _attackers[k] -= dt;
+        }
+        if (_attackerT > 0f) _attackerT -= dt;
+        if (_attackerT > 0f && showFlight && !docked) PlaceMarker(_attackerMarker, _attackerPos - game.worldOffset, _attackerName + " · " + Data.Fm((_attackerPos - ship.TruePos).magnitude), true);
+        else _attackerMarker.Hide();
+        // the kill feed: the lines age, the oldest fade, and the labels show what is left (in flight only)
+        for (int i = _feed.Count - 1; i >= 0; i--) { _feed[i].life -= dt; if (_feed[i].life <= 0f) _feed.RemoveAt(i); }
+        for (int i = 0; i < _feedLbl.Length; i++)
+        {
+            bool on = showFlight && !docked && i < _feed.Count;
+            if (_feedRow[i].gameObject.activeSelf != on) _feedRow[i].gameObject.SetActive(on);
+            if (!on) continue;
+            var f = _feed[i];
+            if (_feedLbl[i].text != f.text)
+            {
+                _feedLbl[i].text = f.text;
+                _feedRow[i].sizeDelta = new Vector2(Mathf.Ceil(_feedLbl[i].preferredWidth) + 26f, FEED_H);   // the strip fits its line
+            }
+            float fa = Mathf.Clamp01(f.life / 1.5f) * (i == 0 ? 1f : 0.8f);   // the newest full, the rest a touch back, all fading out at the end
+            _feedLbl[i].color = Ui.A(f.color, fa);
+            _feedBox[i].leftEdge = f.color;
+            _feedBox[i].alpha = fa;
+            _feedBox[i].SetVerticesDirty();
+        }
         if (_dmgT > 0f)
         {
             _dmgT = Mathf.Max(0f, _dmgT - dt);
@@ -2079,20 +2314,19 @@ public class Hud : MonoBehaviour
         _shieldOutA = Mathf.MoveTowards(_shieldOutA, shieldOut ? 1f : 0f, dt / (shieldOut ? 0.4f : 0.8f));
         float breathe = 0.5f + 0.5f * Mathf.Sin(Time.time * Mathf.PI * 2f / 1.4f);
         _shieldOut.Set(_shieldOutA * (0.09f + 0.09f * breathe));
-        // the afterburner's speed streaks: in over a third of a second when it lights, out over half a second after
+        // the afterburner's post pass, the radial blur and the fringing: in over a third of a second when it lights, out
+        // over half a second after. The speed itself is the space dust's to show (`Dust`): it streaks past at the true
+        // speed, twice as long on the burner (2026-09-23; the overlay's radial streaks went with it)
         bool burning = ship.afterburning && !docked && ship.cut == null && ship.warp == null;
         _speedK = Mathf.Lerp(_speedK, burning ? 1f : 0f, 1f - Mathf.Exp(-(burning ? 3f : 2f) * dt));
-        // ... and the post pass: the radial blur and the fringing, centred where the streaks vanish
+        // in the cockpit the effect stays outside the cabin (2026-09-23): everything nearer than 30 u is left sharp
+        bool cabin = ship.Cockpit && !docked;
         if (game.lighting != null && game.lighting.post != null)
         {
             game.lighting.post.burn = _speedK * (0.75f + 0.08f * State.Stat("thrusters").mult);
             game.lighting.post.burnCenter = new Vector2(0.5f + ship.camYaw * 0.125f, 0.5f + ship.camPitch * 0.1f);
+            game.lighting.post.burnMask = cabin ? new Vector2(BURN_MASK_NEAR, BURN_MASK_FAR) : Vector2.zero;
         }
-        var engS = State.Stat("engine");
-        // the streaks react to the turn: the vanishing point leads into it (a quarter of the half-width at full yaw, a
-        // fifth of the half-height at full pitch) and the field tips with the bank
-        _speed.Set(_speedK, dt, engS.max > 0f ? Mathf.Clamp01(ship.vel.magnitude / (engS.max * 3f)) : 0.5f,
-            new Vector2(ship.camYaw * 0.25f, ship.camPitch * 0.2f), -ship.camYaw * 14f - ship.camRoll * 7f);
         // the hangar window fills the screen between a top margin and the status pane; the tutorial card, which is only
         // there at the start of the game, draws over its corner rather than the window making room for it
         float topInset = 30f;

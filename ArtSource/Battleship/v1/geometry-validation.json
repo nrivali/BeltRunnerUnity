@@ -1,0 +1,182 @@
+{
+  "status": "PASS",
+  "checks": [
+    "Raw glTF transforms independently match the exact glTFast X mirror + existing Y half-turn",
+    "Self-contained GLB, opaque materials, no glass/shields/preview rig",
+    "All manifest node positions survive export/import",
+    "Identity asset root; carrier import conventions retained",
+    "Every switchable lamp/window/glow has a separate mesh and an exclusive material",
+    "All four shielded-part spheres clear the static hull/deck",
+    "Four mesh pivots with barrel/eye/muzzle children",
+    "24 independent simulated LookRotation poses retain +Z firing and 410-unit muzzle offset",
+    "All turret barrel swept envelopes clear covered-part bubbles",
+    "Bay anchor faces gameplay +Z; nine launch-throat/exit rays are clear",
+    "Three engine glows visible through open exhaust mouths"
+  ],
+  "errors": [],
+  "shield_clearance": [
+    {
+      "name": "generator_1",
+      "bubble_radius": 350,
+      "closest_static_hull_distance": 457.0,
+      "clearance": 107.0
+    },
+    {
+      "name": "generator_2",
+      "bubble_radius": 350,
+      "closest_static_hull_distance": 457.0,
+      "clearance": 107.0
+    },
+    {
+      "name": "hangar_control",
+      "bubble_radius": 410,
+      "closest_static_hull_distance": 483.195,
+      "clearance": 73.195
+    },
+    {
+      "name": "core",
+      "bubble_radius": 470,
+      "closest_static_hull_distance": 627.0,
+      "clearance": 157.0
+    }
+  ],
+  "turrets": [
+    {
+      "name": "turret_1",
+      "aim_poses_checked": 6,
+      "muzzle_offset": 410,
+      "minimum_swept_barrel_to_shield_clearance": 104.747
+    },
+    {
+      "name": "turret_2",
+      "aim_poses_checked": 6,
+      "muzzle_offset": 410,
+      "minimum_swept_barrel_to_shield_clearance": 104.747
+    },
+    {
+      "name": "turret_3",
+      "aim_poses_checked": 6,
+      "muzzle_offset": 410,
+      "minimum_swept_barrel_to_shield_clearance": 205.776
+    },
+    {
+      "name": "turret_4",
+      "aim_poses_checked": 6,
+      "muzzle_offset": 410,
+      "minimum_swept_barrel_to_shield_clearance": 205.776
+    }
+  ],
+  "launch_rays": [
+    {
+      "origin_game": [
+        -300,
+        -220,
+        400
+      ],
+      "outward_to_z": 3900,
+      "clear": true
+    },
+    {
+      "origin_game": [
+        -300,
+        -110,
+        400
+      ],
+      "outward_to_z": 3900,
+      "clear": true
+    },
+    {
+      "origin_game": [
+        -300,
+        0,
+        400
+      ],
+      "outward_to_z": 3900,
+      "clear": true
+    },
+    {
+      "origin_game": [
+        0,
+        -220,
+        400
+      ],
+      "outward_to_z": 3900,
+      "clear": true
+    },
+    {
+      "origin_game": [
+        0,
+        -110,
+        400
+      ],
+      "outward_to_z": 3900,
+      "clear": true
+    },
+    {
+      "origin_game": [
+        0,
+        0,
+        400
+      ],
+      "outward_to_z": 3900,
+      "clear": true
+    },
+    {
+      "origin_game": [
+        300,
+        -220,
+        400
+      ],
+      "outward_to_z": 3900,
+      "clear": true
+    },
+    {
+      "origin_game": [
+        300,
+        -110,
+        400
+      ],
+      "outward_to_z": 3900,
+      "clear": true
+    },
+    {
+      "origin_game": [
+        300,
+        0,
+        400
+      ],
+      "outward_to_z": 3900,
+      "clear": true
+    }
+  ],
+  "exhaust_rays": [
+    {
+      "engine": 0,
+      "first_hit": "engine_glow_0",
+      "hit_game": [
+        -4115.0,
+        0.0,
+        -450.0
+      ]
+    },
+    {
+      "engine": 1,
+      "first_hit": "engine_glow_1",
+      "hit_game": [
+        -4115.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "engine": 2,
+      "first_hit": "engine_glow_2",
+      "hit_game": [
+        -4115.0,
+        0.0,
+        450.0
+      ]
+    }
+  ],
+  "unity_runtime_tested": false
+}

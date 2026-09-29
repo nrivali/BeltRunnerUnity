@@ -1,0 +1,2396 @@
+{
+  "version": "1.0.0",
+  "file": "enemy_battleship.glb",
+  "root": "enemy_battleship",
+  "brief_date": "2026-09-22",
+  "source_brief": "ArtSource/Battleship/BRIEF.md",
+  "frame": {
+    "origin": "hull center",
+    "forward": [
+      1,
+      0,
+      0
+    ],
+    "up": [
+      0,
+      1,
+      0
+    ],
+    "port": [
+      0,
+      0,
+      1
+    ],
+    "units": "game world units",
+    "meters_per_unit": 0.125
+  },
+  "import": {
+    "same_as": "cargo_carrier",
+    "runtime_scale": [
+      1,
+      1,
+      1
+    ],
+    "gltfast_mirrors_x": true,
+    "existing_game_wrapper_y_degrees": 180,
+    "extra_asset_root_transform": "none",
+    "raw_gltf_position_from_game": [
+      "x",
+      "y",
+      "-z"
+    ],
+    "warning": "Apply only the existing carrier import convention. Do not add another flip, turn or scale. Positions in this manifest are in the FINAL gameplay frame.",
+    "position_only_anchors": "Raw glTF rotations remain identity except bay and rotating turret heads. Use the position anchors for position, not aim."
+  },
+  "hull": {
+    "half_extents": [
+      3700,
+      540,
+      900
+    ],
+    "main_hull_x_bounds": [
+      -3700,
+      3700
+    ],
+    "engines_extend_aft_to": -4228.0,
+    "rock_clearance_r": 4200,
+    "collision_spheres": [
+      {
+        "node": "collide_1",
+        "centre": [
+          -2400,
+          0,
+          0
+        ],
+        "r": 1000
+      },
+      {
+        "node": "collide_2",
+        "centre": [
+          0,
+          0,
+          0
+        ],
+        "r": 1000
+      },
+      {
+        "node": "collide_3",
+        "centre": [
+          2400,
+          0,
+          0
+        ],
+        "r": 1000
+      }
+    ],
+    "pressure_hull_bounds_game": {
+      "min": [
+        -3700.0,
+        -540.0,
+        -900.0
+      ],
+      "max": [
+        3700.0,
+        500.0,
+        900.0
+      ]
+    },
+    "half_extents_note": "Nominal unchanged gameplay collision envelope. Actual tapered pressure-hull and assembled-model bounds are recorded separately."
+  },
+  "subsystems": [
+    {
+      "name": "turret_1",
+      "kind": "turret",
+      "order": 1,
+      "hp": 500,
+      "pad": [
+        2300,
+        620,
+        600
+      ],
+      "head": [
+        2300,
+        850,
+        600
+      ],
+      "hit_r": 210,
+      "muzzle_offset_from_head": 410,
+      "rest_aim": [
+        0.0,
+        0.330350399017334,
+        0.9438583254814148
+      ],
+      "body_mesh": "turret_1_head",
+      "pad_mesh": "turret_1_pad",
+      "barrel_mesh": "turret_1_barrel",
+      "lamp_mesh": "turret_1_lamp",
+      "muzzle_node": "turret_1_muzzle"
+    },
+    {
+      "name": "turret_2",
+      "kind": "turret",
+      "order": 1,
+      "hp": 500,
+      "pad": [
+        2300,
+        620,
+        -600
+      ],
+      "head": [
+        2300,
+        850,
+        -600
+      ],
+      "hit_r": 210,
+      "muzzle_offset_from_head": 410,
+      "rest_aim": [
+        0.0,
+        0.330350399017334,
+        -0.9438583254814148
+      ],
+      "body_mesh": "turret_2_head",
+      "pad_mesh": "turret_2_pad",
+      "barrel_mesh": "turret_2_barrel",
+      "lamp_mesh": "turret_2_lamp",
+      "muzzle_node": "turret_2_muzzle"
+    },
+    {
+      "name": "turret_3",
+      "kind": "turret",
+      "order": 1,
+      "hp": 500,
+      "pad": [
+        -1900,
+        620,
+        600
+      ],
+      "head": [
+        -1900,
+        850,
+        600
+      ],
+      "hit_r": 210,
+      "muzzle_offset_from_head": 410,
+      "rest_aim": [
+        0.0,
+        0.330350399017334,
+        0.9438583254814148
+      ],
+      "body_mesh": "turret_3_head",
+      "pad_mesh": "turret_3_pad",
+      "barrel_mesh": "turret_3_barrel",
+      "lamp_mesh": "turret_3_lamp",
+      "muzzle_node": "turret_3_muzzle"
+    },
+    {
+      "name": "turret_4",
+      "kind": "turret",
+      "order": 1,
+      "hp": 500,
+      "pad": [
+        -1900,
+        620,
+        -600
+      ],
+      "head": [
+        -1900,
+        850,
+        -600
+      ],
+      "hit_r": 210,
+      "muzzle_offset_from_head": 410,
+      "rest_aim": [
+        0.0,
+        0.330350399017334,
+        -0.9438583254814148
+      ],
+      "body_mesh": "turret_4_head",
+      "pad_mesh": "turret_4_pad",
+      "barrel_mesh": "turret_4_barrel",
+      "lamp_mesh": "turret_4_lamp",
+      "muzzle_node": "turret_4_muzzle"
+    },
+    {
+      "name": "generator_1",
+      "kind": "shield_generator",
+      "order": 2,
+      "hp": 260,
+      "centre": [
+        200,
+        1040,
+        450
+      ],
+      "r": 220,
+      "hit_r": 280,
+      "bubble_r": 350,
+      "body_mesh": "generator_1_body",
+      "lamp_mesh": "generator_1_lamp",
+      "mounting_stem_in_body": true
+    },
+    {
+      "name": "generator_2",
+      "kind": "shield_generator",
+      "order": 2,
+      "hp": 260,
+      "centre": [
+        200,
+        1040,
+        -450
+      ],
+      "r": 220,
+      "hit_r": 280,
+      "bubble_r": 350,
+      "body_mesh": "generator_2_body",
+      "lamp_mesh": "generator_2_lamp",
+      "mounting_stem_in_body": true
+    },
+    {
+      "name": "hangar_control",
+      "kind": "hangar",
+      "order": 3,
+      "hp": 380,
+      "centre": [
+        -1100,
+        1100,
+        0
+      ],
+      "size": [
+        520,
+        270,
+        480
+      ],
+      "hit_r": 340,
+      "bubble_r": 410,
+      "body_mesh": "hangar_body",
+      "lamp_mesh": "hangar_lamp",
+      "mounting_stem_in_body": true
+    },
+    {
+      "name": "core",
+      "kind": "core",
+      "order": 3,
+      "hp": 700,
+      "centre": [
+        3000,
+        1210,
+        0
+      ],
+      "size": [
+        560,
+        420,
+        660
+      ],
+      "hit_r": 400,
+      "bubble_r": 470,
+      "body_mesh": "core_body",
+      "lamp_mesh": "core_lamp",
+      "mounting_stem_in_body": true
+    }
+  ],
+  "bay": {
+    "node": "bay",
+    "spawn": [
+      0,
+      -110,
+      1180
+    ],
+    "exit_dir": [
+      0,
+      0,
+      1
+    ],
+    "mouth_center": [
+      0,
+      -110,
+      963
+    ],
+    "clear_width": 1490,
+    "clear_height": 480,
+    "lamp_mesh": "bay_lamp"
+  },
+  "turret_fire": {
+    "muzzle_offset_from_head": 410,
+    "note": "turret_N_muzzle is a child of turret_N_head at imported local (0,0,410); set head world rotation with LookRotation exactly as current code does."
+  },
+  "switchable_emission": [
+    {
+      "mesh": "hull_lamp_01",
+      "material": "M_hull_lamp_01",
+      "death_owner": "core"
+    },
+    {
+      "mesh": "hull_lamp_02",
+      "material": "M_hull_lamp_02",
+      "death_owner": "core"
+    },
+    {
+      "mesh": "hull_lamp_03",
+      "material": "M_hull_lamp_03",
+      "death_owner": "core"
+    },
+    {
+      "mesh": "hull_lamp_04",
+      "material": "M_hull_lamp_04",
+      "death_owner": "core"
+    },
+    {
+      "mesh": "hull_lamp_05",
+      "material": "M_hull_lamp_05",
+      "death_owner": "core"
+    },
+    {
+      "mesh": "hull_lamp_06",
+      "material": "M_hull_lamp_06",
+      "death_owner": "core"
+    },
+    {
+      "mesh": "hull_lamp_07",
+      "material": "M_hull_lamp_07",
+      "death_owner": "core"
+    },
+    {
+      "mesh": "hull_lamp_08",
+      "material": "M_hull_lamp_08",
+      "death_owner": "core"
+    },
+    {
+      "mesh": "bow_lamp",
+      "material": "M_bow_lamp",
+      "death_owner": "core"
+    },
+    {
+      "mesh": "bay_lamp",
+      "material": "M_bay_lamp",
+      "death_owner": "hangar_control"
+    },
+    {
+      "mesh": "engine_glow_0",
+      "material": "M_engine_glow_0",
+      "death_owner": "core"
+    },
+    {
+      "mesh": "engine_glow_1",
+      "material": "M_engine_glow_1",
+      "death_owner": "core"
+    },
+    {
+      "mesh": "engine_glow_2",
+      "material": "M_engine_glow_2",
+      "death_owner": "core"
+    },
+    {
+      "mesh": "turret_1_lamp",
+      "material": "M_turret_1_lamp",
+      "death_owner": "turret_1"
+    },
+    {
+      "mesh": "turret_2_lamp",
+      "material": "M_turret_2_lamp",
+      "death_owner": "turret_2"
+    },
+    {
+      "mesh": "turret_3_lamp",
+      "material": "M_turret_3_lamp",
+      "death_owner": "turret_3"
+    },
+    {
+      "mesh": "turret_4_lamp",
+      "material": "M_turret_4_lamp",
+      "death_owner": "turret_4"
+    },
+    {
+      "mesh": "generator_1_lamp",
+      "material": "M_generator_1_lamp",
+      "death_owner": "generator_1"
+    },
+    {
+      "mesh": "generator_2_lamp",
+      "material": "M_generator_2_lamp",
+      "death_owner": "generator_2"
+    },
+    {
+      "mesh": "hangar_lamp",
+      "material": "M_hangar_lamp",
+      "death_owner": "hangar_control"
+    },
+    {
+      "mesh": "core_lamp",
+      "material": "M_core_lamp",
+      "death_owner": "core"
+    }
+  ],
+  "death_behavior": {
+    "turret": "Swap turret_N_head and optionally turret_N_pad to dark; hide turret_N_barrel; hide turret_N_lamp. Children follow head rotation.",
+    "generator": "Swap generator_N_body to dark; hide generator_N_lamp.",
+    "hangar_control": "Swap hangar_body to dark; hide hangar_lamp. bay_lamp may also be disabled when launching stops.",
+    "core": "Swap core_body to dark; hide core_lamp. On battleship death disable every switchable_emission entry."
+  },
+  "design_changes": [
+    "Turret pads moved from z +/-520 to +/-600 and y620; head offset is now +230Y",
+    "Generators moved to y1040,z +/-450 to clear static hull with 350-radius bubbles",
+    "Hangar control moved to x-1100,y1100 to clear its 410-radius bubble",
+    "Core/bridge moved to y1210 to clear its 470-radius bubble",
+    "Port bay is a real recessed aperture; spawn moved to (0,-110,1180)",
+    "Mounting stems belong to damageable body meshes; shield bubbles clear the static hull but cross their own mounting stems"
+  ],
+  "nodes": {
+    "enemy_battleship": {
+      "type": "EMPTY",
+      "parent": null,
+      "position_game": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "static geometry"
+    },
+    "bay": {
+      "type": "EMPTY",
+      "parent": "enemy_battleship",
+      "position_game": [
+        0.0,
+        -110.0,
+        1180.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "role": "fighter spawn; imported local +Z points outward",
+      "exit_direction_game": [
+        0,
+        0,
+        1
+      ]
+    },
+    "bay_mouth": {
+      "type": "EMPTY",
+      "parent": "enemy_battleship",
+      "position_game": [
+        0.0,
+        -110.0,
+        963.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "bay aperture center",
+      "clear_width": 1490,
+      "clear_height": 480
+    },
+    "collide_1": {
+      "type": "EMPTY",
+      "parent": "enemy_battleship",
+      "position_game": [
+        -2400.0,
+        0.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "position anchor",
+      "r": 1000.0
+    },
+    "collide_2": {
+      "type": "EMPTY",
+      "parent": "enemy_battleship",
+      "position_game": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "position anchor",
+      "r": 1000.0
+    },
+    "collide_3": {
+      "type": "EMPTY",
+      "parent": "enemy_battleship",
+      "position_game": [
+        2400.0,
+        0.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "position anchor",
+      "r": 1000.0
+    },
+    "core": {
+      "type": "EMPTY",
+      "parent": "enemy_battleship",
+      "position_game": [
+        3000.0,
+        1210.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "bridge/core center",
+      "hit_r": 400.0,
+      "bubble_r": 470.0,
+      "hp": 700,
+      "order": 3
+    },
+    "core_body": {
+      "type": "MESH",
+      "parent": "core",
+      "position_game": [
+        3000.0,
+        1210.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "damageable bridge/core; opaque armored enclosure",
+      "death_owner": "core",
+      "bounds_game": {
+        "min": [
+          2740.0,
+          575.0,
+          -322.5
+        ],
+        "max": [
+          3289.0,
+          1433.5,
+          322.5
+        ]
+      },
+      "materials": [
+        "M_core_body"
+      ],
+      "triangles": 2284
+    },
+    "core_lamp": {
+      "type": "MESH",
+      "parent": "core",
+      "position_game": [
+        3264.0,
+        1263.0,
+        -223.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "core",
+      "bounds_game": {
+        "min": [
+          3047.0,
+          1228.0,
+          -318.0
+        ],
+        "max": [
+          3268.5,
+          1298.0,
+          318.0
+        ]
+      },
+      "materials": [
+        "M_core_lamp"
+      ],
+      "triangles": 1080
+    },
+    "engine_0": {
+      "type": "EMPTY",
+      "parent": "enemy_battleship",
+      "position_game": [
+        -4250.0,
+        0.0,
+        -450.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "exhaust VFX attachment"
+    },
+    "engine_1": {
+      "type": "EMPTY",
+      "parent": "enemy_battleship",
+      "position_game": [
+        -4250.0,
+        0.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "exhaust VFX attachment"
+    },
+    "engine_2": {
+      "type": "EMPTY",
+      "parent": "enemy_battleship",
+      "position_game": [
+        -4250.0,
+        0.0,
+        450.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "exhaust VFX attachment"
+    },
+    "generator_1": {
+      "type": "EMPTY",
+      "parent": "enemy_battleship",
+      "position_game": [
+        200.0,
+        1040.0,
+        450.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "shield generator center",
+      "hit_r": 280.0,
+      "bubble_r": 350.0,
+      "hp": 260,
+      "order": 2
+    },
+    "generator_1_body": {
+      "type": "MESH",
+      "parent": "generator_1",
+      "position_game": [
+        200.0,
+        1040.0,
+        450.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "damageable generator body",
+      "death_owner": "generator_1",
+      "bounds_game": {
+        "min": [
+          -45.0,
+          585.0,
+          205.0
+        ],
+        "max": [
+          445.0,
+          1270.7214,
+          695.0
+        ]
+      },
+      "materials": [
+        "M_generator_1_body"
+      ],
+      "triangles": 6664
+    },
+    "generator_1_lamp": {
+      "type": "MESH",
+      "parent": "generator_1",
+      "position_game": [
+        200.0,
+        1265.0,
+        450.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "generator_1",
+      "bounds_game": {
+        "min": [
+          -39.0,
+          946.0,
+          211.0
+        ],
+        "max": [
+          439.0,
+          1275.0,
+          689.0
+        ]
+      },
+      "materials": [
+        "M_generator_1_lamp"
+      ],
+      "triangles": 1116
+    },
+    "generator_2": {
+      "type": "EMPTY",
+      "parent": "enemy_battleship",
+      "position_game": [
+        200.0,
+        1040.0,
+        -450.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "shield generator center",
+      "hit_r": 280.0,
+      "bubble_r": 350.0,
+      "hp": 260,
+      "order": 2
+    },
+    "generator_2_body": {
+      "type": "MESH",
+      "parent": "generator_2",
+      "position_game": [
+        200.0,
+        1040.0,
+        -450.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "damageable generator body",
+      "death_owner": "generator_2",
+      "bounds_game": {
+        "min": [
+          -45.0,
+          585.0,
+          -695.0
+        ],
+        "max": [
+          445.0,
+          1270.7214,
+          -205.0
+        ]
+      },
+      "materials": [
+        "M_generator_2_body"
+      ],
+      "triangles": 6664
+    },
+    "generator_2_lamp": {
+      "type": "MESH",
+      "parent": "generator_2",
+      "position_game": [
+        200.0,
+        1265.0,
+        -450.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "generator_2",
+      "bounds_game": {
+        "min": [
+          -39.0,
+          946.0,
+          -689.0
+        ],
+        "max": [
+          439.0,
+          1275.0,
+          -211.0
+        ]
+      },
+      "materials": [
+        "M_generator_2_lamp"
+      ],
+      "triangles": 1116
+    },
+    "hangar_control": {
+      "type": "EMPTY",
+      "parent": "enemy_battleship",
+      "position_game": [
+        -1100.0,
+        1100.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "hangar control center",
+      "hit_r": 340.0,
+      "bubble_r": 410.0,
+      "hp": 380,
+      "order": 3
+    },
+    "hangar_body": {
+      "type": "MESH",
+      "parent": "hangar_control",
+      "position_game": [
+        -1100.0,
+        1100.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "damageable hangar control",
+      "death_owner": "hangar_control",
+      "bounds_game": {
+        "min": [
+          -1360.0,
+          565.0,
+          -253.0
+        ],
+        "max": [
+          -840.0,
+          1316.0,
+          253.0
+        ]
+      },
+      "materials": [
+        "M_hangar_body"
+      ],
+      "triangles": 2424
+    },
+    "hangar_lamp": {
+      "type": "MESH",
+      "parent": "hangar_control",
+      "position_game": [
+        -1100.0,
+        1260.0,
+        -164.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "hangar_control",
+      "bounds_game": {
+        "min": [
+          -1291.5,
+          1256.0,
+          -181.0
+        ],
+        "max": [
+          -908.5,
+          1264.0,
+          181.0
+        ]
+      },
+      "materials": [
+        "M_hangar_lamp"
+      ],
+      "triangles": 216
+    },
+    "hull": {
+      "type": "MESH",
+      "parent": "enemy_battleship",
+      "position_game": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "primary armored hull",
+      "nominal_size": [
+        7400,
+        1080,
+        1800
+      ],
+      "bounds_game": {
+        "min": [
+          -3700.0,
+          -540.0,
+          -900.0
+        ],
+        "max": [
+          3700.0,
+          500.0,
+          900.0
+        ]
+      },
+      "materials": [
+        "Hull_plum_alloy",
+        "Recess_dark"
+      ],
+      "triangles": 664
+    },
+    "bay_lamp": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        0.0,
+        -110.0,
+        935.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "hangar_control",
+      "bounds_game": {
+        "min": [
+          -762.5,
+          -348.5,
+          567.0
+        ],
+        "max": [
+          762.5,
+          166.5,
+          968.0
+        ]
+      },
+      "materials": [
+        "M_bay_lamp"
+      ],
+      "triangles": 648
+    },
+    "bow_lamp": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        3704.0,
+        24.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "core",
+      "bounds_game": {
+        "min": [
+          3699.0,
+          -13.5,
+          -165.0
+        ],
+        "max": [
+          3709.0,
+          61.5,
+          165.0
+        ]
+      },
+      "materials": [
+        "M_bow_lamp"
+      ],
+      "triangles": 108
+    },
+    "engine_glow_0": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        -4115.0,
+        0.0,
+        -450.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "core",
+      "bounds_game": {
+        "min": [
+          -4115.0,
+          -157.0,
+          -607.0
+        ],
+        "max": [
+          -4103.0,
+          157.0,
+          -293.0
+        ]
+      },
+      "materials": [
+        "M_engine_glow_0"
+      ],
+      "triangles": 188
+    },
+    "engine_glow_1": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        -4115.0,
+        0.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "core",
+      "bounds_game": {
+        "min": [
+          -4115.0,
+          -157.0,
+          -157.0
+        ],
+        "max": [
+          -4103.0,
+          157.0,
+          157.0
+        ]
+      },
+      "materials": [
+        "M_engine_glow_1"
+      ],
+      "triangles": 188
+    },
+    "engine_glow_2": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        -4115.0,
+        0.0,
+        450.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "core",
+      "bounds_game": {
+        "min": [
+          -4115.0,
+          -157.0,
+          293.0
+        ],
+        "max": [
+          -4103.0,
+          157.0,
+          607.0
+        ]
+      },
+      "materials": [
+        "M_engine_glow_2"
+      ],
+      "triangles": 188
+    },
+    "hull_armor": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "static hull assembly",
+      "bounds_game": {
+        "min": [
+          -3270.0,
+          -514.4254,
+          -922.0
+        ],
+        "max": [
+          3654.0,
+          619.0,
+          922.0
+        ]
+      },
+      "materials": [
+        "Hull_plum_alloy",
+        "Armor_lavender_steel"
+      ],
+      "triangles": 7848
+    },
+    "hull_bay_structure": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "static hull assembly",
+      "bounds_game": {
+        "min": [
+          -961.9311,
+          -477.4286,
+          226.5147
+        ],
+        "max": [
+          961.9311,
+          242.5,
+          1030.0
+        ]
+      },
+      "materials": [
+        "Recess_dark",
+        "Armor_lavender_steel",
+        "Machined_edge",
+        "Hull_plum_alloy"
+      ],
+      "triangles": 3468
+    },
+    "hull_deck": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "static hull assembly",
+      "bounds_game": {
+        "min": [
+          -2840.0,
+          507.0,
+          -520.0
+        ],
+        "max": [
+          3080.0,
+          583.0,
+          520.0
+        ]
+      },
+      "materials": [
+        "Armor_lavender_steel"
+      ],
+      "triangles": 220
+    },
+    "hull_details": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "static hull assembly",
+      "bounds_game": {
+        "min": [
+          -3356.5,
+          -545.0,
+          -950.0
+        ],
+        "max": [
+          3688.1313,
+          1000.7428,
+          754.5
+        ]
+      },
+      "materials": [
+        "Machined_edge",
+        "Armor_lavender_steel",
+        "Recess_dark"
+      ],
+      "triangles": 16332
+    },
+    "hull_engine_dark": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "static hull assembly",
+      "bounds_game": {
+        "min": [
+          -4228.0,
+          -226.867,
+          -681.8627
+        ],
+        "max": [
+          -3739.4988,
+          226.8671,
+          681.8627
+        ]
+      },
+      "materials": [
+        "Nozzle_refractory",
+        "Recess_dark"
+      ],
+      "triangles": 3456
+    },
+    "hull_engine_structure": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "static hull assembly",
+      "bounds_game": {
+        "min": [
+          -4225.0,
+          -405.0,
+          -750.0
+        ],
+        "max": [
+          -3475.0,
+          385.0,
+          750.0
+        ]
+      },
+      "materials": [
+        "Recess_dark",
+        "Armor_lavender_steel",
+        "Machined_edge"
+      ],
+      "triangles": 4540
+    },
+    "hull_fasteners": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "static hull assembly",
+      "bounds_game": {
+        "min": [
+          -3209.0,
+          -159.0,
+          -930.0
+        ],
+        "max": [
+          3099.0,
+          119.0,
+          930.0001
+        ]
+      },
+      "materials": [
+        "Machined_edge"
+      ],
+      "triangles": 12096
+    },
+    "hull_lamp_01": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        -2700.0,
+        450.0,
+        727.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "core",
+      "bounds_game": {
+        "min": [
+          -2990.0,
+          445.5,
+          720.5
+        ],
+        "max": [
+          -2410.0,
+          454.5,
+          733.5
+        ]
+      },
+      "materials": [
+        "M_hull_lamp_01"
+      ],
+      "triangles": 108
+    },
+    "hull_lamp_02": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        -2700.0,
+        450.0,
+        -727.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "core",
+      "bounds_game": {
+        "min": [
+          -2990.0,
+          445.5,
+          -733.5
+        ],
+        "max": [
+          -2410.0,
+          454.5,
+          -720.5
+        ]
+      },
+      "materials": [
+        "M_hull_lamp_02"
+      ],
+      "triangles": 108
+    },
+    "hull_lamp_03": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        -1520.0,
+        498.0,
+        749.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "core",
+      "bounds_game": {
+        "min": [
+          -1730.0,
+          493.5,
+          742.5
+        ],
+        "max": [
+          -1310.0,
+          502.5,
+          755.5
+        ]
+      },
+      "materials": [
+        "M_hull_lamp_03"
+      ],
+      "triangles": 108
+    },
+    "hull_lamp_04": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        -1520.0,
+        498.0,
+        -749.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "core",
+      "bounds_game": {
+        "min": [
+          -1730.0,
+          493.5,
+          -755.5
+        ],
+        "max": [
+          -1310.0,
+          502.5,
+          -742.5
+        ]
+      },
+      "materials": [
+        "M_hull_lamp_04"
+      ],
+      "triangles": 108
+    },
+    "hull_lamp_05": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        1330.0,
+        490.0,
+        733.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "core",
+      "bounds_game": {
+        "min": [
+          1060.0,
+          485.5,
+          726.5
+        ],
+        "max": [
+          1600.0,
+          494.5,
+          739.5
+        ]
+      },
+      "materials": [
+        "M_hull_lamp_05"
+      ],
+      "triangles": 108
+    },
+    "hull_lamp_06": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        1330.0,
+        490.0,
+        -733.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "core",
+      "bounds_game": {
+        "min": [
+          1060.0,
+          485.5,
+          -739.5
+        ],
+        "max": [
+          1600.0,
+          494.5,
+          -726.5
+        ]
+      },
+      "materials": [
+        "M_hull_lamp_06"
+      ],
+      "triangles": 108
+    },
+    "hull_lamp_07": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        3080.0,
+        334.0,
+        417.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "core",
+      "bounds_game": {
+        "min": [
+          2960.0,
+          329.5,
+          410.5
+        ],
+        "max": [
+          3200.0,
+          338.5,
+          423.5
+        ]
+      },
+      "materials": [
+        "M_hull_lamp_07"
+      ],
+      "triangles": 108
+    },
+    "hull_lamp_08": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        3080.0,
+        334.0,
+        -417.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "core",
+      "bounds_game": {
+        "min": [
+          2960.0,
+          329.5,
+          -423.5
+        ],
+        "max": [
+          3200.0,
+          338.5,
+          -410.5
+        ]
+      },
+      "materials": [
+        "M_hull_lamp_08"
+      ],
+      "triangles": 108
+    },
+    "hull_recess": {
+      "type": "MESH",
+      "parent": "hull",
+      "position_game": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "static hull assembly",
+      "bounds_game": {
+        "min": [
+          -3380.0,
+          -528.0,
+          -929.0
+        ],
+        "max": [
+          3620.0,
+          619.0,
+          929.0
+        ]
+      },
+      "materials": [
+        "Recess_dark"
+      ],
+      "triangles": 5728
+    },
+    "turret_1": {
+      "type": "EMPTY",
+      "parent": "enemy_battleship",
+      "position_game": [
+        2300.0,
+        620.0,
+        600.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "turret pad center",
+      "hit_r": 210.0,
+      "hp": 500,
+      "order": 1
+    },
+    "turret_1_head": {
+      "type": "MESH",
+      "parent": "turret_1",
+      "position_game": [
+        2300.0,
+        850.0,
+        600.0
+      ],
+      "rotation_game_xyzw": [
+        -0.16754,
+        0.0,
+        0.0,
+        0.98586
+      ],
+      "role": "rotating turret mesh / head pivot",
+      "local_forward_after_gltfast": [
+        0,
+        0,
+        1
+      ],
+      "muzzle_offset": 410.0,
+      "death_owner": "turret_1",
+      "bounds_game": {
+        "min": [
+          2133.0,
+          701.2243,
+          414.0127
+        ],
+        "max": [
+          2467.0,
+          998.7757,
+          754.2029
+        ]
+      },
+      "materials": [
+        "M_turret_1_head"
+      ],
+      "triangles": 1480
+    },
+    "turret_1_barrel": {
+      "type": "MESH",
+      "parent": "turret_1_head",
+      "position_game": [
+        2300.0,
+        850.0,
+        600.0
+      ],
+      "rotation_game_xyzw": [
+        -0.16754,
+        0.0,
+        0.0,
+        0.98586
+      ],
+      "role": "hide on turret death",
+      "death_owner": "turret_1",
+      "bounds_game": {
+        "min": [
+          2242.0,
+          826.9698,
+          671.45
+        ],
+        "max": [
+          2358.0,
+          1040.1874,
+          1006.1422
+        ]
+      },
+      "materials": [
+        "M_turret_1_barrel"
+      ],
+      "triangles": 1288
+    },
+    "turret_1_lamp": {
+      "type": "MESH",
+      "parent": "turret_1_head",
+      "position_game": [
+        2300.0,
+        963.7821,
+        701.08722
+      ],
+      "rotation_game_xyzw": [
+        -0.16754,
+        0.0,
+        0.0,
+        0.98586
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "turret_1",
+      "bounds_game": {
+        "min": [
+          2242.0,
+          950.9692,
+          692.8757
+        ],
+        "max": [
+          2358.0,
+          976.595,
+          709.2988
+        ]
+      },
+      "materials": [
+        "M_turret_1_lamp"
+      ],
+      "triangles": 108
+    },
+    "turret_1_muzzle": {
+      "type": "EMPTY",
+      "parent": "turret_1_head",
+      "position_game": [
+        2300.0,
+        985.44373,
+        986.98193
+      ],
+      "rotation_game_xyzw": [
+        -0.16754,
+        0.0,
+        0.0,
+        0.98586
+      ],
+      "role": "muzzle; imported head-local +Z = 410"
+    },
+    "turret_1_pad": {
+      "type": "MESH",
+      "parent": "turret_1",
+      "position_game": [
+        2300.0,
+        620.0,
+        600.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "static turret foundation",
+      "death_owner": "turret_1",
+      "bounds_game": {
+        "min": [
+          2105.0,
+          590.0,
+          405.0
+        ],
+        "max": [
+          2495.0,
+          797.0,
+          795.0
+        ]
+      },
+      "materials": [
+        "M_turret_1_pad"
+      ],
+      "triangles": 2208
+    },
+    "turret_2": {
+      "type": "EMPTY",
+      "parent": "enemy_battleship",
+      "position_game": [
+        2300.0,
+        620.0,
+        -600.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "turret pad center",
+      "hit_r": 210.0,
+      "hp": 500,
+      "order": 1
+    },
+    "turret_2_head": {
+      "type": "MESH",
+      "parent": "turret_2",
+      "position_game": [
+        2300.0,
+        850.0,
+        -600.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        0.98586,
+        0.16754,
+        0.0
+      ],
+      "role": "rotating turret mesh / head pivot",
+      "local_forward_after_gltfast": [
+        0,
+        0,
+        1
+      ],
+      "muzzle_offset": 410.0,
+      "death_owner": "turret_2",
+      "bounds_game": {
+        "min": [
+          2133.0,
+          701.2243,
+          -754.2029
+        ],
+        "max": [
+          2467.0,
+          998.7757,
+          -414.0127
+        ]
+      },
+      "materials": [
+        "M_turret_2_head"
+      ],
+      "triangles": 1480
+    },
+    "turret_2_barrel": {
+      "type": "MESH",
+      "parent": "turret_2_head",
+      "position_game": [
+        2300.0,
+        850.0,
+        -600.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        0.98586,
+        0.16754,
+        0.0
+      ],
+      "role": "hide on turret death",
+      "death_owner": "turret_2",
+      "bounds_game": {
+        "min": [
+          2242.0,
+          826.9698,
+          -1006.1422
+        ],
+        "max": [
+          2358.0,
+          1040.1874,
+          -671.45
+        ]
+      },
+      "materials": [
+        "M_turret_2_barrel"
+      ],
+      "triangles": 1288
+    },
+    "turret_2_lamp": {
+      "type": "MESH",
+      "parent": "turret_2_head",
+      "position_game": [
+        2300.0,
+        963.7821,
+        -701.08722
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        0.98586,
+        0.16754,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "turret_2",
+      "bounds_game": {
+        "min": [
+          2242.0,
+          950.9692,
+          -709.2988
+        ],
+        "max": [
+          2358.0,
+          976.595,
+          -692.8757
+        ]
+      },
+      "materials": [
+        "M_turret_2_lamp"
+      ],
+      "triangles": 108
+    },
+    "turret_2_muzzle": {
+      "type": "EMPTY",
+      "parent": "turret_2_head",
+      "position_game": [
+        2300.0,
+        985.44373,
+        -986.98193
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        0.98586,
+        0.16754,
+        0.0
+      ],
+      "role": "muzzle; imported head-local +Z = 410"
+    },
+    "turret_2_pad": {
+      "type": "MESH",
+      "parent": "turret_2",
+      "position_game": [
+        2300.0,
+        620.0,
+        -600.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "static turret foundation",
+      "death_owner": "turret_2",
+      "bounds_game": {
+        "min": [
+          2105.0,
+          590.0,
+          -795.0
+        ],
+        "max": [
+          2495.0,
+          797.0,
+          -405.0
+        ]
+      },
+      "materials": [
+        "M_turret_2_pad"
+      ],
+      "triangles": 2208
+    },
+    "turret_3": {
+      "type": "EMPTY",
+      "parent": "enemy_battleship",
+      "position_game": [
+        -1900.0,
+        620.0,
+        600.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "turret pad center",
+      "hit_r": 210.0,
+      "hp": 500,
+      "order": 1
+    },
+    "turret_3_head": {
+      "type": "MESH",
+      "parent": "turret_3",
+      "position_game": [
+        -1900.0,
+        850.0,
+        600.0
+      ],
+      "rotation_game_xyzw": [
+        -0.16754,
+        0.0,
+        0.0,
+        0.98586
+      ],
+      "role": "rotating turret mesh / head pivot",
+      "local_forward_after_gltfast": [
+        0,
+        0,
+        1
+      ],
+      "muzzle_offset": 410.0,
+      "death_owner": "turret_3",
+      "bounds_game": {
+        "min": [
+          -2067.0,
+          701.2243,
+          414.0127
+        ],
+        "max": [
+          -1733.0,
+          998.7757,
+          754.2029
+        ]
+      },
+      "materials": [
+        "M_turret_3_head"
+      ],
+      "triangles": 1480
+    },
+    "turret_3_barrel": {
+      "type": "MESH",
+      "parent": "turret_3_head",
+      "position_game": [
+        -1900.0,
+        850.0,
+        600.0
+      ],
+      "rotation_game_xyzw": [
+        -0.16754,
+        0.0,
+        0.0,
+        0.98586
+      ],
+      "role": "hide on turret death",
+      "death_owner": "turret_3",
+      "bounds_game": {
+        "min": [
+          -1958.0,
+          826.9698,
+          671.45
+        ],
+        "max": [
+          -1842.0,
+          1040.1874,
+          1006.1422
+        ]
+      },
+      "materials": [
+        "M_turret_3_barrel"
+      ],
+      "triangles": 1288
+    },
+    "turret_3_lamp": {
+      "type": "MESH",
+      "parent": "turret_3_head",
+      "position_game": [
+        -1900.0,
+        963.7821,
+        701.08722
+      ],
+      "rotation_game_xyzw": [
+        -0.16754,
+        0.0,
+        0.0,
+        0.98586
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "turret_3",
+      "bounds_game": {
+        "min": [
+          -1958.0,
+          950.9692,
+          692.8757
+        ],
+        "max": [
+          -1842.0,
+          976.595,
+          709.2988
+        ]
+      },
+      "materials": [
+        "M_turret_3_lamp"
+      ],
+      "triangles": 108
+    },
+    "turret_3_muzzle": {
+      "type": "EMPTY",
+      "parent": "turret_3_head",
+      "position_game": [
+        -1900.0,
+        985.44373,
+        986.98193
+      ],
+      "rotation_game_xyzw": [
+        -0.16754,
+        0.0,
+        0.0,
+        0.98586
+      ],
+      "role": "muzzle; imported head-local +Z = 410"
+    },
+    "turret_3_pad": {
+      "type": "MESH",
+      "parent": "turret_3",
+      "position_game": [
+        -1900.0,
+        620.0,
+        600.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "static turret foundation",
+      "death_owner": "turret_3",
+      "bounds_game": {
+        "min": [
+          -2095.0,
+          590.0,
+          405.0
+        ],
+        "max": [
+          -1705.0,
+          797.0,
+          795.0
+        ]
+      },
+      "materials": [
+        "M_turret_3_pad"
+      ],
+      "triangles": 2208
+    },
+    "turret_4": {
+      "type": "EMPTY",
+      "parent": "enemy_battleship",
+      "position_game": [
+        -1900.0,
+        620.0,
+        -600.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "turret pad center",
+      "hit_r": 210.0,
+      "hp": 500,
+      "order": 1
+    },
+    "turret_4_head": {
+      "type": "MESH",
+      "parent": "turret_4",
+      "position_game": [
+        -1900.0,
+        850.0,
+        -600.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        0.98586,
+        0.16754,
+        0.0
+      ],
+      "role": "rotating turret mesh / head pivot",
+      "local_forward_after_gltfast": [
+        0,
+        0,
+        1
+      ],
+      "muzzle_offset": 410.0,
+      "death_owner": "turret_4",
+      "bounds_game": {
+        "min": [
+          -2067.0,
+          701.2243,
+          -754.2029
+        ],
+        "max": [
+          -1733.0,
+          998.7757,
+          -414.0127
+        ]
+      },
+      "materials": [
+        "M_turret_4_head"
+      ],
+      "triangles": 1480
+    },
+    "turret_4_barrel": {
+      "type": "MESH",
+      "parent": "turret_4_head",
+      "position_game": [
+        -1900.0,
+        850.0,
+        -600.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        0.98586,
+        0.16754,
+        0.0
+      ],
+      "role": "hide on turret death",
+      "death_owner": "turret_4",
+      "bounds_game": {
+        "min": [
+          -1958.0,
+          826.9698,
+          -1006.1422
+        ],
+        "max": [
+          -1842.0,
+          1040.1874,
+          -671.45
+        ]
+      },
+      "materials": [
+        "M_turret_4_barrel"
+      ],
+      "triangles": 1288
+    },
+    "turret_4_lamp": {
+      "type": "MESH",
+      "parent": "turret_4_head",
+      "position_game": [
+        -1900.0,
+        963.7821,
+        -701.08722
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        0.98586,
+        0.16754,
+        0.0
+      ],
+      "role": "switchable emissive surface",
+      "death_owner": "turret_4",
+      "bounds_game": {
+        "min": [
+          -1958.0,
+          950.9692,
+          -709.2988
+        ],
+        "max": [
+          -1842.0,
+          976.595,
+          -692.8757
+        ]
+      },
+      "materials": [
+        "M_turret_4_lamp"
+      ],
+      "triangles": 108
+    },
+    "turret_4_muzzle": {
+      "type": "EMPTY",
+      "parent": "turret_4_head",
+      "position_game": [
+        -1900.0,
+        985.44373,
+        -986.98193
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        0.98586,
+        0.16754,
+        0.0
+      ],
+      "role": "muzzle; imported head-local +Z = 410"
+    },
+    "turret_4_pad": {
+      "type": "MESH",
+      "parent": "turret_4",
+      "position_game": [
+        -1900.0,
+        620.0,
+        -600.0
+      ],
+      "rotation_game_xyzw": [
+        0.0,
+        1.0,
+        0.0,
+        0.0
+      ],
+      "role": "static turret foundation",
+      "death_owner": "turret_4",
+      "bounds_game": {
+        "min": [
+          -2095.0,
+          590.0,
+          -795.0
+        ],
+        "max": [
+          -1705.0,
+          797.0,
+          -405.0
+        ]
+      },
+      "materials": [
+        "M_turret_4_pad"
+      ],
+      "triangles": 2208
+    }
+  },
+  "materials": {
+    "palette": {
+      "hull": "#3B3040",
+      "dark": "#171420",
+      "plate": "#5C546B",
+      "red": "#ff2e63",
+      "warm": "#ffb070"
+    },
+    "opaque_only": true,
+    "embedded_metallic_roughness_and_normal": true,
+    "no_glass": true,
+    "no_shield_geometry": true
+  },
+  "stats": {
+    "mesh_nodes": 46,
+    "triangles": 98436,
+    "materials": 42,
+    "bytes": 6714464,
+    "repaired_tangents": 32
+  },
+  "validation": {
+    "unity_runtime_tested": false,
+    "preview": "Blender material/lighting previews; not game captures."
+  },
+  "bounds_game": {
+    "min": [
+      -4228.0,
+      -545.0,
+      -1006.1422
+    ],
+    "max": [
+      3709.0,
+      1433.5,
+      1030.0
+    ]
+  }
+}
