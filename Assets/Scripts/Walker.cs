@@ -64,6 +64,7 @@ public class Walker
     readonly List<Transform> _props = new List<Transform>();
     readonly List<Collider> _propCols = new List<Collider>();   // the ramps onto the pads: shown and solid only while walking
     public string propsState = "";
+    public bool terminalModel;   // the workshop terminal is the Blender model (else the block stand-in)
     public float shipHalf;   // how far the hull reaches across the flank the pilot steps out on (u)
     public float shipLow;    // how far the hull reaches below the ship's origin (u, negative)
 
@@ -326,7 +327,11 @@ public class Walker
         // the stations' screens breathe, brighter for the one in reach
         float t = Time.time;
         foreach (var s in stations)
-            if (s.screen != null) s.screen.SetColor("_EmissionColor", Data.Hex("#5ed3f0") * (1.4f + 0.4f * Mathf.Sin(t * 2.3f) + (s == near ? 1.4f : 0f)));
+        {
+            if (s.screen == null) continue;
+            if (terminalModel) s.screen.SetColor("emissiveFactor", Color.white * (0.8f + 0.12f * Mathf.Sin(t * 2.3f) + (s == near ? 0.45f : 0f)));
+            else s.screen.SetColor("_EmissionColor", Data.Hex("#5ed3f0") * (1.4f + 0.4f * Mathf.Sin(t * 2.3f) + (s == near ? 1.4f : 0f)));
+        }
     }
 
     /// The camera at the pilot's eye.
@@ -612,14 +617,34 @@ public class Walker
         root.SetParent(Carrier.transform, false);
         root.localPosition = at;
         root.localRotation = Quaternion.AngleAxis(90f, Vector3.up);   // its front (+z) turned to face +x
-        var body = new Material(Game.Sh("Standard")); body.color = Data.Hex("#4a5378"); body.SetFloat("_Glossiness", 0.45f); body.SetFloat("_Metallic", 0.6f);
-        var trim = new Material(Game.Sh("Standard")); trim.color = Data.Hex("#c8912e"); trim.SetFloat("_Glossiness", 0.3f); trim.SetFloat("_Metallic", 0.2f);
-        screen = new Material(Game.Sh("Standard")); screen.color = Data.Hex("#0b2733"); screen.EnableKeyword("_EMISSION"); screen.SetColor("_EmissionColor", Data.Hex("#5ed3f0") * 2f);
-        Part(root, "Pedestal", new Vector3(0f, 0.5f * M, 0f), new Vector3(0.9f * M, 1.0f * M, 0.6f * M), Quaternion.identity, body);
-        Part(root, "Desk", new Vector3(0f, 1.05f * M, 0.12f * M), new Vector3(1.3f * M, 0.1f * M, 0.8f * M), Quaternion.AngleAxis(20f, Vector3.right), body);
-        Part(root, "Trim", new Vector3(0f, 0.04f * M, 0f), new Vector3(1.1f * M, 0.08f * M, 0.8f * M), Quaternion.identity, trim);
-        Part(root, "Mast", new Vector3(0f, 1.45f * M, -0.25f * M), new Vector3(0.12f * M, 0.8f * M, 0.12f * M), Quaternion.identity, body);
-        Part(root, "Screen", new Vector3(0f, 1.8f * M, -0.2f * M), new Vector3(1.2f * M, 0.7f * M, 0.05f * M), Quaternion.AngleAxis(-8f, Vector3.right), screen);
+        // the model (tools/props/build_workshop_terminal.py, in metres, its front on +z), or the block stand-in without it
+        var prefab = Resources.Load<GameObject>("Models/workshop_terminal");
+        screen = null;
+        if (prefab != null)
+        {
+            var go = Object.Instantiate(prefab, root);
+            go.name = "Model";
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+            go.transform.localScale = Vector3.one * M;
+            foreach (var mr in go.GetComponentsInChildren<MeshRenderer>(true))
+            {
+                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                if (mr.gameObject.name == "Screen") screen = mr.material;   // its own copy: the game brightens it
+            }
+            terminalModel = true;
+        }
+        else
+        {
+            var body = new Material(Game.Sh("Standard")); body.color = Data.Hex("#4a5378"); body.SetFloat("_Glossiness", 0.45f); body.SetFloat("_Metallic", 0.6f);
+            var trim = new Material(Game.Sh("Standard")); trim.color = Data.Hex("#c8912e"); trim.SetFloat("_Glossiness", 0.3f); trim.SetFloat("_Metallic", 0.2f);
+            screen = new Material(Game.Sh("Standard")); screen.color = Data.Hex("#0b2733"); screen.EnableKeyword("_EMISSION"); screen.SetColor("_EmissionColor", Data.Hex("#5ed3f0") * 2f);
+            Part(root, "Pedestal", new Vector3(0f, 0.5f * M, 0f), new Vector3(0.9f * M, 1.0f * M, 0.6f * M), Quaternion.identity, body);
+            Part(root, "Desk", new Vector3(0f, 1.05f * M, 0.12f * M), new Vector3(1.3f * M, 0.1f * M, 0.8f * M), Quaternion.AngleAxis(20f, Vector3.right), body);
+            Part(root, "Trim", new Vector3(0f, 0.04f * M, 0f), new Vector3(1.1f * M, 0.08f * M, 0.8f * M), Quaternion.identity, trim);
+            Part(root, "Mast", new Vector3(0f, 1.45f * M, -0.25f * M), new Vector3(0.12f * M, 0.8f * M, 0.12f * M), Quaternion.identity, body);
+            Part(root, "Screen", new Vector3(0f, 1.8f * M, -0.2f * M), new Vector3(1.2f * M, 0.7f * M, 0.05f * M), Quaternion.AngleAxis(-8f, Vector3.right), screen);
+        }
         var lg = new GameObject("Light");
         lg.transform.SetParent(root, false);
         lg.transform.localPosition = new Vector3(0f, 1.8f * M, 0.8f * M);
