@@ -18,8 +18,12 @@ public class Walker
     public Game game;
     CargoShip Carrier { get { return ship.carrier; } }
 
-    // the pilot, in metres times the ship scale (3 u to the metre, the scale the cockpit is modelled at)
-    const float M = Data.SHIP_SCALE;
+    // the pilot, in metres times the ship scale (3 u to the metre, the scale the cockpit is modelled at) times SIZE: the
+    // pilot is drawn bigger than a person of that scale (2026-10-21, the user's: "make the player bigger when you are walking
+    // around the ship"), and everything sized to the pilot (the stride, the jump, the step, the terminal, the ramps, the reach)
+    // grows with it, so only the hangar and the ship look smaller
+    public const float SIZE = 2f;
+    const float M = Data.SHIP_SCALE * SIZE;
     public const float EYE = 1.68f * M, HEIGHT = 1.8f * M, RADIUS = 0.35f * M;
     public const float WALK = 3.2f * M, RUN = 6.5f * M, JUMP_H = 1.0f * M, GRAVITY = 9.8f * M;
     public const float LOOK = 2.0f;           // degrees per unit of the mouse axis
