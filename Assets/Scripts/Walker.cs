@@ -61,6 +61,7 @@ public class Walker
     readonly List<Collider> _propCols = new List<Collider>();   // the ramps onto the pads: shown and solid only while walking
     public string propsState = "";
     public float shipHalf;   // how far the hull reaches across the flank the pilot steps out on (u)
+    public float shipLow;    // how far the hull reaches below the ship's origin (u, negative)
 
     // ---- the walls
     Transform _bounds;
@@ -167,6 +168,9 @@ public class Walker
             }
         }
         shipHalf = half;
+        float low = 0f;
+        foreach (var col in _shipCols) if (col != null) low = Mathf.Min(low, c.transform.InverseTransformPoint(col.bounds.center - Vector3.up * col.bounds.size.y * 0.5f).y - park.y);
+        shipLow = low;
         var at = park + right * (half + 5f * M) + face * (4f * M);
         at.x = Mathf.Clamp(at.x, CargoShip.BAY_X0 + 10f, CargoShip.BAY_X1 - 10f);
         at.z = Mathf.Clamp(at.z, -CargoShip.BAY_Z_OUT + 30f, CargoShip.BAY_Z_OUT - 30f);
@@ -183,7 +187,7 @@ public class Walker
         _runK = 0f;
         if (game.hud != null && game.hud.InvOpen) game.hud.CloseWindow();
         game.Toast("On the hangar deck · WASD walk · Shift run · E by your ship climbs back aboard", false);
-        Debug.Log("walk: out on the deck at " + at.ToString("0") + " · ship at " + park.ToString("0") + " · " + boundsState + " · ship colliders " + _shipCols.Count + " reaching " + shipHalf.ToString("0") + " u across" + " · stations " + stations.Count + " ·" + propsState);
+        Debug.Log("walk: out on the deck at " + at.ToString("0") + " · ship at " + park.ToString("0") + " · " + boundsState + " · ship colliders " + _shipCols.Count + " reaching " + shipHalf.ToString("0") + " u across, " + shipLow.ToString("0.0") + " u below its origin" + " · stations " + stations.Count + " ·" + propsState);
     }
 
     void Leave()

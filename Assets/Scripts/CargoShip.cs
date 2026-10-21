@@ -57,7 +57,12 @@ public class CargoShip : MonoBehaviour
 
     /// A bay by its side (+1 or -1): where its pad and mouth are, in the carrier's frame. The pad sits just inside its
     /// own mouth, facing that mouth.
-    public static Vector3 ParkLocal(int side) { return new Vector3(0f, -100f, side * 525f); }
+    public static Vector3 ParkLocal(int side) { return new Vector3(0f, PAD_TOP + 15.5f, side * 525f); }
+    /// The pad's deck plate in the carrier's frame (the model's, measured on foot 2026-10-21: the hangar deck is at -146, the
+    /// pads raised to -138). A parked ship rests its lowest point on it (`Ship.RestLocal`); ParkLocal is that rest for the
+    /// base hull (15.4 u from its origin to its belly), which the docking and departure paths start and end on. It was
+    /// -100, which left the ship hovering 7 m over the pad (2026-10-21, the user's: "make the ship sit on the pad").
+    public const float PAD_TOP = -138f;
     public static Vector3 OpeningLocal(int side) { return new Vector3(0f, 0f, side * 1000f); }
     /// The direction a ship parked in this bay faces: out of its own mouth.
     public static Vector3 FaceLocal(int side) { return new Vector3(0f, 0f, side); }
@@ -712,7 +717,7 @@ public class CargoShip : MonoBehaviour
         Box(new Vector3(840, 12, 1800), dark, new Vector3(0, BAY_Y1 + 6f, 0));
         foreach (var side in new[] { 1, -1 })
         {
-            Box(new Vector3(300, 6, 300), Mat("#c8912e", 0.2f, 0.1f), ParkLocal(side) + new Vector3(0, -30, 0));
+            Box(new Vector3(300, 12, 300), Mat("#c8912e", 0.2f, 0.1f), new Vector3(0f, PAD_TOP - 6f, side * 525f));   // up to the pad's top, as the model's
         }
     }
 }

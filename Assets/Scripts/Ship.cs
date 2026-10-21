@@ -1321,7 +1321,7 @@ public class Ship : MonoBehaviour
             R.done = true;
             if (model != null && !model.gameObject.activeSelf) model.gameObject.SetActive(true);   // back from the blast
             int side = carrier.NearestSide(TruePos);
-            transform.position = carrier.ToTrue(CargoShip.ParkLocal(side)) - game.worldOffset;
+            transform.position = carrier.ToTrue(RestLocal(side)) - game.worldOffset;
             transform.rotation = LevelHeading(carrier.Dir(CargoShip.FaceLocal(side)));
             vel = carrier.vel;
             float fee = Mathf.Floor(State.credits * 0.15f);
@@ -1896,7 +1896,7 @@ public class Ship : MonoBehaviour
         else
         {
             // settle onto the pad and stay there, nose out of the mouth, riding along with the carrier
-            var park = carrier.ToTrue(CargoShip.ParkLocal(dockSide)) - game.worldOffset;
+            var park = carrier.ToTrue(RestLocal(dockSide)) - game.worldOffset;
             float k2 = 1f - Mathf.Exp(-1.4f * dt);
             transform.position = Vector3.Lerp(transform.position, park, k2);
             transform.rotation = Quaternion.Slerp(transform.rotation, LevelHeading(carrier.Dir(CargoShip.FaceLocal(dockSide))), k2);
@@ -1947,10 +1947,47 @@ public class Ship : MonoBehaviour
     }
 
     /// On foot: the ship on its pad, settled (at the colony too, where it otherwise rides at the carrier's heart).
+    /// Where the ship rests on a pad (carrier frame): its lowest point on the pad's top, measured off the hull as fitted,
+    /// so a refit that hangs lower still sits on the pad rather than in it.
+    public Vector3 RestLocal(int side)
+    {
+        var p = CargoShip.ParkLocal(side);
+        if (model == null) return p;
+        if (Time.frameCount - _lowFrame > 60 || _lowFrame < 0) { _lowFrame = Time.frameCount; _hullLow = HullLow(); }
+        p.y = CargoShip.PAD_TOP - _hullLow + 0.1f;
+        return p;
+    }
+    int _lowFrame = -1;
+    float _hullLow = -15.4f;
+
+    /// How far the visible hull reaches below the ship's origin (u, negative), from its meshes' bounds in the ship's own frame.
+    float HullLow()
+    {
+        float low = 0f;
+        bool any = false;
+        foreach (var mf in model.GetComponentsInChildren<MeshFilter>(false))
+        {
+            var mesh = mf.sharedMesh;
+            if (mesh == null || mf.gameObject.layer == COCKPIT_LAYER) continue;
+            var mr = mf.GetComponent<MeshRenderer>();
+            if (mr == null || !mr.enabled) continue;
+            string n = mf.gameObject.name;
+            if (n.StartsWith("Exhaust") || n.StartsWith("NavLight") || n.StartsWith("Glow") || n.StartsWith("Beam")) continue;
+            var bc = mesh.bounds.center; var be = mesh.bounds.size * 0.5f;
+            for (int i = 0; i < 8; i++)
+            {
+                var w = mf.transform.TransformPoint(bc + new Vector3((i & 1) != 0 ? be.x : -be.x, (i & 2) != 0 ? be.y : -be.y, (i & 4) != 0 ? be.z : -be.z));
+                low = Mathf.Min(low, transform.InverseTransformPoint(w).y);
+                any = true;
+            }
+        }
+        return any ? low : -15.4f;
+    }
+
     public void PlaceForWalk()
     {
         int side = dockSide != 0 ? dockSide : 1;
-        transform.position = carrier.ToTrue(CargoShip.ParkLocal(side)) - game.worldOffset;
+        transform.position = carrier.ToTrue(RestLocal(side)) - game.worldOffset;
         transform.rotation = LevelHeading(carrier.Dir(CargoShip.FaceLocal(side)));
         vel = carrier.vel;
     }
@@ -2025,7 +2062,7 @@ public class Ship : MonoBehaviour
             if (T.toOutpost) carrier.SetPose(o.StationPos(), CargoShip.HeadingAlong(o.pos - o.StationPos()));
             else carrier.Place();   // back onto its orbit, where it left it
             // the docked ship goes with it, onto its pad; the floating origin re-centres on it this frame
-            transform.position = carrier.ToTrue(CargoShip.ParkLocal(dockSide)) - game.worldOffset;
+            transform.position = carrier.ToTrue(RestLocal(dockSide)) - game.worldOffset;
             transform.rotation = LevelHeading(carrier.Dir(CargoShip.FaceLocal(dockSide)));
             vel = carrier.vel;
             UpdateCamera(1f);
