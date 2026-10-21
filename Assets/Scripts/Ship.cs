@@ -39,6 +39,10 @@ public class Ship : MonoBehaviour
 
     // the hangar
     public bool docked;
+    // on foot in the hangar (2026-10-21): G steps out of the docked ship, E by it climbs back in (Walker.cs)
+    public Walker walker;
+    public bool Walking { get { return walker != null && walker.Active; } }
+    public Vector3 walkTestWish;   // a test: the walk's WASD held in this direction
     public bool hold;          // docked at the Hub holding station rather than on a hangar pad
     public int dockSide;
     public bool exitPending;    // just left the hangar: the mouth cannot capture the ship until it is clear of the corridor
@@ -1875,7 +1879,10 @@ public class Ship : MonoBehaviour
 
     void DockUpdate(float dt)
     {
-        if (hold)
+        if (walker == null) walker = new Walker { ship = this, game = game };
+        walker.Tick(dt, walkTestWish);
+        if (hold && Walking) PlaceForWalk();   // on foot at the colony: the ship stands on the pad, not at the carrier's heart
+        else if (hold)
         {
             // aboard the carrier at its holding point: it drifts gently on station
             float t = State.time;
@@ -1930,9 +1937,22 @@ public class Ship : MonoBehaviour
         // Enter departs (2026-09-18, the user's; it was Shift, the throttle key, which needed a release after docking), unless
         // the tutorial is waiting on Enter for its next card; E deposits the hold into the storage and H jumps to the Hub
         // (2026-09-18, the user's: H used to deposit)
+        // on foot (or climbing back in this frame) the ship's keys rest: E is the walk's own, and nothing departs without the pilot
+        if (Walking || walker.Busy || walker.boardedFrame == Time.frameCount) return;
         if (Input.GetKeyDown(KeyCode.Return) && !(game.tutorial != null && game.tutorial.WantsEnter)) StartDeparture();
         if (Input.GetKeyDown(KeyCode.E)) DepositAll();
         if (Input.GetKeyDown(KeyCode.H) && !hold && !game.zone.hub) StartWarp(Data.ZONE_HUB);
+        // G: out of the seat and onto the hangar deck
+        if (Input.GetKeyDown(KeyCode.G) && game.hud != null && !game.hud.InvOpen && !game.hud.MapOpen && !game.hud.MenuVisible) walker.StepOut();
+    }
+
+    /// On foot: the ship on its pad, settled (at the colony too, where it otherwise rides at the carrier's heart).
+    public void PlaceForWalk()
+    {
+        int side = dockSide != 0 ? dockSide : 1;
+        transform.position = carrier.ToTrue(CargoShip.ParkLocal(side)) - game.worldOffset;
+        transform.rotation = LevelHeading(carrier.Dir(CargoShip.FaceLocal(side)));
+        vel = carrier.vel;
     }
 
     /// Holding station off the colony: the carrier is parked, you are aboard, and the market and services are open.
@@ -2467,6 +2487,13 @@ public class Ship : MonoBehaviour
         if (cut != null && cut.mode == "hold")
         {
             CarrierShot(new Vector3(-12500f, 3600f, 7200f), new Vector3(600f, 0f, 0f));
+            return;
+        }
+        // on foot: the camera is the pilot's eye, with a near plane fit for a person (the ship's 2 u cut the deck at your feet)
+        cam.nearClipPlane = docked && Walking ? 0.25f : 2f;
+        if (docked && Walking)
+        {
+            walker.Camera(cam, dt);
             return;
         }
         if (docked && hold)

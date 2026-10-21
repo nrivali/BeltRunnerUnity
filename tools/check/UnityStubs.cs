@@ -69,6 +69,8 @@ namespace UnityEngine
         public void Normalize() { var n = normalized; x = n.x; y = n.y; z = n.z; }
         public static Vector3 Cross(Vector3 a, Vector3 b) => new Vector3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
         public static Vector3 Lerp(Vector3 a, Vector3 b, float t) => a + (b - a) * Mathf.Clamp01(t);
+        public static Vector3 Min(Vector3 a, Vector3 b) => new Vector3(Math.Min(a.x, b.x), Math.Min(a.y, b.y), Math.Min(a.z, b.z));
+        public static Vector3 Max(Vector3 a, Vector3 b) => new Vector3(Math.Max(a.x, b.x), Math.Max(a.y, b.y), Math.Max(a.z, b.z));
         public static Vector3 Slerp(Vector3 a, Vector3 b, float t) => Lerp(a, b, t);   // the stub: a straight lerp is enough to compile against
         public static Vector3 Reflect(Vector3 a, Vector3 n) => a - n * (2f * Dot(a, n));
         public static float Distance(Vector3 a, Vector3 b) => (a - b).magnitude;
@@ -210,7 +212,7 @@ namespace UnityEngine
         public static void SetResolution(int w, int h, FullScreenMode m) { }
     }
 
-    public enum KeyCode { A, B, C, D, E, F, G, H, I, L, N, Q, R, S, T, V, W, X, Z, Space, Escape, Return, Tab, F1, F5, F8, F9, F10, LeftControl, RightControl, LeftAlt, RightAlt, Alpha1, Alpha2, Alpha3, Alpha4, Alpha5, P, UpArrow, DownArrow, LeftShift, RightShift }
+    public enum KeyCode { A, B, C, D, E, F, G, H, I, L, N, Q, R, S, T, V, W, X, Z, Space, Escape, Return, Tab, F1, F5, F8, F9, F10, LeftControl, RightControl, LeftAlt, RightAlt, Alpha1, Alpha2, Alpha3, Alpha4, Alpha5, P, UpArrow, DownArrow, LeftArrow, RightArrow, LeftShift, RightShift }
 
     public static class Input
     {
@@ -220,6 +222,7 @@ namespace UnityEngine
         public static bool GetKeyDown(KeyCode k) => false;
         public static bool GetMouseButton(int b) => false;
         public static bool GetMouseButtonDown(int b) => false;
+        public static float GetAxisRaw(string a) => 0f;
     }
 
     public enum Space { World, Self }
@@ -434,6 +437,8 @@ namespace UnityEngine
 
     public class Mesh : Object
     {
+        public int vertexCount => 0;
+        public bool isReadable => true;
         public Vector3[] vertices { get; set; }
         public Vector3[] normals { get; set; }
         public int[] triangles { get; set; }
@@ -462,7 +467,19 @@ namespace UnityEngine
         public Mesh sharedMesh { get; set; }
     }
 
-    public class Collider : Component { }
+    public class Collider : Component { public bool enabled { get; set; } public Bounds bounds => new Bounds(); }
+    public class BoxCollider : Collider { public Vector3 center { get; set; } public Vector3 size { get; set; } }
+    public class MeshCollider : Collider { public Mesh sharedMesh { get; set; } public bool convex { get; set; } }
+    [Flags] public enum CollisionFlags { None = 0, Sides = 1, Above = 2, Below = 4 }
+    public class CharacterController : Collider
+    {
+        public float height { get; set; } public float radius { get; set; } public Vector3 center { get; set; }
+        public float stepOffset { get; set; } public float slopeLimit { get; set; } public float skinWidth { get; set; } public float minMoveDistance { get; set; }
+        public bool isGrounded => true;
+        public CollisionFlags Move(Vector3 m) => CollisionFlags.Below;
+    }
+    public static class Physics { public static void SyncTransforms() { } public static bool Raycast(Vector3 o, Vector3 d, out RaycastHit h, float m) { h = new RaycastHit(); return false; } public static RaycastHit[] RaycastAll(Vector3 o, Vector3 d, float m) => new RaycastHit[0]; }
+    public struct RaycastHit { public Collider collider => null; public float distance => 0f; public Vector3 point => Vector3.zero; public Vector3 normal => Vector3.up; }
 
     public class Renderer : Component
     {

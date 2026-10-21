@@ -65,6 +65,7 @@ public class Game : MonoBehaviour
             }
             if (args[i] == "-combat" || args[i] == "--combat") _combat = true;
             if (args[i] == "-transit") _transit = true;   // a test: start on the pad in a sandbox with the contract taken, send the cargo ship to the outpost at frame 60, shoot every 45 frames (transit_1 to transit_9) and quit
+            if (args[i] == "-walk") _walk = true;   // a test (2026-10-21): on the pad in a sandbox, step out at frame 60, look and walk, a shot every 40 frames (walk_1 to walk_9), climb back in, then quit
             if (args[i] == "-depart") _depart = true;   // a test: start on the pad in a sandbox, play the departure cutscene, shoot it every 45 frames (depart_1 to depart_9) and quit
             if (args[i] == "-battle") { _combat = true; _battle = true; }   // a test (2026-09-21): the combat sandbox on The Front, 9,000 u off the enemy battleship's centre past its bow, the nose held on its nearest exposed subsystem, the trigger held from frame 60, a shot every 90 frames (battle_1 to battle_10), then quits
             if (args[i] == "-raid") { _combat = true; _raid = true; }   // a test: the combat sandbox set 5,500 u off the raider outpost with the contract taken, the trigger held from frame 60, a shot every 60 frames (raid_1 to raid_12), then quits
@@ -83,7 +84,7 @@ public class Game : MonoBehaviour
             if (args[i] == "-standoff" && i + 1 < args.Length) int.TryParse(args[i + 1], out _combatStandoff);   // -face rock | carrier: how far off it the ship is set (400 u off a rock's surface, 9,000 u off the cargo ship's centre)
             if (args[i] == "-side" && i + 1 < args.Length) _combatSide = args[i + 1];   // -face rock: "sun" the ship on the rock's lit side, "dark" on its night side (only the flashlight lights it), 30 deg off the sun so the sun stays out of the frame
         }
-        if (_depart || _dock || _transit) State.sandbox = true;   // the departure test is a sandbox too: nothing this session does reaches the save file
+        if (_depart || _dock || _transit || _walk) State.sandbox = true;   // the departure test is a sandbox too: nothing this session does reaches the save file
         if (_ore && (_depart || _dock || _combat))
         {
             State.cargo["iron"] = 40f; State.cargo["gold"] = 7f;
@@ -150,7 +151,7 @@ public class Game : MonoBehaviour
         Music.I.onGroove = n => { if (started) hud.Toast("♪ " + n + " · groove on the comm channel", false); };
         Music.I.onTrack = n => { if (started) hud.Toast("♪ Now drifting: " + n, false); };
         Music.I.onCombat = n => { if (started) hud.Toast("♪ " + n + " · combat", false); };
-        LoadZone(Data.ZoneById(_smoke || _depart || _dock || _transit ? "kessler" : State.zoneId));
+        LoadZone(Data.ZoneById(_smoke || _depart || _dock || _transit || _walk ? "kessler" : State.zoneId));
         SpawnInZone();
         ship.UpdateCamera(1f);
         Debug.Log("belt: " + belt.count + " rocks in " + belt.ChunkCount + " chunks, built in " + Mathf.RoundToInt((Time.realtimeSinceStartup - t0) * 1000f) + " ms");
@@ -167,7 +168,7 @@ public class Game : MonoBehaviour
             ship.transform.rotation = Ship.LevelHeading(carrier.Dir(new Vector3(0f, 0f, -1f)));
             ship.mouseSteer = false;
         }
-        else if (_depart || _transit)
+        else if (_depart || _transit || _walk)
         {
             StartGame();
             if (!ship.docked) { ship.transform.position = carrier.ToTrue(CargoShip.ParkLocal(1)) - worldOffset; ship.EnterHangar(1); }
@@ -607,6 +608,7 @@ public class Game : MonoBehaviour
     int _combatGun = 0, _combatRocket = 0;
     string _combatFace = "";
     bool _combatTorch = true, _combatTorchPoint;
+    bool _walk; int _walkFrame;
     bool _depart, _dock, _radar, _ore, _raid, _transit, _cockpit, _battle; int _departFrame; string _tab = "";
     string _combatSide = "", _combatShader = "";
     int _combatStandoff = -1;
@@ -748,7 +750,7 @@ public class Game : MonoBehaviour
     void Update()
     {
         // the pointer stays inside the game while it is being played; the pause menu and the start menu let it out
-        Cursor.lockState = started && !paused && Application.isFocused ? CursorLockMode.Confined : CursorLockMode.None;
+        Cursor.lockState = started && !paused && Application.isFocused ? (ship != null && ship.Walking && hud != null && !hud.InvOpen && !hud.MapOpen && !hud.MenuVisible ? CursorLockMode.Locked : CursorLockMode.Confined) : CursorLockMode.None;   // on foot the mouse looks: locked
         float dt = Mathf.Min(Time.deltaTime, 0.05f);
         if (Input.GetKeyDown(KeyCode.Escape))
         {
@@ -783,7 +785,7 @@ public class Game : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F) && ship.docked) hud.ToggleServices();
         if (Input.GetKeyDown(KeyCode.F8) && _combat) hud.ToggleServices();   // the test: the refits anywhere (F is the torch in flight)
         if (Input.GetKeyDown(KeyCode.Tab) || Input.GetKeyDown(KeyCode.I)) hud.ToggleInventory();
-        if (Input.GetKeyDown(KeyCode.N) && ship.warp == null) hud.ToggleMap();
+        if (Input.GetKeyDown(KeyCode.N) && ship.warp == null && !ship.Walking) hud.ToggleMap();   // the map warps: aboard only
         State.time += dt;
         State.TickMarket(dt);
         // the carrier drifts round its orbit; a docked ship rides along with it
@@ -867,6 +869,39 @@ public class Game : MonoBehaviour
             if (_departFrame == 60) ship.StartTransit(true);
             if (_departFrame > 60 && (_departFrame - 60) % 45 == 0 && _departFrame <= 60 + 45 * 9) { int n = (_departFrame - 60) / 45; Shot("transit_" + n); Debug.Log("transit shot " + n + " at " + (ship.transit != null ? ship.transit.t.ToString("0.0") + " s in" : "over") + " · station " + carrier.station + " · outpost " + Data.Fm((outpost.pos - ship.TruePos).magnitude) + " m · supply " + State.shipFuel.ToString("0") + " · docked " + ship.docked + " · offset " + worldOffset.magnitude.ToString("0")); }
             if (_departFrame == 60 + 45 * 9 + 20) Quit();
+        }
+        if (_walk)
+        {
+            // the walk test: out at 60; a look at the ship, a turn and a walk to the workshop terminal, the workshop opened, back
+            _walkFrame++;
+            var w = ship.walker;
+            if (_walkFrame == 5 && tutorial != null) tutorial.Skip();
+            if (_walkFrame == 50) { Shot("walk_0"); Debug.Log("walk: hangar cam " + cam.transform.position.ToString("0.0") + " fwd " + cam.transform.forward.ToString("0.00") + " ship scene " + ship.transform.position.ToString("0.0") + " · ship renderers " + ship.GetComponentsInChildren<MeshRenderer>(false).Length + " · mask " + cam.cullingMask); }
+            if (_walkFrame == 60) w.StepOut();
+            if (w != null && w.Active)
+            {
+                if (_walkFrame == 100) { w.Probe(); w.LookAt(w.Yaw, -25f); }   // up at the ship
+                if (_walkFrame == 120) Shot("walk_1");
+                if (_walkFrame == 136) { }
+                if (_walkFrame == 150) { Debug.Log("walk: cam pos " + cam.transform.position.ToString("0.0") + " fwd " + cam.transform.forward.ToString("0.00") + " near " + cam.nearClipPlane + " far " + cam.farClipPlane + " ship scene " + ship.transform.position.ToString("0.0")); }
+                if (_walkFrame == 151) { w.LookAt(180f, 0f); }   // down the hangar toward the -z mouth
+                if (_walkFrame == 170) Shot("walk_2");
+                if (_walkFrame == 175) { w.FaceStation("workshop"); w.testSpeed = 20f; }   // toward the workshop terminal, off the pad and down the ramp
+                if (_walkFrame == 200) Shot("walk_3");
+                ship.walkTestWish = _walkFrame > 200 && _walkFrame < 330 && (w.near == null || w.near.id != "workshop") ? Vector3.forward : Vector3.zero;
+                if (_walkFrame == 260) Shot("walk_4");
+                if (_walkFrame == 330) Shot("walk_5");
+                if (_walkFrame == 330) w.testSpeed = 1f;
+                if (_walkFrame == 335 && w.near != null) w.near.use();
+                if (_walkFrame == 370) Shot("walk_6");
+                if (_walkFrame == 380) hud.CloseWindow();
+                if (_walkFrame == 381) w.LookAt(90f, -10f);
+                if (_walkFrame == 410) Shot("walk_7");
+                if (_walkFrame == 420) w.Board();
+                if (_walkFrame % 40 == 0) Debug.Log("walk " + _walkFrame + " · feet " + w.FeetLocal.ToString("0.0") + " · yaw " + w.Yaw.ToString("0") + " · near " + (w.near != null ? w.near.name : "-") + " · window " + hud.InvOpen + " · lock " + Cursor.lockState);
+            }
+            if (_walkFrame == 480) { Shot("walk_8"); Debug.Log("walk: aboard again " + !ship.Walking + " · docked " + ship.docked); }
+            if (_walkFrame == 500) Quit();
         }
         if (_depart || _dock)
         {

@@ -416,6 +416,7 @@ public class Hud : MonoBehaviour
         new object[] { new[] { "E" }, "On the pad, deposit all ore into the cargo ship" },
         new object[] { new[] { "Tab", "I" }, "The hangar window · inventory, and the upgrade tabs when docked" },
         new object[] { new[] { "N" }, "Nav map · warp (docked in the cargo ship)" },
+        new object[] { new[] { "G" }, "Docked: step out and walk the hangar deck (WASD, Shift runs, Space jumps, E uses a station or boards)" },
         new object[] { new[] { "F1" }, "Hide · show this list" },
         new object[] { new[] { "F5" }, "Quick-save" },
         new object[] { new[] { "F9" }, "Test · spawn 3 raiders 500 to 1,000 m out" },
@@ -812,7 +813,7 @@ public class Hud : MonoBehaviour
         bool docked = ship.docked;
         bool atHub = ship.hold;
         var sb = new System.Text.StringBuilder();
-        sb.Append(_winTab).Append('|').Append(docked).Append('|').Append(atHub).Append('|').Append(RefitsAvailable).Append('|').Append(zone.id).Append('|');
+        sb.Append(_winTab).Append('|').Append(docked).Append('|').Append(ship.Walking).Append('|').Append(atHub).Append('|').Append(RefitsAvailable).Append('|').Append(zone.id).Append('|');
         if (_winTab == "inv")
         {
             // the inventory tab: its stacks and slots (not the fuel supply or the parts, which tick every frame on the pad
@@ -834,8 +835,8 @@ public class Hud : MonoBehaviour
         _winTitle.text = docked ? "CARGO SHIP" : "SHIP";
         _winSub.text = atHub ? "Off " + (zone.colony ?? "the colony") : docked ? CargoShip.BayName(ship.dockSide) : zone.name;
         _departBtn.SetText(atHub ? "Nav map" : "Depart");
-        _departBtn.rt.gameObject.SetActive(docked);
-        _navBtn.rt.gameObject.SetActive(docked && !atHub);
+        _departBtn.rt.gameObject.SetActive(docked && !ship.Walking);   // on foot nothing departs: the pilot climbs aboard first
+        _navBtn.rt.gameObject.SetActive(docked && !atHub && !ship.Walking);
         _footDepositBtn.rt.gameObject.SetActive(docked);
         _footDepositBtn.interactable = docked && State.CargoTotal() > 0.5f;
         float storeUnits = 0f; foreach (var kv in State.store) storeUnits += kv.Value;
@@ -2018,26 +2019,38 @@ public class Hud : MonoBehaviour
             if (hv != null && !ship.HoverIsLock(hv)) segs.Add(Kbd("Z") + " " + (locked ? "Switch lock to " : "Lock on ") + hv.name);
             else if (locked) segs.Add(Kbd("Z") + " Release lock");
         }
+        // on foot: the walk's keys, or what E does at the station in reach; aboard in the hangar, G steps out first
+        if (started && docked && ship.cut == null)
+        {
+            if (ship.Walking)
+            {
+                segs.Clear();
+                var st = ship.walker.near;
+                if (st != null) segs.Add(Kbd("E") + " " + st.verb);
+                else { segs.Add(Kbd("WASD") + " Walk"); segs.Add(Kbd("Shift") + " Run"); segs.Add(Kbd("Space") + " Jump"); segs.Add("Walk to your ship and press " + Kbd("E") + " to climb aboard"); }
+            }
+            else segs.Insert(0, Kbd("G") + " Step out onto the hangar deck");
+        }
         string ptext = string.Join(Ui.Col("  ·  ", Ui.DIM), segs.ToArray());
         if (ptext != _promptText.text)
         {
             _promptText.text = ptext;
             _prompt.sizeDelta = new Vector2(Mathf.Ceil(_promptText.preferredWidth) + 28f, 36f);
         }
-        float baseY = 18f + BAND_H + 14f + (ship.Cockpit && !docked && !inCut ? 138f : 0f);   // in the cockpit the hint sits just above the deck, in the canopy (55 for the 50-degree lens, 2026-09-22; 135 at 60 degrees; 215 put it on the target)
+        float baseY = ship.Walking ? 28f : 18f + BAND_H + 14f + (ship.Cockpit && !docked && !inCut ? 138f : 0f);   // in the cockpit the hint sits just above the deck, in the canopy (55 for the 50-degree lens, 2026-09-22; 135 at 60 degrees; 215 put it on the target)
         _prompt.anchoredPosition = new Vector2(0f, baseY);
         _notice.anchoredPosition = new Vector2(0f, baseY + (segs.Count > 0 ? _prompt.sizeDelta.y + 10f : 0f));
         _notice.gameObject.SetActive(started && full && !docked && !inCut);
         // what shows when: the hangar hides the situation, the controls and the hint; a cutscene hides nearly everything
         bool showFlight = started && !inCut;
         // the bottom band stands down in the cockpit view in flight (2026-09-21): the dash's three screens carry it
-        bool showBand = showFlight && !(ship.Cockpit && !docked);
+        bool showBand = showFlight && !(ship.Cockpit && !docked) && !ship.Walking;   // on foot the ship's band stands down too
         _status.gameObject.SetActive(showBand);
         float sa = docked ? 0.85f : 1f;
         if (Mathf.Abs(_statusPane.alpha - sa) > 0.01f) { _statusPane.alpha = sa; _statusPane.SetVerticesDirty(); }
         _readouts.gameObject.SetActive(showBand);
         _controls.gameObject.SetActive(showFlight && !docked && _controlsShown);
-        _prompt.gameObject.SetActive(showFlight && !docked && segs.Count > 0);
+        _prompt.gameObject.SetActive(showFlight && (!docked || (!InvOpen && !MapOpen)) && segs.Count > 0);   // docked, the hint shows while no window is up (2026-10-21: G to step out, the walk's keys)
         _target.gameObject.SetActive(showBand);   // up in the hangar too, reading "No target"
         _weaponPane.gameObject.SetActive(showBand);
         if (inCut && _tutBox.gameObject.activeSelf) _tutBox.gameObject.SetActive(false);
@@ -2057,7 +2070,7 @@ public class Hud : MonoBehaviour
             if (InvOpen) CloseWindow();
         }
         var fc = _fade.color;
-        fc.a = ship.WarpFade();
+        fc.a = Mathf.Max(ship.WarpFade(), ship.walker != null ? ship.walker.Fade : 0f);   // and the blink of stepping out of the ship or back in
         _fade.color = fc;
         // the gunnery crosshair: where a bolt goes, at gun range; and the lead pip: where to put it for the locked raider
         if (showFlight && !docked && ship.cut == null && ship.CanFly)
@@ -2074,13 +2087,13 @@ public class Hud : MonoBehaviour
             Cursor.visible = !(_crosshairRt.gameObject.activeSelf && !InvOpen && !MapOpen && !MenuVisible);
             _crosshair.SetHit(game.raiders != null ? game.raiders.hitFlash : 0f, game.raiders != null && game.raiders.hitKill);
         }
-        else { _crosshairRt.gameObject.SetActive(false); Cursor.visible = true; }
+        else { _crosshairRt.gameObject.SetActive(false); Cursor.visible = !(ship.Walking && !InvOpen && !MapOpen && !MenuVisible); }   // on foot the mouse looks: the dot sits at the centre
         // the pointer dot stands in for the hidden pointer, on top of everything
         bool dotOn = !Cursor.visible;
         if (_pointerDot.gameObject.activeSelf != dotOn) _pointerDot.gameObject.SetActive(dotOn);
         if (dotOn)
         {
-            var dm = Input.mousePosition;
+            var dm = ship.Walking ? new Vector3(Screen.width * 0.5f, Screen.height * 0.5f, 0f) : Input.mousePosition;
             _pointerDot.anchoredPosition = new Vector2(dm.x, dm.y) / _canvas.scaleFactor;
             _pointerDot.SetAsLastSibling();
         }

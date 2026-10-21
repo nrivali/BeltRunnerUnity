@@ -106,7 +106,8 @@ public class Audio : MonoBehaviour
         if (_clips.TryGetValue(name, out c)) return c;
         c = Resources.Load<AudioClip>("Sfx/" + name);
         if (c == null && name == "shield_down") c = ShieldDownClip();   // the recorded clip is the one that plays; the synthesized one is the fallback
-        if (c == null && name == "whoosh") c = WhooshClip();   // synthesized: no recorded clip
+        if (c == null && name == "whoosh") c = WhooshClip();
+        if (c == null && name == "step") c = StepClip();   // synthesized: a boot on the hangar's deck plate (2026-10-21)   // synthesized: no recorded clip
         if (c == null && name == "glass_crack") c = CrackClip();   // synthesized: the cockpit glass breaking (2026-09-23)
         _clips[name] = c;
         return c;
@@ -272,6 +273,54 @@ public class Audio : MonoBehaviour
             Count(name);
             return;
         }
+    }
+
+    /// A footfall on the hangar deck (2026-10-21), on two sources in turn so a stride never cuts the last one short, a
+    /// little random in pitch so a walk does not tick like a clock. `extraDb` is louder for a run or a landing.
+    public static void Step(float extraDb = 0f) { if (I != null) I.StepSfx(extraDb); }
+    public const float STEP_DB = -14f;
+    readonly AudioSource[] _step = new AudioSource[2];
+    int _stepI;
+    void StepSfx(float extraDb)
+    {
+        var c = Clip("step");
+        if (c == null) return;
+        _stepI = (_stepI + 1) % _step.Length;
+        var s = _step[_stepI];
+        if (s == null) { s = Src("Step " + _stepI); _step[_stepI] = s; }
+        s.pitch = Random.Range(0.86f, 1.1f);
+        s.volume = Lin(STEP_DB + extraDb);
+        s.clip = c;
+        s.Play();
+        Count("step");
+    }
+
+    /// The footfall, synthesized: a low thump off the boot heel and the deck plate's short metallic ring over it.
+    static AudioClip StepClip()
+    {
+        const int rate = 22050;
+        const float dur = 0.32f;
+        int n = Mathf.RoundToInt(rate * dur);
+        var d = new float[n];
+        var rng = new System.Random(11);
+        float p1 = 0f, p2 = 0f, p3 = 0f, p4 = 0f, lp = 0f;
+        for (int i = 0; i < n; i++)
+        {
+            float t = (float)i / rate;
+            float f = Mathf.Lerp(110f, 60f, Mathf.Clamp01(t / 0.08f));
+            p1 += f / rate * Mathf.PI * 2f;
+            float thump = Mathf.Sin(p1) * Mathf.Exp(-t * 38f);
+            p2 += 870f / rate * Mathf.PI * 2f; p3 += 1430f / rate * Mathf.PI * 2f; p4 += 2310f / rate * Mathf.PI * 2f;
+            float ring = (Mathf.Sin(p2) * 0.5f + Mathf.Sin(p3) * 0.32f + Mathf.Sin(p4) * 0.18f) * Mathf.Exp(-t * 26f) * 0.28f;
+            float noise = (float)rng.NextDouble() * 2f - 1f;
+            lp += (noise - lp) * 0.35f;   // a soft scuff, the grit under the sole
+            float scuff = lp * Mathf.Exp(-t * 60f) * 0.5f;
+            float env = Mathf.Min(1f, i / (rate * 0.002f));
+            d[i] = Mathf.Clamp((thump * 0.9f + ring + scuff) * env * 0.85f, -1f, 1f);
+        }
+        var c = AudioClip.Create("step", n, 1, rate, false);
+        c.SetData(d, 0);
+        return c;
     }
 
     /// The shield going down, synthesized: a tone that falls from 1,100 Hz to 180 Hz over 0.7 s with a crackle of
