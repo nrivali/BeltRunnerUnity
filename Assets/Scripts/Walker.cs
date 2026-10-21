@@ -22,7 +22,7 @@ public class Walker
     // pilot is drawn bigger than a person of that scale (2026-10-21, the user's: "make the player bigger when you are walking
     // around the ship"), and everything sized to the pilot (the stride, the jump, the step, the terminal, the ramps, the reach)
     // grows with it, so only the hangar and the ship look smaller
-    public const float SIZE = 2f;
+    public const float SIZE = 3f;   // 2 first, then "even bigger" the same day
     const float M = Data.SHIP_SCALE * SIZE;
     public const float EYE = 1.68f * M, HEIGHT = 1.8f * M, RADIUS = 0.35f * M;
     public const float WALK = 3.2f * M, RUN = 6.5f * M, JUMP_H = 1.0f * M, GRAVITY = 9.8f * M;
